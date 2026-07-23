@@ -1,0 +1,1784 @@
+<!DOCTYPE html>
+<html lang="el">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Στέγαστρο FINAL — Διαστασιολόγηση Κοιλοδοκών | Τεχνικό Γραφείο Γεωργακόπουλος &amp; Φουντάς</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
+
+:root{
+  --bg:#15181c;
+  --panel:#1c2126;
+  --panel2:#20262c;
+  --line:#2c333b;
+  --text:#dfe3e6;
+  --muted:#8b98a3;
+  --amber:#d99a44;
+  --amber-soft:#c98a3a22;
+  --teal:#4fb3a9;
+  --teal-soft:#4fb3a922;
+  --red:#d9634a;
+  --green:#5aa66b;
+  --font-sans:'IBM Plex Sans', 'Segoe UI', system-ui, sans-serif;
+  --font-mono:'IBM Plex Mono', 'Consolas', monospace;
+}
+*{box-sizing:border-box;}
+body{
+  margin:0; background:var(--bg); color:var(--text);
+  font-family:var(--font-sans); font-size:14px; line-height:1.5;
+  padding:0 0 60px;
+}
+header{
+  background:linear-gradient(180deg,#1a1f24,#161a1e);
+  border-bottom:1px solid var(--line);
+  padding:22px 28px 18px;
+}
+header .eyebrow{
+  color:var(--amber); font-family:var(--font-mono); font-size:11px;
+  letter-spacing:.12em; text-transform:uppercase; margin-bottom:6px;
+}
+header h1{margin:0; font-size:21px; font-weight:600; letter-spacing:-0.01em;}
+header .sub{color:var(--muted); font-size:12.5px; margin-top:4px;}
+
+.disclaimer{
+  max-width:1180px; margin:16px auto 0; padding:12px 16px;
+  background:var(--amber-soft); border:1px solid #c98a3a44; border-left:3px solid var(--amber);
+  border-radius:4px; font-size:12.5px; color:#e8c896;
+}
+.disclaimer b{color:var(--amber);}
+
+.wrap{max-width:1180px; margin:0 auto; padding:0 28px;}
+
+.grid{display:grid; grid-template-columns: 400px 1fr; gap:20px; margin-top:20px;}
+@media (max-width:900px){ .grid{grid-template-columns:1fr;} }
+
+.card{
+  background:var(--panel); border:1px solid var(--line); border-radius:6px;
+  padding:18px 18px 20px;
+}
+.card + .card{margin-top:16px;}
+.card h2{
+  font-size:12.5px; text-transform:uppercase; letter-spacing:.08em;
+  color:var(--teal); margin:0 0 14px; font-weight:600;
+  display:flex; align-items:center; gap:8px;
+}
+.card h2::after{content:''; flex:1; height:1px; background:var(--line);}
+
+.field{margin-bottom:12px;}
+.field label{
+  display:block; font-size:12px; color:var(--muted); margin-bottom:4px;
+}
+.field .hint{font-size:10.5px; color:#6a7682; margin-top:3px;}
+.field input[type=number], .field select{
+  width:100%; background:var(--panel2); border:1px solid var(--line); color:var(--text);
+  padding:8px 10px; border-radius:4px; font-family:var(--font-mono); font-size:13px;
+}
+.field input:focus, .field select:focus{outline:none; border-color:var(--teal);}
+.row2{display:grid; grid-template-columns:1fr 1fr; gap:10px;}
+.row3{display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px;}
+
+button#calc, button.exportBtn{
+  width:100%; margin-top:6px; padding:12px; border:none; border-radius:4px;
+  font-weight:600; font-size:13.5px; letter-spacing:.02em;
+  cursor:pointer; font-family:var(--font-sans);
+}
+button#calc{background:var(--amber); color:#1a1408;}
+button#calc:hover{background:#e8ab5a;}
+button.exportBtn{
+  background:transparent; color:var(--teal);
+  border:1px solid var(--teal); margin-top:10px;
+}
+button.exportBtn:hover{background:var(--teal-soft);}
+button.exportBtn:disabled{opacity:.5; cursor:default;}
+
+.results-empty{
+  color:var(--muted); text-align:center; padding:60px 20px; font-size:13px;
+}
+
+.summary-strip{display:grid; grid-template-columns:repeat(4,1fr); gap:10px; margin-bottom:18px;}
+@media (max-width:700px){ .summary-strip{grid-template-columns:repeat(2,1fr);} }
+.stat{background:var(--panel2); border:1px solid var(--line); border-radius:4px; padding:10px 12px;}
+.stat .k{font-size:10px; color:var(--muted); text-transform:uppercase; letter-spacing:.06em;}
+.stat .v{font-family:var(--font-mono); font-size:16px; color:var(--teal); margin-top:3px;}
+
+table{width:100%; border-collapse:collapse; font-size:12.5px;}
+th{
+  text-align:left; color:var(--muted); font-weight:500; font-size:10.5px;
+  text-transform:uppercase; letter-spacing:.05em; padding:7px 10px; border-bottom:1px solid var(--line);
+}
+td{padding:8px 10px; border-bottom:1px solid #23282e; font-family:var(--font-mono);}
+tr:last-child td{border-bottom:none;}
+td.label{font-family:var(--font-sans); color:var(--muted);}
+.pill{
+  display:inline-block; padding:2px 8px; border-radius:20px; font-size:11px; font-family:var(--font-mono);
+}
+.pill.ok{background:#2c4a3322; color:var(--green); border:1px solid #2c4a3355;}
+.pill.warn{background:#4a2c2c22; color:var(--red); border:1px solid #4a2c2c55;}
+.section-title{
+  font-size:13px; font-weight:600; color:var(--text); margin:22px 0 10px;
+  display:flex; align-items:center; gap:8px;
+}
+.section-title .n{
+  width:20px; height:20px; border-radius:3px; background:var(--teal-soft); color:var(--teal);
+  display:flex; align-items:center; justify-content:center; font-family:var(--font-mono); font-size:11px;
+}
+.note{font-size:11.5px; color:var(--muted); margin-top:8px; line-height:1.6;}
+.note b{color:#b7c0c8;}
+
+.sketch-grid{display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-top:8px;}
+@media (max-width:700px){ .sketch-grid{grid-template-columns:1fr;} }
+.sketch-grid.three{grid-template-columns:1fr 1fr 1fr;}
+.sketch-cap{font-size:11px; color:var(--teal); text-transform:uppercase; letter-spacing:.06em; margin-bottom:6px; font-weight:600;}
+svg.sk{width:100%; height:auto; background:var(--bg); border:1px solid var(--line); border-radius:4px; display:block;}
+svg.sk text{font-family:Arial, sans-serif;}
+
+footer{
+  max-width:1180px; margin:30px auto 0; padding:16px 28px 0; border-top:1px solid var(--line);
+  color:var(--muted); font-size:11.5px; text-align:right;
+}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="eyebrow">Τεχνικό Γραφείο Μελετών — Γεωργακόπουλος Χρήστος / Φουντάς Αθανάσιος</div>
+  <h1>Ολοκληρωμένη Προδιαστασιολόγηση Μεταλλικού Στεγάστρου</h1>
+  <div class="sub">Υποστυλώματα · Δοκοί/Ζευκτά · Τεγίδες · Χιαστί στέγης &amp; πλαϊνά χιαστί — RHS/SHS EN10210</div>
+</header>
+
+<div class="disclaimer">
+  <b>Προκαταρκτικός υπολογισμός (προμελέτη).</b> Απλοποιημένη στατική επίλυση για γρήγορη εκτίμηση διατομών
+  και κόστους πριν την οριστική μελέτη. Δεν υποκαθιστά πλήρη ανάλυση σε εξειδικευμένο λογισμικό
+  (π.χ. Runet SteelPortalFrameEC3, FespaM, SAP2000, Consteel) — απαιτείται τελικός έλεγχος πριν την κατασκευή.
+</div>
+
+<div class="wrap">
+<div class="grid">
+
+  <!-- INPUT COLUMN -->
+  <div>
+    <div class="card">
+      <h2>Γεωμετρία</h2>
+      <div class="row2">
+        <div class="field"><label>Διάσταση X (m)</label><input type="number" id="dimX" value="24" step="0.1" min="2"></div>
+        <div class="field"><label>Διάσταση Y (m)</label><input type="number" id="dimY" value="10" step="0.1" min="2"></div>
+      </div>
+      <div class="field">
+        <label>Αριθμός σειρών υποστυλωμάτων ανά Χ</label>
+        <input type="number" id="nRows" value="5" step="1" min="2">
+        <div class="hint">Ορίζει τον αριθμό φατνωμάτων = σειρές − 1</div>
+      </div>
+      <div class="field">
+        <label>Ελεύθερο ύψος υποστυλωμάτων (m)</label>
+        <input type="number" id="colH" value="3.50" step="0.05" min="2">
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Επικάλυψη &amp; στέγη</h2>
+      <div class="field">
+        <label>Τύπος επικάλυψης</label>
+        <select id="covering">
+          <option value="panel">Πάνελ αλουμινίου, πάχος 5cm</option>
+          <option value="tile">Ξύλινη κεραμοσκεπή</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Σχήμα στέγης</label>
+        <select id="shape">
+          <option value="duo">Δίριχτη (δικλινής)</option>
+          <option value="mono">Μονόριχτη (μονοκλινής)</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Κλίση στέγης (%)</label>
+        <input type="number" id="slope" value="7" step="0.5" min="1">
+        <div class="hint">Προεπιλογή ανά επικάλυψη — επεξεργάσιμη</div>
+      </div>
+      <div class="field">
+        <label>Αριθμός τεγίδων ανά παρειά</label>
+        <input type="number" id="purlinCount" value="6" step="1" min="2">
+        <div class="hint">Πλήθος διαστημάτων (γραμμές = αριθμός+1) σε κάθε κλίση</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Άνεμος (EN1991-1-4)</h2>
+      <div class="row2">
+        <div class="field">
+          <label>Βασική ταχύτητα vb,0</label>
+          <select id="windZone">
+            <option value="27">27 m/s (ενδοχώρα)</option>
+            <option value="30">30 m/s</option>
+            <option value="33">33 m/s (παράκτια)</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Κατηγορία εδάφους (Πίν.4.1)</label>
+          <select id="terrain">
+            <option value="0">0 — θάλασσα</option>
+            <option value="I">I — ανοιχτό/λίμνη</option>
+            <option value="II" selected>II — αγροτικό</option>
+            <option value="III">III — προάστια/δάσος</option>
+            <option value="IV">IV — αστικό</option>
+          </select>
+        </div>
+      </div>
+      <div class="row3">
+        <div class="field"><label>c<sub>dir</sub></label><input type="number" id="cdir" value="1.0" step="0.05" min="0.5"></div>
+        <div class="field"><label>c<sub>season</sub></label><input type="number" id="cseason" value="1.0" step="0.05" min="0.5"></div>
+        <div class="field"><label>c<sub>0</sub> (ανάγλυφο)</label><input type="number" id="co" value="1.0" step="0.05" min="1"></div>
+      </div>
+      <div class="row2">
+        <div class="field">
+          <label>c<sub>p,net</sub> (πίεση)</label>
+          <input type="number" id="cpnet" value="1.20" step="0.05" min="0.3">
+          <div class="hint">Θετικό για πίεση (συνήθως +1,2 για στέγαστρα)</div>
+        </div>
+        <div class="field">
+          <label>c<sub>p,net</sub> (αναρρόφηση)</label>
+          <input type="number" id="cpnet_neg" value="-1.2" step="0.05" max="-0.3">
+          <div class="hint">Αρνητικό για αναρρόφηση (συνήθως -1,2 έως -0,8)</div>
+        </div>
+      </div>
+      <div class="field">
+        <label>c<sub>fr</sub> τριβής</label>
+        <input type="number" id="cfr" value="0.02" step="0.005" min="0">
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Χιόνι (EN1991-1-3)</h2>
+      <div class="row3">
+        <div class="field"><label>s<sub>k</sub> (kN/m²)</label><input type="number" id="sk" value="0.80" step="0.05" min="0"></div>
+        <div class="field"><label>C<sub>e</sub> έκθεσης</label><input type="number" id="ce" value="1.0" step="0.1" min="0.5"></div>
+        <div class="field"><label>C<sub>t</sub> θερμικός</label><input type="number" id="ct" value="1.0" step="0.1" min="0.5"></div>
+      </div>
+      <div class="hint">s = μ<sub>i</sub>·C<sub>e</sub>·C<sub>t</sub>·s<sub>k</sub>. Το s<sub>k</sub> εξαρτάται από ζώνη &amp; υψόμετρο — από Εθνικό Προσάρτημα.</div>
+    </div>
+
+    <div class="card">
+      <h2>Σεισμός (EN1998) &amp; σπουδαιότητα</h2>
+      <div class="row2">
+        <div class="field"><label>a<sub>gR</sub>/g</label><input type="number" id="agR" value="0.24" step="0.01" min="0.08"></div>
+        <div class="field">
+          <label>Κατηγορία εδάφους (EC8)</label>
+          <select id="soilClass">
+            <option value="1.00">A — Βράχος (S=1,00)</option>
+            <option value="1.35">B — Πολύ πυκνή άμμος/χαλίκι (S=1,35)</option>
+            <option value="1.15">C — Πυκνή άμμος/άκαμπτη άργιλος (S=1,15)</option>
+            <option value="1.35">D — Χαλαρά/μαλακή άργιλος (S=1,35)</option>
+            <option value="1.40" selected>E — Αλλουβιακό στρώμα πάνω από βράχο (S=1,40)</option>
+          </select>
+        </div>
+      </div>
+      <div class="field">
+        <label>q συμπεριφοράς</label>
+        <input type="number" id="qbeh" value="1.50" step="0.1" min="1">
+      </div>
+      <div class="field">
+        <label>Κατηγορία σπουδαιότητας</label>
+        <select id="importance">
+          <option value="0.8">Ι (γΙ=0,8)</option>
+          <option value="1.0" selected>ΙΙ (γΙ=1,0)</option>
+          <option value="1.2">ΙΙΙ (γΙ=1,2)</option>
+          <option value="1.4">ΙV (γΙ=1,4)</option>
+        </select>
+      </div>
+      <div class="hint">a<sub>gR</sub>, ζώνη &amp; έδαφος κατά περιοχή/Εθνικό Προσάρτημα — για Ηλεία επιβεβαιώστε ανά Δήμο. Απλοποιημένη ισοδύναμη στατική (πλατό φάσματος).</div>
+    </div>
+
+    <div class="card">
+      <h2>Χάλυβας &amp; χιαστί</h2>
+      <div class="field">
+        <label>Ποιότητα χάλυβα</label>
+        <select id="steelGrade">
+          <option value="235">S235 (fy=235 MPa)</option>
+          <option value="275" selected>S275 (fy=275 MPa)</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Πρότυπο διατομής / καμπύλη λυγισμού</label>
+        <select id="standard">
+          <option value="10210" selected>EN10210 θερμής έλασης → καμπύλη a</option>
+          <option value="10219">EN10219 ψυχρής έλασης → καμπύλη c</option>
+        </select>
+        <div class="hint">EC3 Πίν.6.2: κοίλες θερμής=a (α=0,21), ψυχρής=c (α=0,49).</div>
+      </div>
+      <div class="field">
+        <label>Μέγιστο πάχος τοιχώματος μελών (mm)</label>
+        <select id="maxT">
+          <option value="3">3 mm</option>
+          <option value="4" selected>4 mm</option>
+          <option value="5">5 mm</option>
+          <option value="6">6 mm</option>
+          <option value="8">8 mm</option>
+          <option value="10">10 mm</option>
+        </select>
+        <div class="hint">Το πάχος σε mm. Η ελάχιστη διατομή υπολογίζεται εντός του ορίου.</div>
+      </div>
+      <div class="field">
+        <label>Πλαϊνά χιαστί (υποστυλωμάτων)</label>
+        <select id="sideBracing">
+          <option value="yes" selected>Ναι — κατακόρυφα χιαστί στα πλαϊνά</option>
+          <option value="no">Όχι — παραλαβή εκτός επιπέδου από τα υποστυλώματα</option>
+        </select>
+        <div class="hint">Αν όχι, τα υποστυλώματα σχεδιάζονται ως πρόβολοι στον ασθενή άξονα.</div>
+      </div>
+      <div class="field" id="roofBracingField">
+        <label>Χιαστί στέγης (πρώτο &amp; τελευταίο φάτνωμα)</label>
+        <select id="roofBracing">
+          <option value="yes" selected>Ναι</option>
+          <option value="no">Όχι</option>
+        </select>
+        <div class="hint">Οριζόντιοι διαγώνιοι σύνδεσμοι στο επίπεδο της στέγης.</div>
+      </div>
+      <div class="field" id="bracedEndsField">
+        <label>Αριθμός βατών φατνωμάτων ανά άκρο (για χιαστί στέγης)</label>
+        <input type="number" id="bracedEnds" value="1" step="1" min="1" max="4">
+        <div class="hint">Προεπιλογή: 1 βατό φάτνωμα σε κάθε άκρο (σύνολο 2).</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Κεφαλοδοκοί &amp; θεμελίωση</h2>
+      <div class="field">
+        <label>Κεφαλοδοκός κατά Χ (μεγάλη πλευρά / στέψη)</label>
+        <select id="headX">
+          <option value="no">Όχι</option>
+          <option value="yes" selected>Ναι — περιμετρική στις δύο μακριές πλευρές</option>
+        </select>
+        <div class="hint">Οριζόντια δοκός στη στάθμη κεφαλής, ανά φάτνωμα.</div>
+      </div>
+      <div class="field">
+        <label>Κεφαλοδοκός κατά Υ (μικρή πλευρά)</label>
+        <select id="headY">
+          <option value="no">Όχι</option>
+          <option value="yes" selected>Ναι — σύνδεση κεφαλών ανά πλαίσιο</option>
+        </select>
+        <div class="hint">Οριζόντια δοκός/ελκυστήρας κεφαλών κατά Υ (μήκος = Υ).</div>
+      </div>
+      <div class="field">
+        <label>Επιτρεπόμενη τάση εδάφους σ<sub>επ</sub> (kN/m²)</label>
+        <input type="number" id="soilStress" value="200" step="10" min="50">
+        <div class="hint">Εκτιμώμενη τιμή για τον προκαταρκτικό γεωτεχνικό έλεγχο.</div>
+      </div>
+      <div class="row3">
+        <div class="field"><label>Εγκιβωτισμός υποστυλώματος (m)</label><input type="number" id="embedDepth" value="0.30" step="0.05" min="0.30"></div>
+        <div class="field"><label>Ελάχιστο ύψος πεδίλου (m)</label><input type="number" id="minFootingH" value="0.40" step="0.05" min="0.40"></div>
+        <div class="field"><label>f<sub>ck</sub> σκυροδέματος (MPa)</label><input type="number" id="concreteFck" value="25" step="5" min="20"></div>
+      </div>
+      <div class="hint">Βάση χωρίς πλάκα και αγκύρια: το SHS εισέρχεται στο πέδιλο και η τέμνουσα/ροπή μεταφέρονται μέσω εγκιβωτισμού. Η εφαρμογή δεν πιστώνει συνάφεια χάλυβα–σκυροδέματος για καθαρό εφελκυσμό.</div>
+    </div>
+
+    <div class="card">
+      <h2>Τιμές προμέτρησης &amp; προϋπολογισμού</h2>
+      <div class="row2">
+        <div class="field"><label>Προμήθεια χάλυβα (€/kg)</label><input type="number" id="costSteel" value="2.20" step="0.05" min="0"></div>
+        <div class="field"><label>Κατασκευή εργαστηρίου (€/kg)</label><input type="number" id="costFabrication" value="2.00" step="0.05" min="0"></div>
+      </div>
+      <div class="row2">
+        <div class="field"><label>Ανέγερση / τοποθέτηση (€/kg)</label><input type="number" id="costErection" value="0.85" step="0.05" min="0"></div>
+        <div class="field"><label>Βαφή / προστασία (€/kg)</label><input type="number" id="costCoating" value="0.55" step="0.05" min="0"></div>
+      </div>
+      <div class="row2">
+        <div class="field"><label>Επικάλυψη (€/m² κεκλιμένης)</label><input type="number" id="costCover" value="45" step="1" min="0"></div>
+        <div class="field"><label>Σκυρόδεμα πεδίλων (€/m³)</label><input type="number" id="costConcrete" value="135" step="5" min="0"></div>
+      </div>
+      <div class="row2">
+        <div class="field"><label>Οπλισμός θεμελίωσης (€/kg)</label><input type="number" id="costRebar" value="1.55" step="0.05" min="0"></div>
+        <div class="field"><label>Συνδέσεις / κοχλίες (% χάλυβα)</label><input type="number" id="connectionPct" value="12" step="1" min="0"></div>
+      </div>
+      <div class="field"><label>Απρόβλεπτα (%)</label><input type="number" id="contingencyPct" value="10" step="1" min="0"></div>
+      <div class="hint">Οι τιμές είναι επεξεργάσιμες και χρησιμοποιούνται μόνο για ενδεικτική προμέτρηση/προϋπολογισμό.</div>
+    </div>
+
+    <button id="calc">Υπολογισμός διατομών &amp; πεδίλων</button>
+    <button id="pdfBtn" class="exportBtn" style="display:none;">1. PDF κατασκευαστικών σχεδίων</button>
+    <button id="reportBtn" class="exportBtn" style="display:none;">2. Αναλυτικό Τεύχος Υπολογισμών</button>
+    <button id="dxfBtn" class="exportBtn" style="display:none;">3. DXF 1:1 — Arial / Unicode / πραγματικές διατομές</button>
+    <button id="budgetBtn" class="exportBtn" style="display:none;">5. Προμέτρηση &amp; Προϋπολογισμός</button>
+    <button id="packageBtn" class="exportBtn" style="display:none;">Εξαγωγή πλήρους πακέτου</button>
+  </div>
+
+  <!-- RESULTS COLUMN -->
+  <div id="results">
+    <div class="card"><div class="results-empty">Συμπλήρωσε τα δεδομένα και πάτησε «Υπολογισμός διατομών &amp; πεδίλων».</div></div>
+  </div>
+
+</div>
+</div>
+
+<footer>
+  Τεχνικό Γραφείο Μελετών — Γεωργακόπουλος Χρήστος, Διπλωματούχος Πολιτικός Μηχανικός Ε.Μ.Π. · ΑΜ ΤΕΕ 101893 · Αμαλιάδα
+</footer>
+
+<script>
+/* ============ ΚΑΤΑΛΟΓΟΣ ΔΙΑΤΟΜΩΝ RHS/SHS ============ */
+function buildCatalog(){
+  const squares=[40,50,60,70,80,90,100,110,120,140,150,160,180,200,220,250,300];
+  const rects=[[60,40],[80,40],[80,60],[100,50],[100,60],[120,60],[120,80],[140,80],[150,100],[160,80],[180,100],[200,100],[200,120],[250,150],[300,200]];
+  const ts=[3,4,5,6,8,10];
+  const kd=0.95;
+  const list=[];
+  const add=(h,b)=>{
+    for(const t of ts){
+      if((h-2*t)<=0 || (b-2*t)<=0) continue;
+      if(t*2 >= Math.min(h,b)) continue;
+      const Ag=(h*b-(h-2*t)*(b-2*t))/100; // cm2
+      const Iy=(b*Math.pow(h,3)-(b-2*t)*Math.pow(h-2*t,3))/12/1e4*kd; // cm4
+      const Iz=(h*Math.pow(b,3)-(h-2*t)*Math.pow(b-2*t,3))/12/1e4*kd; // cm4
+      const A=Ag*kd;
+      const Wy=Iy*20/h;
+      const Wz=Iz*20/b;
+      const Wply=((b*h*h - (b-2*t)*Math.pow(h-2*t,2))/4)/1000*kd; // cm3
+      const Wplz=((h*b*b - (h-2*t)*Math.pow(b-2*t,2))/4)/1000*kd; // cm3
+      const m=Ag*0.785;
+      const tag=(h===b?'SHS':'RHS');
+      list.push({n:`${tag} ${h}x${b}x${t}`, h, b, t, A:+A.toFixed(2), Iy:+Iy.toFixed(1), Iz:+Iz.toFixed(1),
+        Wy:+Wy.toFixed(1), Wz:+Wz.toFixed(1), Wply:+Wply.toFixed(1), Wplz:+Wplz.toFixed(1), m:+m.toFixed(1)});
+    }
+  };
+  squares.forEach(s=>add(s,s));
+  rects.forEach(([h,b])=>add(h,b));
+  return list.sort((a,b)=> a.m-b.m || b.Wy-a.Wy);
+}
+const CATALOG = buildCatalog();
+let CAT = CATALOG;
+let MAXT = 4;
+let ALPHA = 0.21;
+
+const PURLIN_MAXH = 200;
+const RODS = [12,14,16,18,20,22,24,27,30,33,36];
+const THREAD_AS = {12:84.3,14:115,16:157,18:192,20:245,22:303,24:353,27:459,30:561,33:694,36:817};
+const E = 210000;
+const GM0 = 1.0;
+const GM1 = 1.0;
+const GM2 = 1.25;
+
+function fu_of(fy){ return fy<=235 ? 360 : (fy<=275 ? 430 : 510); }
+function NplRd(A, fy){ return A*fy*0.1/GM0; }
+function NtRd(A, fy){ return A*fy*0.1/GM0; }
+function shearArea(A,h,b){ return A*h/(b+h); }
+function VplRd(Av, fy){ return Av*(fy/Math.sqrt(3))*0.1/GM0; }
+function Ncr(I, Lcr){ return Math.PI*Math.PI*E*I*1e-5/(Lcr*Lcr); }
+function chiBuckling(lambdaBar, alpha){
+  const phi = 0.5*(1+alpha*(lambdaBar-0.2)+lambdaBar*lambdaBar);
+  const val = phi*phi-lambdaBar*lambdaBar;
+  const chi = 1/(phi+Math.sqrt(Math.max(val,0)));
+  return Math.min(chi,1.0);
+}
+function NbRd(A, I, Lcr, fy, alpha){
+  const ncr = Ncr(I, Lcr);
+  const lambdaBar = Math.sqrt((A*fy*0.1)/ncr);
+  const chi = chiBuckling(lambdaBar, alpha);
+  return {NbRd: chi*A*fy*0.1/GM1, lambdaBar, chi};
+}
+function deflectionMM(w, L, I){ return 5*w*Math.pow(L,4)*1e8/(384*E*I); }
+
+function classifyBox(s, fy){
+  const eps = Math.sqrt(235/fy);
+  const rate = (c)=> c/s.t;
+  const cc = (Math.max(s.h,s.b)-3*s.t);
+  const rc = rate(cc);
+  const comp = rc<=33*eps?1 : rc<=38*eps?2 : rc<=42*eps?3 : 4;
+  const rf = rate(Math.min(s.h,s.b)-3*s.t);
+  const flangeCl = rf<=33*eps?1 : rf<=38*eps?2 : rf<=42*eps?3 : 4;
+  const rw = rate(Math.max(s.h,s.b)-3*s.t);
+  const webCl = rw<=72*eps?1 : rw<=83*eps?2 : rw<=124*eps?3 : 4;
+  const bend = Math.max(flangeCl, webCl);
+  return {comp, bend};
+}
+function McClass(s, axis, cls, fy){
+  const Wpl = axis==='y'?s.Wply:s.Wplz, Wel = axis==='y'?s.Wy:s.Wz;
+  const W = (cls<=2)?Wpl:Wel;
+  return W*fy/1000;
+}
+
+const TERRAIN = {'0':{z0:0.003,zmin:1},'I':{z0:0.01,zmin:1},'II':{z0:0.05,zmin:2},'III':{z0:0.3,zmin:5},'IV':{z0:1.0,zmin:10}};
+function windPressure(vb0, ze, terrainKey, cdir, cseason, co){
+  const rho=1.25;
+  const {z0,zmin}=TERRAIN[terrainKey]||TERRAIN['II'];
+  const kr=0.19*Math.pow(z0/0.05,0.07);
+  const z=Math.max(ze,zmin);
+  const vb=cdir*cseason*vb0;
+  const cr=kr*Math.log(z/z0);
+  const vm=cr*co*vb;
+  const Iv=1/(co*Math.log(z/z0));
+  const qp=(1+7*Iv)*0.5*rho*vm*vm/1000;
+  const qb=0.5*rho*vb*vb/1000;
+  return {qp, ce:qp/qb, vm, vb, kr, z0, zmin};
+}
+function snowMu(angleDeg){
+  if(angleDeg<=30) return 0.8;
+  if(angleDeg<60) return 0.8*(60-angleDeg)/30;
+  return 0;
+}
+function fmt(x,d=2){ if(x===undefined || isNaN(x)) return '—'; return (Math.round(x*Math.pow(10,d))/Math.pow(10,d)).toLocaleString('el-GR',{minimumFractionDigits:d,maximumFractionDigits:d}); }
+
+function assertFinite(name, value){
+  if(!Number.isFinite(value)) throw new Error(`${name}: μη έγκυρη αριθμητική τιμή (${value})`);
+}
+
+function validateInputs(v){
+  const errors=[];
+  const finiteFields=['X','Y','nRows','Lc','slopePct','vb0','sk','cpnet','cpnet_neg','cfr','gammaI','fy','purlinCount','soilStress','Ce','Ct','agR','Ssoil','qbeh'];
+  finiteFields.forEach(k=>{ if(!Number.isFinite(v[k])) errors.push(`Το πεδίο ${k} δεν είναι έγκυρος αριθμός.`); });
+  if(v.X<2 || v.X>120) errors.push('Η συνολική διάσταση X πρέπει να είναι 2–120 m.');
+  if(v.Y<2 || v.Y>30) errors.push('Η διάσταση Y πρέπει να είναι 2–30 m.');
+  if(v.nRows<2 || v.nRows>41 || !Number.isInteger(v.nRows)) errors.push('Οι σειρές υποστυλωμάτων πρέπει να είναι ακέραιος αριθμός 2–41.');
+  if(v.Lc<2 || v.Lc>12) errors.push('Το ελεύθερο ύψος πρέπει να είναι 2–12 m.');
+  if(v.slopePct<1 || v.slopePct>100) errors.push('Η κλίση πρέπει να είναι 1–100%.');
+  if(v.sk<0 || v.sk>10) errors.push('Το s_k πρέπει να είναι 0–10 kN/m².');
+  if(v.Ce<0.5 || v.Ce>2.0 || v.Ct<0.5 || v.Ct>2.0) errors.push('Οι συντελεστές Ce και Ct πρέπει να είναι 0,5–2,0.');
+  if(v.cpnet<=0) errors.push('Ο c_p,net πίεσης πρέπει να είναι θετικός.');
+  if(v.cpnet_neg>=0) errors.push('Ο c_p,net αναρρόφησης πρέπει να είναι αρνητικός.');
+  if(v.purlinCount<2 || v.purlinCount>20) errors.push('Τα διαστήματα τεγίδων ανά παρειά πρέπει να είναι 2–20.');
+  if(v.soilStress<50 || v.soilStress>1000) errors.push('Η επιτρεπόμενη τάση εδάφους πρέπει να είναι 50–1000 kN/m².');
+  if(v.qbeh<1 || v.qbeh>4) errors.push('Ο συντελεστής συμπεριφοράς q πρέπει να είναι 1–4 για το πεδίο της εφαρμογής.');
+  if(errors.length) throw new Error(errors.join(' '));
+}
+
+function buildLoadCombinations(G, S, Wpos, Wneg){
+  const psi0Snow=0.50, psi0Wind=0.60;
+  const combos=[
+    {id:'ULS-G', label:'1,35G', value:1.35*G},
+    {id:'ULS-S', label:'1,35G + 1,50S', value:1.35*G+1.50*S},
+    {id:'ULS-W+', label:'1,35G + 1,50W(+)', value:1.35*G+1.50*Wpos},
+    {id:'ULS-S+W', label:'1,35G + 1,50S + 1,50·ψ₀,W·W(+)', value:1.35*G+1.50*S+1.50*psi0Wind*Wpos},
+    {id:'ULS-W+S', label:'1,35G + 1,50W(+) + 1,50·ψ₀,S·S', value:1.35*G+1.50*Wpos+1.50*psi0Snow*S}
+  ];
+  const downward=combos.reduce((a,b)=>b.value>a.value?b:a);
+  const uplift={id:'ULS-UP', label:'0,90G + 1,50W(−)', value:0.90*G+1.50*Wneg};
+  return {combos, downward, uplift, psi0Snow, psi0Wind};
+}
+
+function pickPurlinWithCount(span, wPerp, wPar, limitDefl, preferredCount){
+  // Το preferredCount αφορά τα διαστήματα τεγίδων πάνω στην κλίση και όχι
+  // ενδιάμεσες στηρίξεις κατά το άνοιγμα. Η τεγίδα ελέγχεται στο πλήρες bay.
+  const L = span;
+  for(const sec of CAT){
+    if(sec.h>PURLIN_MAXH) continue;
+    const cl=classifyBox(sec,purlinFy); if(cl.bend===4) continue;
+    const My=wPerp*L*L/8, Mz=wPar*L*L/8;
+    const McY=McClass(sec,'y',cl.bend,purlinFy), McZ=McClass(sec,'z',cl.bend,purlinFy);
+    const util=My/McY+Mz/McZ;
+    const defl=deflectionMM(wPerp,L,sec.Iy);
+    if(util<=1.0 && defl<=limitDefl){
+      return {sec,My,Mz,util,defl,limitDefl,cls:cl.bend,L,n:preferredCount,McY,McZ};
+    }
+  }
+  return null;
+}
+
+function pickBeam(span, w, fy, limitDefl){
+  for(const s of CAT){
+    const cl=classifyBox(s,fy); if(cl.bend===4) continue;
+    const M = w*span*span/8;
+    const V = w*span/2;
+    const Mc = McClass(s,'y',cl.bend,fy);
+    const Av = shearArea(s.A, s.h, s.b);
+    const Vc = VplRd(Av, fy);
+    const defl = deflectionMM(w, span, s.Iy);
+    const utilM = M/Mc, utilV = V/Vc;
+    if(utilM<=1.0 && utilV<=1.0 && defl<=limitDefl){
+      return {sec:s, M, V, Mc, Vc, utilM, utilV, defl, limitDefl, cls:cl.bend};
+    }
+  }
+  return null;
+}
+
+function selectColumn(NEd, MEdy, MEdz, LcrStrong, LcrWeak, fy, connectionFaceWidth=0){
+  const Cmy=0.9, Cmz=0.9, chiLT=1.0;
+  let best=null;
+  if(NEd < 0){
+    const F = Math.abs(NEd);
+    for(const s of CAT){
+      const Nt = NtRd(s.A, fy);
+      const cl = classifyBox(s,fy);
+      if(cl.bend===4) continue;
+      const McY = McClass(s,'y',cl.bend,fy);
+      const McZ = McClass(s,'z',cl.bend,fy);
+      const util = F/Nt + MEdy/McY + MEdz/McZ;
+      const candidate={sec:s, tension:true, Nt, utilTension:util, NEd, MEdy, MEdz,
+        connectionFaceWidth, connectionRequiresDetail:Math.min(s.h,s.b)<connectionFaceWidth, cls:cl, governingUtil:util};
+      if(!best || util<best.governingUtil) best=candidate;
+      if(util <= 1.0) return candidate;
+    }
+    return best ? {...best, failed:true} : null;
+  }
+  for(const s of CAT){
+    const cl=classifyBox(s,fy); if(cl.comp===4 || cl.bend===4) continue;
+    const by = NbRd(s.A, s.Iy, LcrStrong, fy, ALPHA);
+    const bz = NbRd(s.A, s.Iz, LcrWeak, fy, ALPHA);
+    const NRk = s.A*fy*0.1;
+    const MyRk = McClass(s,'y',cl.bend,fy);
+    const MzRk = McClass(s,'z',cl.bend,fy);
+    const ny = NEd/(by.chi*NRk/GM1);
+    const nz = NEd/(bz.chi*NRk/GM1);
+    let kyy, kzz;
+    if(cl.bend<=2){
+      kyy = Math.min(Cmy*(1+(by.lambdaBar-0.2)*ny), Cmy*(1+0.8*ny));
+      kzz = Math.min(Cmz*(1+(2*bz.lambdaBar-0.6)*nz), Cmz*(1+1.4*nz));
+    } else {
+      kyy = Math.min(Cmy*(1+0.6*by.lambdaBar*ny), Cmy*(1+0.6*ny));
+      kzz = Math.min(Cmz*(1+0.6*bz.lambdaBar*nz), Cmz*(1+0.6*nz));
+    }
+    kyy=Math.max(0,kyy); kzz=Math.max(0,kzz);
+    const kyz = 0.6*kzz, kzy = 0.6*kyy;
+    const u1 = NEd/(by.chi*NRk/GM1) + kyy*MEdy/(chiLT*MyRk/GM1) + kyz*MEdz/(MzRk/GM1);
+    const u2 = NEd/(bz.chi*NRk/GM1) + kzy*MEdy/(chiLT*MyRk/GM1) + kzz*MEdz/(MzRk/GM1);
+    const governingUtil=Math.max(u1,u2);
+    const candidate={sec:s, by, bz, McY:MyRk, McZ:MzRk, u1, u2, kyy, kzz, kyz, kzy,
+      utilStrong:u1, utilWeak:u2, NEd, MEdy, MEdz, connectionFaceWidth,
+      connectionRequiresDetail:Math.min(s.h,s.b)<connectionFaceWidth, cls:cl, tension:false, governingUtil};
+    if(!best || governingUtil<best.governingUtil) best=candidate;
+    if(u1<=1.0 && u2<=1.0) return candidate;
+  }
+  return best ? {...best, failed:true} : null;
+}
+
+function pickRod(F, Lbrace, fy){
+  const fu=fu_of(fy);
+  for(const d of RODS){
+    const A = Math.PI*d*d/4;
+    const As = THREAD_AS[d];
+    const NplRod = A*fy/1000/GM0;
+    const NuRod  = 0.9*As*fu/1000/GM2;
+    const NtRd = Math.min(NplRod, NuRod);
+    const gov = NuRod<NplRod ? 'σπείρωμα' : 'κορμός';
+    const lambda = (Lbrace*1000)/(d/4);
+    if(NtRd>=F){
+      return {d, NtRd, NplRod, NuRod, gov, lambda, util:F/NtRd};
+    }
+  }
+  return null;
+}
+
+
+/* Χιαστί στέγης από SHS: έλεγχος εφελκυσμού και θλίψης/λυγισμού για αντιστροφή δράσης. */
+function pickSHSRoofBrace(F, Lbrace, fy){
+  for(const sec of CAT){
+    if(sec.h!==sec.b) continue; // αποκλειστικά SHS
+    const cls=classifyBox(sec,fy);
+    if(cls.comp===4) continue;
+    const Nt=NtRd(sec.A,fy);
+    const buck=NbRd(sec.A,Math.min(sec.Iy,sec.Iz),Lbrace,fy,ALPHA);
+    const Nb=buck.NbRd;
+    const utilT=F/Nt;
+    const utilC=F/Nb;
+    const util=Math.max(utilT,utilC);
+    if(util<=1.0){
+      return {sec,F,Lbrace,Nt,Nb,utilT,utilC,util,lambdaBar:buck.lambdaBar,chi:buck.chi,cls};
+    }
+  }
+  return null;
+}
+
+function designEmbeddedFooting(N, My, Mz, Vy, Vz, soilStress, columnSec, embedDepth=0.30, minFootingH=0.40, fck=25){
+  const gammaC=1.50;
+  const fcd=fck/gammaC; // MPa
+  const bearingLimit=0.60*fcd*1000; // kN/m², συντηρητικό όριο τοπικής πίεσης
+  const minDim=Math.max(0.60, Math.max(columnSec.h,columnSec.b)/1000+0.30);
+  const Hmin=Math.max(0.40,minFootingH,embedDepth+0.10);
+  const Ncomp=Math.max(N,0);
+  const Nuplift=Math.max(-N,0);
+  const Mres=Math.sqrt(My*My+Mz*Mz);
+  const Vres=Math.sqrt(Vy*Vy+Vz*Vz);
+  const bFace=Math.max(columnSec.h,columnSec.b)/1000;
+  // Απλοποιημένη περιβάλλουσα πίεσης κατά μήκος εγκιβωτισμού:
+  // p(z)=V/(b·l)+6M/(b·l²)
+  const pShear=Vres/(Math.max(bFace*embedDepth,1e-9));
+  const pMoment=6*Mres/(Math.max(bFace*embedDepth*embedDepth,1e-9));
+  const pEmbed=pShear+pMoment;
+  const embedUtil=pEmbed/bearingLimit;
+
+  let B=minDim, H=Hmin, found=false, qmax=Infinity, qmin=-Infinity, W=0, Ntot=0;
+  for(let i=0;i<240;i++){
+    H=Math.max(Hmin,B/3);
+    W=B*B*H*25;
+    Ntot=Ncomp+W;
+    const q0=Ntot/(B*B);
+    const qMy=6*Math.abs(My)/(B*B*B);
+    const qMz=6*Math.abs(Mz)/(B*B*B);
+    qmax=q0+qMy+qMz;
+    qmin=q0-qMy-qMz;
+    if(qmax<=soilStress && qmin>=0){ found=true; break; }
+    B+=0.05;
+  }
+  const stabilizingWeight=W+Ncomp;
+  const upliftUtil=Nuplift>0 ? Nuplift/Math.max(stabilizingWeight,1e-9) : 0;
+  const upliftOK=Nuplift<=stabilizingWeight;
+  const As_min=0.0015*B*H*1e4;
+  const barDiam=12;
+  const nBars=Math.ceil(As_min/(Math.PI*barDiam*barDiam/4*0.01));
+  return {B,H,weight:W,N_abs:Math.abs(N),Ncomp,Nuplift,Ntot,My,Mz,Mres,Vy,Vz,Vres,
+    qmax,qmin,soilStressApplied:qmax,soilOK:found,embedDepth,Hmin,bFace,fck,fcd,bearingLimit,pShear,pMoment,pEmbed,embedUtil,
+    upliftUtil,upliftOK,stabilizingWeight,As:As_min,barDiam,nBars,connectionType:'embedded-no-anchors'};
+}
+
+let purlinFy = 275;
+
+document.getElementById('calc').addEventListener('click', runCalc);
+document.getElementById('covering').addEventListener('change', (e)=>{
+  document.getElementById('slope').value = e.target.value==='panel' ? 7 : 33;
+});
+document.getElementById('roofBracing').addEventListener('change', (e)=>{
+  document.getElementById('bracedEndsField').style.display = e.target.value==='yes' ? 'block' : 'none';
+});
+document.getElementById('pdfBtn').addEventListener('click', exportSketchesPdf);
+document.getElementById('reportBtn').addEventListener('click', exportReport);
+document.getElementById('dxfBtn').addEventListener('click', exportDxf);
+document.getElementById('budgetBtn').addEventListener('click', exportBudget);
+document.getElementById('packageBtn').addEventListener('click', exportFullPackage);
+
+function runCalc(){
+  try{
+    const X = parseFloat(document.getElementById('dimX').value);
+    const Y = parseFloat(document.getElementById('dimY').value);
+    const nRows = parseInt(document.getElementById('nRows').value,10);
+    const Lc = parseFloat(document.getElementById('colH').value);
+    const covering = document.getElementById('covering').value;
+    const shape = document.getElementById('shape').value;
+    const slopePct = parseFloat(document.getElementById('slope').value);
+    const vb0 = parseFloat(document.getElementById('windZone').value);
+    const sk = parseFloat(document.getElementById('sk').value);
+    const cpnet = parseFloat(document.getElementById('cpnet').value);
+    const cpnet_neg = parseFloat(document.getElementById('cpnet_neg').value);
+    const cfr = parseFloat(document.getElementById('cfr').value);
+    const gammaI = parseFloat(document.getElementById('importance').value);
+    const fy = parseFloat(document.getElementById('steelGrade').value);
+    const sideBracing = document.getElementById('sideBracing').value;
+    const roofBracing = document.getElementById('roofBracing').value;
+    const bracedEndsInput = parseInt(document.getElementById('bracedEnds').value,10);
+    MAXT = parseFloat(document.getElementById('maxT').value);
+    CAT = CATALOG.filter(sec=>sec.t<=MAXT);
+    const headX = document.getElementById('headX').value;
+    const headY = document.getElementById('headY').value;
+    const terrain = document.getElementById('terrain').value;
+    const cdir = parseFloat(document.getElementById('cdir').value);
+    const cseason = parseFloat(document.getElementById('cseason').value);
+    const co = parseFloat(document.getElementById('co').value);
+    const Ce = parseFloat(document.getElementById('ce').value);
+    const Ct = parseFloat(document.getElementById('ct').value);
+    const agR = parseFloat(document.getElementById('agR').value);
+    const Ssoil = parseFloat(document.getElementById('soilClass').value);
+    const qbeh = parseFloat(document.getElementById('qbeh').value);
+    const standard = document.getElementById('standard').value;
+    const purlinCount = parseInt(document.getElementById('purlinCount').value,10);
+    const soilStress = parseFloat(document.getElementById('soilStress').value);
+    const embedDepth = parseFloat(document.getElementById('embedDepth').value);
+    const minFootingH = parseFloat(document.getElementById('minFootingH').value);
+    const concreteFck = parseFloat(document.getElementById('concreteFck').value);
+
+    validateInputs({X,Y,nRows,Lc,slopePct,vb0,sk,cpnet,cpnet_neg,cfr,gammaI,fy,purlinCount,soilStress,Ce,Ct,agR,Ssoil,qbeh,embedDepth,minFootingH,concreteFck});
+    if(embedDepth < 0.30) throw new Error('Το μήκος εγκιβωτισμού πρέπει να είναι τουλάχιστον 0,30 m.');
+    if(minFootingH < 0.40) throw new Error('Το ύψος πεδίλου πρέπει να είναι τουλάχιστον 0,40 m.');
+    if(minFootingH < embedDepth + 0.10) throw new Error('Το ύψος πεδίλου πρέπει να υπερβαίνει τον εγκιβωτισμό κατά τουλάχιστον 0,10 m.');
+    if(!CAT.length) throw new Error('Ο κατάλογος διατομών είναι κενός για το επιλεγμένο μέγιστο πάχος.');
+
+    ALPHA = standard==='10219' ? 0.49 : 0.21;
+    purlinFy = fy;
+
+    const nBays=nRows-1;
+    const bay=X/nBays;
+    const angleRad=Math.atan(slopePct/100);
+    const angleDeg=angleRad*180/Math.PI;
+    const rafterHoriz=shape==='duo'?Y/2:Y;
+    const slopeLength=rafterHoriz/Math.cos(angleRad);
+    const ridgeRise=rafterHoriz*slopePct/100;
+    const meanRoofH=Lc+ridgeRise/2;
+    if(bay>12) throw new Error(`Το άνοιγμα τεγίδας ${fmt(bay,2)} m υπερβαίνει το όριο προδιαστασιολόγησης 12 m.`);
+    if(slopeLength>15) throw new Error(`Το μήκος κύριας δοκού ${fmt(slopeLength,2)} m υπερβαίνει το όριο προδιαστασιολόγησης 15 m.`);
+
+    const gCover=covering==='panel'?0.10:0.55;
+    const wind=windPressure(vb0,meanRoofH,terrain,cdir,cseason,co);
+    const muSnow=snowMu(angleDeg);
+    const snow=muSnow*Ce*Ct*sk;
+    const Sd=agR*Ssoil*2.5/qbeh;
+    [wind.qp,snow,Sd].forEach((v,i)=>assertFinite(['q_p','s','S_d'][i],v));
+
+    const maxSpacing=covering==='panel'?1.8:1.0;
+    let nIntervals=Math.max(2,purlinCount);
+    let purlinSpacing=slopeLength/nIntervals;
+    while(purlinSpacing>maxSpacing && nIntervals<20){ nIntervals++; purlinSpacing=slopeLength/nIntervals; }
+    if(purlinSpacing>maxSpacing) throw new Error(`Απαιτούνται περισσότερα από 20 διαστήματα τεγίδων για απόσταση ≤ ${maxSpacing} m.`);
+    const nPurlinLines=nIntervals+1;
+
+    let gStruct=0.0, purlinResult=null, beamResult=null, loadComb=null;
+    const iterationLog=[];
+    for(let pass=1;pass<=6;pass++){
+      const G=gCover+gStruct;
+      const Wpos=cpnet*wind.qp;
+      const Wneg=cpnet_neg*wind.qp;
+      loadComb=buildLoadCombinations(G,snow,Wpos,Wneg);
+      const wDesign=loadComb.downward.value;
+      const wPurlinTotal=wDesign*purlinSpacing;
+      const wPerp=wPurlinTotal*Math.cos(angleRad);
+      const wPar=wPurlinTotal*Math.sin(angleRad);
+      purlinResult=pickPurlinWithCount(bay,wPerp,wPar,bay*1000/200,nIntervals);
+      beamResult=pickBeam(slopeLength,wDesign*bay,fy,slopeLength*1000/250);
+      if(!purlinResult) throw new Error('Δεν βρέθηκε επαρκής τεγίδα στον διαθέσιμο κατάλογο. Αυξήστε το μέγιστο πάχος ή μειώστε το άνοιγμα.');
+      if(!beamResult) throw new Error('Δεν βρέθηκε επαρκής κύρια δοκός/ζευκτό στον διαθέσιμο κατάλογο. Αυξήστε το μέγιστο πάχος ή μειώστε το άνοιγμα.');
+      const gPurlinActual=(purlinResult.sec.m*9.81/1000)/purlinSpacing;
+      const gBeamActual=(beamResult.sec.m*9.81/1000)/bay;
+      const gNew=gPurlinActual+gBeamActual+0.03;
+      iterationLog.push({pass,gOld:gStruct,gNew,secP:purlinResult.sec.n,secB:beamResult.sec.n});
+      if(Math.abs(gNew-gStruct)<0.001){ gStruct=gNew; break; }
+      gStruct=gNew;
+    }
+
+    const G=gCover+gStruct;
+    const Wpos=cpnet*wind.qp, Wneg=cpnet_neg*wind.qp;
+    loadComb=buildLoadCombinations(G,snow,Wpos,Wneg);
+    const wAreaGrav=1.35*G+1.5*snow;
+    const wAreaWind=1.35*G+1.5*Wpos;
+    const wDesignFinal=loadComb.downward.value;
+    const wUplift=loadComb.uplift.value;
+    const upliftForce=wUplift*(bay*(Y/2));
+
+    const WTotal=G*X*Y;
+    const FseismicX=Sd*gammaI*WTotal;
+    const FwindfrX=cfr*wind.qp*X*Y;
+    const FXtotal=Math.max(FseismicX,FwindfrX);
+    const tribColArea=bay*(Y/2);
+    const totalRoofAreaPerFrame=bay*Y;
+    const Wframe=G*totalRoofAreaPerFrame;
+    const FyFrame=Sd*gammaI*Wframe;
+    const Vcol=FyFrame/2;
+    const MEdy=Vcol*Lc;
+    const LcrStrong=2*Lc;
+    const nCols=nRows*2;
+    let MEdz=0,LcrWeak=Lc;
+    if(sideBracing==='no'){
+      MEdz=(FXtotal/nCols)*Lc;
+      LcrWeak=2*Lc;
+    }
+
+    const minWeldWidth=beamResult.sec.b;
+    let colSelfWeight=0, columnCompression=null;
+    for(let i=0;i<5;i++){
+      const Ncomp=wDesignFinal*tribColArea+colSelfWeight;
+      columnCompression=selectColumn(Ncomp,MEdy,MEdz,LcrStrong,LcrWeak,fy,minWeldWidth);
+      if(!columnCompression || columnCompression.failed) break;
+      const next=columnCompression.sec.m*9.81/1000*(Lc+embedDepth);
+      if(Math.abs(next-colSelfWeight)<0.01){ colSelfWeight=next; break; }
+      colSelfWeight=next;
+    }
+    if(!columnCompression || columnCompression.failed){
+      const d=columnCompression ? ` Καλύτερη εξετασθείσα: ${columnCompression.sec.n}, η=${fmt(columnCompression.governingUtil,2)}.` : '';
+      throw new Error('Δεν βρέθηκε επαρκές υποστύλωμα σε θλίψη/κάμψη στον διαθέσιμο κατάλογο.'+d+' Αυξήστε το μέγιστο πάχος ή μειώστε ύψος/ανοίγματα.');
+    }
+
+    const NEdCompression=wDesignFinal*tribColArea+colSelfWeight;
+    columnCompression=selectColumn(NEdCompression,MEdy,MEdz,LcrStrong,LcrWeak,fy,minWeldWidth);
+    if(!columnCompression || columnCompression.failed) throw new Error('Αποτυχία τελικού ελέγχου υποστυλώματος μετά την προσθήκη πραγματικού ιδίου βάρους.');
+
+    let columnResult=columnCompression, tensionCheck=false, NEd_final=NEdCompression;
+    const NEdTension=upliftForce+colSelfWeight;
+    if(NEdTension<0){
+      const colTension=selectColumn(NEdTension,MEdy,MEdz,LcrStrong,LcrWeak,fy,minWeldWidth);
+      if(!colTension || colTension.failed) throw new Error('Δεν βρέθηκε επαρκές υποστύλωμα για τον συνδυασμό αναρρόφησης.');
+      const utilT=colTension.utilTension;
+      const utilC=Math.max(columnCompression.u1,columnCompression.u2);
+      if(utilT>utilC){ columnResult=colTension; tensionCheck=true; NEd_final=NEdTension; }
+    }
+
+    let roofBrace=null,nBracedBays=0,FPerBay=0,FPerSlope=0,phiRoof=0,roofBraceLen=0,FRoofBrace=0,roofSlopeCount=0;
+    if(roofBracing==='yes'){
+      nBracedBays=Math.min(nBays,Math.max(1,bracedEndsInput)*2);
+      FPerBay=FXtotal/nBracedBays;
+      roofSlopeCount=shape==='duo'?2:1;
+      FPerSlope=FPerBay/roofSlopeCount; // ισόποση κατανομή στις δύο παρειές για δίριχτη στέγη
+      const Yrel=shape==='duo'?Y/2:Y;
+      phiRoof=Math.atan(Yrel/bay);
+      roofBraceLen=Math.sqrt(bay*bay+Yrel*Yrel);
+      FRoofBrace=FPerSlope/Math.cos(phiRoof);
+      roofBrace=pickSHSRoofBrace(FRoofBrace,roofBraceLen,fy);
+      if(!roofBrace) throw new Error('Δεν βρέθηκε επαρκής κοιλοδοκός SHS για τα χιαστί στέγης σε εφελκυσμό και θλίψη/λυγισμό.');
+    }
+
+    let sideRod=null,phiSide=0,sideBraceLen=0,FSideBrace=0;
+    if(sideBracing==='yes'){
+      const sideBays=Math.max(1,nBracedBays||Math.min(nBays,2));
+      const FPerBaySide=FXtotal/sideBays;
+      phiSide=Math.atan(Lc/bay); sideBraceLen=bay/Math.cos(phiSide); FSideBrace=FPerBaySide/Math.cos(phiSide);
+      sideRod=pickRod(FSideBrace,sideBraceLen,fy);
+      if(!sideRod) throw new Error('Δεν βρέθηκε επαρκής ράβδος πλαϊνού χιαστί.');
+    }
+
+    let headXResult=null,headXload=0,headXspan=0;
+    if(headX==='yes'){
+      headXspan=bay; headXload=wDesignFinal*(purlinSpacing/2)+0.30;
+      headXResult=pickBeam(headXspan,headXload,fy,headXspan*1000/250);
+    }
+    let headYResult=null,headYload=0,headYspan=0;
+    if(headY==='yes'){
+      headYspan=Y; headYload=1.35*0.20+1.5*0.50;
+      headYResult=pickBeam(headYspan,headYload,fy,headYspan*1000/250);
+    }
+
+    const VyBase=MEdy/Math.max(Lc,1e-9);
+    const VzBase=MEdz/Math.max(Lc,1e-9);
+    const footing=designEmbeddedFooting(NEd_final,MEdy,MEdz,VyBase,VzBase,soilStress,columnResult.sec,embedDepth,minFootingH,concreteFck);
+    const warnings=[];
+    if(columnResult.connectionRequiresDetail) warnings.push(`Η παρειά του υποστυλώματος (${Math.min(columnResult.sec.h,columnResult.sec.b)} mm) είναι μικρότερη από το πλάτος της κύριας δοκού (${minWeldWidth} mm). Απαιτείται ειδική λεπτομέρεια σύνδεσης/κεφαλόπλακα, αλλά αυτό δεν αποτελεί λόγο απόρριψης της διατομής στον προκαταρκτικό έλεγχο.`);
+    if(headX==='yes'&&!headXResult) warnings.push('Δεν βρέθηκε επαρκής κεφαλοδοκός X.');
+    if(headY==='yes'&&!headYResult) warnings.push('Δεν βρέθηκε επαρκής κεφαλοδοκός Y.');
+    if(!footing.soilOK) warnings.push('Δεν βρέθηκε πέδιλο χωρίς εφελκυστικές τάσεις εδάφους εντός του εύρους αναζήτησης.');
+    if(footing.embedUtil>1) warnings.push('Ο εγκιβωτισμός 0,30 m δεν επαρκεί στον απλοποιημένο έλεγχο τοπικής πίεσης σκυροδέματος από τέμνουσα και ροπή.');
+    if(!footing.upliftOK) warnings.push('Η ανασήκωση υπερβαίνει το διαθέσιμο κατακόρυφο βάρος. Χωρίς αγκύρια ή μηχανική εμπλοκή η βάση δεν θεωρείται ασφαλής σε εφελκυσμό.');
+
+    const R={X,Y,nRows,nBays,bay,Lc,covering,shape,slopePct,angleDeg,rafterHoriz,slopeLength,ridgeRise,meanRoofH,
+      gCover,gStruct,G,wind,snow,muSnow,Sd,gammaI,fy,sideBracing,minWeldWidth,nCols,maxT:MAXT,
+      terrain,cdir,cseason,co,Ce,Ct,agR,Ssoil,qbeh,standard,cpnet,cpnet_neg,cfr,sk,
+      purlinSpacing,nPurlinLines,nIntervals,purlinCount,purlinResult,beamResult,wDesignFinal,wAreaGrav,wAreaWind,
+      loadComb,iterationLog,colSelfWeight,NEdCompression,NEdTension,NEd:NEd_final,MEdy,MEdz,Vcol,FyFrame,columnResult,LcrStrong,LcrWeak,
+      FXtotal,FseismicX,FwindfrX,nBracedBays,FPerBay,FPerSlope,roofSlopeCount,phiRoof,FRoofBrace,roofBrace,roofBraceLen,
+      phiSide,FSideBrace,sideRod,sideBraceLen,headX,headXResult,headXload,headXspan,headY,headYResult,headYload,headYspan,
+      upliftForce,tensionCheck,wUplift,footing,soilStress,embedDepth,minFootingH,concreteFck,roofBracing,warnings};
+
+    window.__lastResult=R;
+    document.getElementById('pdfBtn').style.display='block';
+    document.getElementById('reportBtn').style.display='block';
+    document.getElementById('dxfBtn').style.display='block';
+    document.getElementById('budgetBtn').style.display='block';
+    document.getElementById('packageBtn').style.display='block';
+    renderResults(R);
+    renderCommercialSummary(R);
+  }catch(e){
+    console.error('Σφάλμα:',e);
+    window.__lastResult=null;
+    document.getElementById('pdfBtn').style.display='none';
+    document.getElementById('reportBtn').style.display='none';
+    document.getElementById('dxfBtn').style.display='none';
+    document.getElementById('budgetBtn').style.display='none';
+    document.getElementById('packageBtn').style.display='none';
+    document.getElementById('results').innerHTML=`<div class="card"><div class="results-empty" style="color:var(--red);"><b>Ο υπολογισμός διακόπηκε.</b><br>${e.message}</div></div>`;
+  }
+}
+
+function utilPill(u){
+  const pct = Math.round(u*100);
+  const cls = u<=1.0 ? 'ok' : 'warn';
+  return `<span class="pill ${cls}">${pct}%</span>`;
+}
+
+/* ============ ΣΚΑΡΙΦΗΜΑΤΑ (SVG) ΜΕ ΔΙΑΤΟΜΕΣ & ΑΠΟΣΤΑΣΕΙΣ ============ */
+const SK = { bg:'#161a1e', line:'#dfe3e6', col:'#d99a44', purlin:'#4fb3a9', brace:'#c98a3a', dim:'#8b98a3', frame:'#dfe3e6' };
+
+function drawPlan(r){
+  const W=480, H=360, mL=40, mR=20, mT=22, mB=70;
+  const pw=W-mL-mR, ph=H-mT-mB;
+  const sx = pw/r.X, sy = ph/r.Y, s = Math.min(sx,sy);
+  const gw=r.X*s, gh=r.Y*s;
+  const ox = mL+(pw-gw)/2, oy = mT+(ph-gh)/2;
+  const X2px = x => ox + x*s;
+  const Y2px = y => oy + y*s;
+  
+  let el = `<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" class="sk">`;
+  el += `<rect x="${ox}" y="${oy}" width="${gw}" height="${gh}" fill="none" stroke="${SK.line}" stroke-width="1.4"/>`;
+  
+  const divPurlin = Math.max(1, r.nPurlinLines - 1);
+  for(let i=0;i<r.nPurlinLines;i++){
+    const yy = oy + gh*i/divPurlin;
+    el += `<line x1="${ox}" y1="${yy.toFixed(1)}" x2="${ox+gw}" y2="${yy.toFixed(1)}" stroke="${SK.purlin}" stroke-width="0.8" opacity="0.6"/>`;
+  }
+  
+  const bracedSet = new Set();
+  if(r.roofBracing==='yes'){
+    const be = Math.max(1, Math.round(r.nBracedBays/2));
+    for(let k=0;k<be;k++){ bracedSet.add(k); bracedSet.add(r.nBays-1-k); }
+  }
+  for(let f=0; f<r.nRows; f++){
+    const xx = X2px(r.bay*f);
+    el += `<line x1="${xx.toFixed(1)}" y1="${oy}" x2="${xx.toFixed(1)}" y2="${oy+gh}" stroke="${SK.frame}" stroke-width="1"/>`;
+    [0, r.Y].forEach(yv=>{
+      const cx=xx, cy=Y2px(yv);
+      el += `<rect x="${(cx-4).toFixed(1)}" y="${(cy-4).toFixed(1)}" width="8" height="8" fill="${SK.col}" rx="1"/>`;
+    });
+  }
+  if(r.shape==='duo'){
+    const yr=Y2px(r.Y/2);
+    el += `<line x1="${ox}" y1="${yr.toFixed(1)}" x2="${ox+gw}" y2="${yr.toFixed(1)}" stroke="${SK.line}" stroke-width="0.8" stroke-dasharray="5 3" opacity="0.7"/>`;
+    el += `<text x="${ox+gw-4}" y="${(yr-4).toFixed(1)}" fill="${SK.dim}" font-size="9" text-anchor="end">κορφιάς</text>`;
+  }
+  bracedSet.forEach(b=>{
+    const x1=X2px(r.bay*b), x2=X2px(r.bay*(b+1));
+    if(r.shape==='duo'){
+      const ym=Y2px(r.Y/2);
+      // Ανεξάρτητο Χ σε κάθε παρειά, με διαχωρισμό στον κορφιά.
+      el += `<line x1="${x1.toFixed(1)}" y1="${oy}" x2="${x2.toFixed(1)}" y2="${ym.toFixed(1)}" stroke="${SK.brace}" stroke-width="1.3"/>`;
+      el += `<line x1="${x2.toFixed(1)}" y1="${oy}" x2="${x1.toFixed(1)}" y2="${ym.toFixed(1)}" stroke="${SK.brace}" stroke-width="1.3"/>`;
+      el += `<line x1="${x1.toFixed(1)}" y1="${ym.toFixed(1)}" x2="${x2.toFixed(1)}" y2="${(oy+gh).toFixed(1)}" stroke="${SK.brace}" stroke-width="1.3"/>`;
+      el += `<line x1="${x2.toFixed(1)}" y1="${ym.toFixed(1)}" x2="${x1.toFixed(1)}" y2="${(oy+gh).toFixed(1)}" stroke="${SK.brace}" stroke-width="1.3"/>`;
+    } else {
+      el += `<line x1="${x1.toFixed(1)}" y1="${oy}" x2="${x2.toFixed(1)}" y2="${oy+gh}" stroke="${SK.brace}" stroke-width="1.3"/>`;
+      el += `<line x1="${x2.toFixed(1)}" y1="${oy}" x2="${x1.toFixed(1)}" y2="${oy+gh}" stroke="${SK.brace}" stroke-width="1.3"/>`;
+    }
+  });
+
+  // Διαστάσεις
+  el += `<text x="${ox+gw/2}" y="${oy+gh+18}" fill="${SK.dim}" font-size="10" text-anchor="middle">X = ${fmt(r.X,2)} m (${r.nBays}×${fmt(r.bay,2)}m) | Τεγίδες s = ${fmt(r.purlinSpacing,2)} m</text>`;
+  el += `<text x="${ox-10}" y="${oy+gh/2}" fill="${SK.dim}" font-size="10" text-anchor="middle" transform="rotate(-90 ${ox-10} ${oy+gh/2})">Y = ${fmt(r.Y,2)} m</text>`;
+
+  // Υπόμνημα διατομών
+  let labels = [];
+  if(r.columnResult) labels.push(`Υποστ: ${r.columnResult.sec.n}`);
+  if(r.beamResult) labels.push(`Δοκός: ${r.beamResult.sec.n}`);
+  if(r.purlinResult) labels.push(`Τεγίδα: ${r.purlinResult.sec.n}`);
+  if(r.roofBrace) labels.push(`Χιαστί στέγης: ${r.roofBrace.sec.n} / παρειά`);
+  el += `<text x="${ox}" y="${H-12}" fill="${SK.teal}" font-size="9" font-weight="bold">${labels.join('  |  ')}</text>`;
+
+  el += `</svg>`;
+  return el;
+}
+
+function drawSectionX(r){
+  const W=500, H=360, mL=40, mR=30, mT=30, mB=60;
+  const pw=W-mL-mR, ph=H-mT-mB;
+  const totalH = r.Lc + r.ridgeRise + (r.shape==='mono' ? r.ridgeRise : 0);
+  const sx = pw/r.Y, sy = ph/Math.max(totalH, r.Lc*1.2), s=Math.min(sx,sy);
+  const gw=r.Y*s;
+  const ox = mL+(pw-gw)/2;
+  const baseY = mT+ph;
+  const px = y => ox + y*s;
+  const py = h => baseY - h*s;
+  
+  let el = `<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" class="sk">`;
+  el += `<line x1="${ox-14}" y1="${baseY}" x2="${ox+gw+14}" y2="${baseY}" stroke="${SK.dim}" stroke-width="1"/>`;
+  
+  let colHl=r.Lc, colHr=r.Lc, ridgeX=r.Y/2, ridgeH=r.Lc+r.ridgeRise;
+  if(r.shape==='mono'){ colHr=r.Lc+r.ridgeRise; ridgeX=null; }
+  
+  const colW = Math.max(6, (r.columnResult? r.columnResult.sec.b:100)/1000*s*3);
+  el += `<rect x="${(px(0)-colW/2).toFixed(1)}" y="${py(colHl).toFixed(1)}" width="${colW.toFixed(1)}" height="${(colHl*s).toFixed(1)}" fill="${SK.col}"/>`;
+  el += `<rect x="${(px(r.Y)-colW/2).toFixed(1)}" y="${py(colHr).toFixed(1)}" width="${colW.toFixed(1)}" height="${(colHr*s).toFixed(1)}" fill="${SK.col}"/>`;
+  
+  if(r.shape==='duo'){
+    el += `<line x1="${px(0)}" y1="${py(colHl)}" x2="${px(ridgeX)}" y2="${py(ridgeH)}" stroke="${SK.frame}" stroke-width="2.8"/>`;
+    el += `<line x1="${px(ridgeX)}" y1="${py(ridgeH)}" x2="${px(r.Y)}" y2="${py(colHr)}" stroke="${SK.frame}" stroke-width="2.8"/>`;
+  } else {
+    el += `<line x1="${px(0)}" y1="${py(colHl)}" x2="${px(r.Y)}" y2="${py(colHr)}" stroke="${SK.frame}" stroke-width="2.8"/>`;
+  }
+  
+  const divPurlin = Math.max(1, r.nPurlinLines - 1);
+  for(let i=0;i<r.nPurlinLines;i++){
+    const t=i/divPurlin;
+    let x,y;
+    if(r.shape==='duo'){
+      if(t<=0.5){ const tt=t/0.5; x=r.Y/2*tt; y=colHl+(ridgeH-colHl)*tt; }
+      else { const tt=(t-0.5)/0.5; x=r.Y/2+r.Y/2*tt; y=ridgeH+(colHr-ridgeH)*tt; }
+    } else { x=r.Y*t; y=colHl+(colHr-colHl)*t; }
+    el += `<circle cx="${px(x).toFixed(1)}" cy="${py(y).toFixed(1)}" r="2.5" fill="${SK.purlin}"/>`;
+  }
+
+  // Αναγραφή διαστάσεων & διατομών
+  el += `<text x="${ox+gw/2}" y="${baseY+18}" fill="${SK.dim}" font-size="10" text-anchor="middle">Y = ${fmt(r.Y,2)} m | Απόσταση τεγίδων = ${fmt(r.purlinSpacing,2)} m</text>`;
+  el += `<text x="${px(0)-10}" y="${py(colHl/2)}" fill="${SK.amber}" font-size="9" text-anchor="end">h=${fmt(r.Lc,2)}m (${r.columnResult?r.columnResult.sec.n:''})</text>`;
+  el += `<text x="${ox+gw/2}" y="${py(ridgeH)-10}" fill="${SK.teal}" font-size="9" text-anchor="middle">Δοκός: ${r.beamResult?r.beamResult.sec.n:''} | Τεγίδες: ${r.purlinResult?r.purlinResult.sec.n:''}</text>`;
+
+  el += `</svg>`;
+  return el;
+}
+
+function drawSectionY(r){
+  const W=500, H=360, mL=40, mR=30, mT=30, mB=60;
+  const pw=W-mL-mR, ph=H-mT-mB;
+  const sx = pw/r.X, sy = ph/(r.Lc+1), s=Math.min(sx,sy);
+  const gw=r.X*s;
+  const ox = mL+(pw-gw)/2;
+  const baseY = mT+ph;
+  const px = x => ox + x*s;
+  const py = h => baseY - h*s;
+  
+  let el = `<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" class="sk">`;
+  el += `<line x1="${ox-14}" y1="${baseY}" x2="${ox+gw+14}" y2="${baseY}" stroke="${SK.dim}" stroke-width="1"/>`;
+  const colW = Math.max(6, (r.columnResult? r.columnResult.sec.b:100)/1000*s*2.5);
+  for(let f=0; f<r.nRows; f++){
+    const xx = px(r.bay*f);
+    el += `<rect x="${(xx-colW/2).toFixed(1)}" y="${py(r.Lc).toFixed(1)}" width="${colW.toFixed(1)}" height="${(r.Lc*s).toFixed(1)}" fill="${SK.col}"/>`;
+  }
+  const roofH = r.Lc + (r.shape==='duo'? r.ridgeRise/2 : r.ridgeRise);
+  el += `<line x1="${px(0)}" y1="${py(roofH)}" x2="${px(r.X)}" y2="${py(roofH)}" stroke="${SK.frame}" stroke-width="2.8"/>`;
+  
+  // Κεφαλοδοκοί αν υπάρχουν
+  if(r.headX==='yes'){
+    el += `<line x1="${px(0)}" y1="${py(r.Lc)}" x2="${px(r.X)}" y2="${py(r.Lc)}" stroke="#e8ab5a" stroke-width="2"/>`;
+  }
+
+  el += `<text x="${ox+gw/2}" y="${baseY+18}" fill="${SK.dim}" font-size="10" text-anchor="middle">X = ${fmt(r.X,2)} m (${r.nBays} φατνώματα των ${fmt(r.bay,2)} m)</text>`;
+  el += `<text x="${ox+gw/2}" y="${py(roofH)-10}" fill="${SK.teal}" font-size="9" text-anchor="middle">Υποστυλώματα: ${r.columnResult?r.columnResult.sec.n:''} ${r.headXResult?'| Κεφαλοδοκός: '+r.headXResult.sec.n:''}</text>`;
+  
+  el += `</svg>`;
+  return el;
+}
+
+function drawDetail(r){
+  const W=400, H=360, mL=30, mR=20, mT=20, mB=40;
+  const pw=W-mL-mR, ph=H-mT-mB;
+  const totalH = r.Lc + r.ridgeRise + (r.shape==='mono'? r.ridgeRise:0);
+  const sx = pw/1.0, sy = ph/totalH, s=Math.min(sx,sy);
+  const ox = mL+(pw-1.0*s)/2;
+  const baseY = mT+ph;
+  const px = x => ox + x*s;
+  const py = h => baseY - h*s;
+  
+  let el = `<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" class="sk">`;
+  el += `<line x1="${ox-10}" y1="${baseY}" x2="${ox+s+10}" y2="${baseY}" stroke="${SK.dim}" stroke-width="1"/>`;
+  const colW = Math.max(8, (r.columnResult? r.columnResult.sec.b:100)/1000*s*4);
+  const colH = r.Lc*s;
+  el += `<rect x="${(px(0)-colW/2).toFixed(1)}" y="${py(r.Lc).toFixed(1)}" width="${colW.toFixed(1)}" height="${colH.toFixed(1)}" fill="${SK.col}"/>`;
+  el += `<rect x="${(px(1)-colW/2).toFixed(1)}" y="${py(r.Lc).toFixed(1)}" width="${colW.toFixed(1)}" height="${colH.toFixed(1)}" fill="${SK.col}"/>`;
+  const roofH = r.Lc + (r.shape==='duo'? r.ridgeRise/2 : r.ridgeRise);
+  el += `<line x1="${px(0)}" y1="${py(roofH)}" x2="${px(1)}" y2="${py(roofH)}" stroke="${SK.frame}" stroke-width="3"/>`;
+  
+  el += `<text x="${(px(0)+px(1))/2}" y="${py(roofH/2)}" fill="${SK.teal}" font-size="10" text-anchor="middle">Φάτνωμα L = ${fmt(r.bay,2)} m</text>`;
+  el += `</svg>`;
+  return el;
+}
+
+/* ============ RENDER ΑΠΟΤΕΛΕΣΜΑΤΩΝ ============ */
+function renderResults(r){
+  const covLabel = r.covering==='panel' ? 'Πάνελ αλουμινίου 5cm' : 'Ξύλινη κεραμοσκεπή';
+  const shapeLabel = r.shape==='duo' ? 'Δίριχτη' : 'Μονόριχτη';
+
+  let html = '';
+  html += `<div class="summary-strip">
+    <div class="stat"><div class="k">Φατνώματα</div><div class="v">${r.nBays} × ${fmt(r.bay,2)} m</div></div>
+    <div class="stat"><div class="k">Κλίση στέγης</div><div class="v">${fmt(r.slopePct,1)}% (${fmt(r.angleDeg,1)}°)</div></div>
+    <div class="stat"><div class="k">Τεγίδες / παρειά</div><div class="v">${r.nIntervals} διαστήματα</div></div>
+    <div class="stat"><div class="k">qp ανέμου</div><div class="v">${fmt(r.wind.qp,3)} kN/m²</div></div>
+  </div>`;
+
+  html += `<div class="section-title"><span class="n">◱</span> Σκαριφήματα &amp; Διατομές</div>
+  <div class="card">
+    <div class="sketch-grid two">
+      <div><div class="sketch-cap">Κάτοψη</div>${drawPlan(r)}</div>
+      <div><div class="sketch-cap">Τομή κατά Χ (εγκάρσια)</div>${drawSectionX(r)}</div>
+    </div>
+    <div class="sketch-grid two" style="margin-top:12px;">
+      <div><div class="sketch-cap">Τομή κατά Υ (διαμήκης)</div>${drawSectionY(r)}</div>
+      <div><div class="sketch-cap">Λεπτομέρεια φατνώματος</div>${drawDetail(r)}</div>
+    </div>
+  </div>`;
+
+  html += `<div class="section-title"><span class="n">1</span> Τεγίδες</div>
+  <div class="card"><table>
+    <tr><th>Επικάλυψη</th><th>Απόσταση (m)</th><th>Άνοιγμα (m)</th><th>Διατομή</th><th>Κλάση</th><th>Ροπή My/Mz (kNm)</th><th>Εκμετάλλευση</th><th>Βέλος / όριο (mm)</th></tr>`;
+  if(r.purlinResult){
+    const p = r.purlinResult;
+    html += `<tr>
+      <td class="label">${covLabel}</td>
+      <td>${fmt(r.purlinSpacing,2)} m</td>
+      <td>${fmt(r.bay,2)} m</td>
+      <td><b>${p.sec.n}</b></td>
+      <td>${p.cls}</td>
+      <td>${fmt(p.My,2)} / ${fmt(p.Mz,2)}</td>
+      <td>${utilPill(p.util)}</td>
+      <td>${fmt(p.defl,1)} / ${fmt(p.limitDefl,1)}</td>
+    </tr>`;
+  } else {
+    html += `<tr><td colspan="8" style="text-align:center;color:var(--red);">Δεν βρέθηκε κατάλληλη διατομή</td></tr>`;
+  }
+  html += `</table></div>`;
+
+  html += `<div class="section-title"><span class="n">2</span> Δοκοί / Ζευκτά (${shapeLabel})</div>
+  <div class="card"><table>
+    <tr><th>Άνοιγμα (επί κλίσης)</th><th>Φορτίο</th><th>Διατομή</th><th>Κλάση</th><th>M<sub>Ed</sub> / M<sub>c,Rd</sub> (kNm)</th><th>Εκμετάλλευση</th><th>Βέλος / όριο (mm)</th></tr>`;
+  if(r.beamResult){
+    const b = r.beamResult;
+    html += `<tr>
+      <td>${fmt(r.slopeLength,2)} m</td>
+      <td>${fmt(r.wDesignFinal,3)} kN/m²</td>
+      <td><b>${b.sec.n}</b></td>
+      <td>${b.cls}</td>
+      <td>${fmt(b.M,2)} / ${fmt(b.Mc,2)}</td>
+      <td>${utilPill(Math.max(b.utilM,b.utilV))}</td>
+      <td>${fmt(b.defl,1)} / ${fmt(b.limitDefl,1)}</td>
+    </tr>`;
+  } else {
+    html += `<tr><td colspan="7" style="text-align:center;color:var(--red);">Δεν βρέθηκε κατάλληλη διατομή</td></tr>`;
+  }
+  html += `</table></div>`;
+
+  html += `<div class="section-title"><span class="n">3</span> Υποστυλώματα</div>
+  <div class="card"><table>
+    <tr><th>Ύψος (m)</th><th>N<sub>Ed</sub> (kN)</th><th>M<sub>Ed,y</sub> / M<sub>Ed,z</sub> (kNm)</th><th>Διατομή</th><th>Κλάση</th><th>Έλεγχος</th><th>Εκμετάλλευση</th></tr>`;
+  if(r.columnResult){
+    const c = r.columnResult;
+    const checkType = c.tension ? 'Εφελκυσμός' : 'Θλίψη+κάμψη';
+    const util = c.tension ? c.utilTension : Math.max(c.u1,c.u2);
+    html += `<tr>
+      <td>${fmt(r.Lc,2)}</td>
+      <td>${fmt(r.NEd,1)}</td>
+      <td>${fmt(r.MEdy,2)} / ${fmt(r.MEdz,2)}</td>
+      <td><b>${c.sec.n}</b></td>
+      <td>${c.cls.comp}/${c.cls.bend}</td>
+      <td>${checkType}</td>
+      <td>${utilPill(util)}</td>
+    </tr>`;
+  } else {
+    html += `<tr><td colspan="7" style="text-align:center;color:var(--red);">Δεν βρέθηκε κατάλληλη διατομή</td></tr>`;
+  }
+  html += `</table></div>`;
+
+  /* --- ΠΡΟΣΘΗΚΗ: Κεφαλοδοκοί --- */
+  html += `<div class="section-title"><span class="n">4</span> Κεφαλοδοκοί</div>
+  <div class="card"><table>
+    <tr><th>Θέση / Άξονας</th><th>Άνοιγμα (m)</th><th>Φορτίο (kN/m)</th><th>Διατομή</th><th>M<sub>Ed</sub> / M<sub>c,Rd</sub> (kNm)</th><th>Εκμετάλλευση</th><th>Βέλος (mm)</th></tr>`;
+  if(r.headX==='yes'){
+    if(r.headXResult){
+      html += `<tr><td class="label">Κεφαλοδοκός κατά X</td><td>${fmt(r.headXspan,2)}</td><td>${fmt(r.headXload,2)}</td><td><b>${r.headXResult.sec.n}</b></td><td>${fmt(r.headXResult.M,2)} / ${fmt(r.headXResult.Mc,2)}</td><td>${utilPill(Math.max(r.headXResult.utilM, r.headXResult.utilV))}</td><td>${fmt(r.headXResult.defl,1)} / ${fmt(r.headXResult.limitDefl,1)}</td></tr>`;
+    } else {
+      html += `<tr><td class="label">Κεφαλοδοκός κατά X</td><td colspan="6" style="color:var(--red);">Δεν βρέθηκε επαρκής διατομή</td></tr>`;
+    }
+  } else {
+    html += `<tr><td class="label">Κεφαλοδοκός κατά X</td><td colspan="6">Δεν επιλέχθηκε</td></tr>`;
+  }
+  if(r.headY==='yes'){
+    if(r.headYResult){
+      html += `<tr><td class="label">Κεφαλοδοκός κατά Y</td><td>${fmt(r.headYspan,2)}</td><td>${fmt(r.headYload,2)}</td><td><b>${r.headYResult.sec.n}</b></td><td>${fmt(r.headYResult.M,2)} / ${fmt(r.headYResult.Mc,2)}</td><td>${utilPill(Math.max(r.headYResult.utilM, r.headYResult.utilV))}</td><td>${fmt(r.headYResult.defl,1)} / ${fmt(r.headYResult.limitDefl,1)}</td></tr>`;
+    } else {
+      html += `<tr><td class="label">Κεφαλοδοκός κατά Y</td><td colspan="6" style="color:var(--red);">Δεν βρέθηκε επαρκής διατομή</td></tr>`;
+    }
+  } else {
+    html += `<tr><td class="label">Κεφαλοδοκός κατά Y</td><td colspan="6">Δεν επιλέχθηκε</td></tr>`;
+  }
+  html += `</table></div>`;
+
+  /* --- Χιαστί --- */
+  html += `<div class="section-title"><span class="n">5</span> Χιαστί</div>
+  <div class="card"><table>
+    <tr><th>Θέση</th><th>Γωνία</th><th>Μήκος (m)</th><th>F<sub>Ed</sub> (kN)</th><th>Ράβδος</th><th>N<sub>t,Rd</sub> (kN)</th><th>Εκμετάλλευση</th></tr>`;
+  if(r.roofBracing==='yes'){
+    if(r.roofBrace){
+      html += `<tr><td class="label">Χιαστί στέγης SHS — ${r.roofSlopeCount} παρειά/ές ανά φάτνωμα</td><td>${fmt(r.phiRoof*180/Math.PI,1)}°</td><td>${fmt(r.roofBraceLen,2)}</td><td>${fmt(r.FRoofBrace,1)}</td><td><b>${r.roofBrace.sec.n}</b></td><td>${fmt(Math.min(r.roofBrace.Nt,r.roofBrace.Nb),1)}</td><td>${utilPill(r.roofBrace.util)}</td></tr>`;
+    } else {
+      html += `<tr><td class="label">Χιαστί στέγης SHS</td><td colspan="6" style="color:var(--red);">Δεν βρέθηκε κατάλληλη κοιλοδοκός</td></tr>`;
+    }
+  } else {
+    html += `<tr><td class="label">Χιαστί στέγης</td><td colspan="6">Δεν επιλέχθηκε</td></tr>`;
+  }
+  if(r.sideBracing==='yes'){
+    if(r.sideRod){
+      html += `<tr><td class="label">Πλαϊνό χιαστί</td><td>${fmt(r.phiSide*180/Math.PI,1)}°</td><td>${fmt(r.sideBraceLen,2)}</td><td>${fmt(r.FSideBrace,1)}</td><td><b>Φ${r.sideRod.d}</b></td><td>${fmt(r.sideRod.NtRd,1)}</td><td>${utilPill(r.sideRod.util)}</td></tr>`;
+    } else {
+      html += `<tr><td class="label">Πλαϊνό χιαστί</td><td colspan="6" style="color:var(--red);">Δεν βρέθηκε κατάλληλη ράβδος</td></tr>`;
+    }
+  } else {
+    html += `<tr><td class="label">Πλαϊνό χιαστί</td><td colspan="6">Δεν επιλέχθηκε</td></tr>`;
+  }
+  html += `</table></div>`;
+
+  /* --- Πέδιλα και εγκιβωτισμένη βάση --- */
+  if(r.footing){
+    const f=r.footing;
+    html += `<div class="section-title"><span class="n">6</span> Εγκιβωτισμένη βάση και πέδιλο</div><div class="card"><table>
+      <tr><th>Σύνδεση βάσης</th><th>Εγκιβωτισμός</th><th>Πέδιλο B×B×H</th><th>qmin / qmax</th><th>Έλεγχος εγκιβωτισμού</th><th>Ανασήκωση</th></tr>
+      <tr><td>SHS μέσα σε σκυρόδεμα, χωρίς αγκύρια</td><td>${fmt(f.embedDepth,2)} m</td><td>${fmt(f.B,2)}×${fmt(f.B,2)}×${fmt(f.H,2)} m</td><td>${fmt(f.qmin,1)} / ${fmt(f.qmax,1)} kN/m²</td><td>${utilPill(f.embedUtil)}</td><td>${f.upliftOK?'<span class="pill ok">OK</span>':'<span class="pill warn">ΑΝΕΠΑΡΚΕΣ</span>'}</td></tr></table>
+      <div class="note">Η ροπή και η τέμνουσα μεταφέρονται προκαταρκτικά μέσω κατανεμημένης πίεσης επαφής στον εγκιβωτισμένο κορμό. Δεν πιστώνεται συνάφεια της λείας επιφάνειας SHS για παραλαβή καθαρού εφελκυσμού.</div></div>`;
+  }
+
+  /* --- Σύνοψη Φορτίων --- */
+  html += `<div class="section-title"><span class="n">7</span> Σύνοψη φορτίων &amp; παραδοχών</div>
+  <div class="card"><table>
+    <tr><td class="label">Νεκρό επικάλυψης</td><td>${fmt(r.gCover,3)} kN/m²</td></tr>
+    <tr><td class="label">Ίδιο βάρος φορέα</td><td>${fmt(r.gStruct,3)} kN/m²</td></tr>
+    <tr><td class="label">Χιόνι s</td><td>${fmt(r.snow,3)} kN/m²</td></tr>
+    <tr><td class="label">Άνεμος q<sub>p</sub></td><td>${fmt(r.wind.qp,3)} kN/m²</td></tr>
+    <tr><td class="label">Σεισμός S<sub>d</sub></td><td>${fmt(r.Sd,3)}·g</td></tr>
+    <tr><td class="label">Συνδυασμός ΟΚΑ (στέγη)</td><td>${fmt(r.wDesignFinal,3)} kN/m²</td></tr>
+  </table></div>`;
+
+  document.getElementById('results').innerHTML = html;
+}
+
+
+
+/* ============ ΠΡΟΜΕΤΡΗΣΗ ΒΑΡΟΥΣ & ΠΡΟΫΠΟΛΟΓΙΣΜΟΣ ============ */
+function numInput(id, fallback=0){
+  const el=document.getElementById(id); const v=el?parseFloat(el.value):fallback;
+  return Number.isFinite(v)?v:fallback;
+}
+function buildBom(r){
+  const rows=[];
+  const add=(code,member,sec,qty,pieceLength,notes='')=>{
+    if(!sec || !qty || !(pieceLength>0)) return;
+    const totalLength=qty*pieceLength, weight=totalLength*sec.m;
+    rows.push({code,member,section:sec.n,qty,pieceLength,totalLength,kgm:sec.m,weight,notes});
+  };
+  add('C','Υποστυλώματα',r.columnResult.sec,r.nCols,r.Lc+r.embedDepth,`Ελεύθερο ύψος ${r.Lc.toFixed(2)} m + εγκιβωτισμός ${r.embedDepth.toFixed(2)} m`);
+  add('B','Κύριες δοκοί παρειών',r.beamResult.sec,r.nRows*r.roofSlopeCount,r.slopeLength,'Ανά κεκλιμένη παρειά');
+  const pLines=r.shape==='duo' ? (2*r.nPurlinLines-1) : r.nPurlinLines;
+  add('P','Τεγίδες',r.purlinResult.sec,pLines,r.X,'Συνεχής συνολική γραμμή· απαιτείται τεμαχισμός μεταφοράς');
+  if(r.roofBrace) add('RB','Χιαστί στέγης SHS',r.roofBrace.sec,r.nBracedBays*r.roofSlopeCount*2,r.roofBraceLen,'Δύο διαγώνιοι ανά παρειά/φάτνωμα');
+  if(r.headXResult) add('HX','Κεφαλοδοκοί κατά Χ',r.headXResult.sec,2*r.nBays,r.bay,'Δύο μακριές πλευρές');
+  if(r.headYResult) add('HY','Κεφαλοδοκοί κατά Υ',r.headYResult.sec,r.nRows,r.Y,'Ανά πλαίσιο');
+  if(r.sideRod){
+    const d=r.sideRod.d, kgm=Math.PI*d*d/4*7850/1e6;
+    const pseudo={n:`Ράβδος Φ${d}`,m:kgm};
+    add('SB','Πλαϊνά χιαστί',pseudo,2*r.nBracedBays*2,r.sideBraceLen,'Δύο όψεις και δύο διαγώνιοι ανά φατνωμένο άκρο');
+  }
+  return rows;
+}
+function buildBudget(r){
+  const bom=buildBom(r), steelWeight=bom.reduce((a,x)=>a+x.weight,0);
+  const c={steel:numInput('costSteel',2.2),fab:numInput('costFabrication',2),erect:numInput('costErection',.85),coat:numInput('costCoating',.55),cover:numInput('costCover',45),concrete:numInput('costConcrete',135),rebar:numInput('costRebar',1.55),connections:numInput('connectionPct',12),cont:numInput('contingencyPct',10)};
+  const roofArea=r.X*r.slopeLength*r.roofSlopeCount;
+  const concreteVolume=r.nCols*r.footing.B*r.footing.B*r.footing.H;
+  const rebarWeight=Math.max(0,concreteVolume*80); // ενδεικτικά 80 kg/m3
+  const steelSupply=steelWeight*c.steel, fabrication=steelWeight*c.fab, erection=steelWeight*c.erect, coating=steelWeight*c.coat;
+  const connections=(steelSupply+fabrication)*c.connections/100;
+  const covering=roofArea*c.cover, concrete=concreteVolume*c.concrete, rebar=rebarWeight*c.rebar;
+  const subtotal=steelSupply+fabrication+erection+coating+connections+covering+concrete+rebar;
+  const contingency=subtotal*c.cont/100, total=subtotal+contingency;
+  return {bom,steelWeight,roofArea,concreteVolume,rebarWeight,c,items:[
+    ['Προμήθεια δομικού χάλυβα',steelWeight,'kg',c.steel,steelSupply],['Κατασκευή εργαστηρίου',steelWeight,'kg',c.fab,fabrication],['Ανέγερση / τοποθέτηση',steelWeight,'kg',c.erect,erection],['Βαφή / αντιδιαβρωτική προστασία',steelWeight,'kg',c.coat,coating],['Συνδέσεις, κοχλίες και ελάσματα',1,'κατ’ αποκοπή',connections,connections],['Επικάλυψη στέγης',roofArea,'m²',c.cover,covering],['Σκυρόδεμα πεδίλων',concreteVolume,'m³',c.concrete,concrete],['Οπλισμός θεμελίωσης (ενδεικτικός)',rebarWeight,'kg',c.rebar,rebar]
+  ],subtotal,contingency,total};
+}
+function renderCommercialSummary(r){
+  const b=buildBudget(r);
+  const html=`<div class="section-title"><span class="n">7</span> Προμέτρηση και ενδεικτικός προϋπολογισμός</div><div class="card"><div class="summary-strip"><div class="stat"><div class="k">Βάρος χάλυβα</div><div class="v">${fmt(b.steelWeight,0)} kg</div></div><div class="stat"><div class="k">Κεκλιμένη επιφάνεια</div><div class="v">${fmt(b.roofArea,1)} m²</div></div><div class="stat"><div class="k">Σκυρόδεμα πεδίλων</div><div class="v">${fmt(b.concreteVolume,2)} m³</div></div><div class="stat"><div class="k">Σύνολο με απρόβλεπτα</div><div class="v">€ ${fmt(b.total,0)}</div></div></div><table><tr><th>Κωδ.</th><th>Μέλος</th><th>Διατομή</th><th>Πλήθος</th><th>L τεμ. (m)</th><th>L συν. (m)</th><th>Βάρος (kg)</th></tr>${b.bom.map(x=>`<tr><td>${x.code}</td><td class="label">${x.member}</td><td>${x.section}</td><td>${x.qty}</td><td>${fmt(x.pieceLength,2)}</td><td>${fmt(x.totalLength,2)}</td><td>${fmt(x.weight,1)}</td></tr>`).join('')}<tr><td colspan="6"><b>Συνολικό θεωρητικό βάρος</b></td><td><b>${fmt(b.steelWeight,1)} kg</b></td></tr></table><div class="note">Δεν περιλαμβάνονται με ακρίβεια ελάσματα κόμβων, τυχόν συγκολλημένα κλειδιά διάτμησης/μηχανικής εμπλοκής, ρετάλια, ειδικά τεμάχια και μεταφορές. Οι συνδέσεις προσεγγίζονται ποσοστιαία.</div></div>`;
+  document.getElementById('results').insertAdjacentHTML('beforeend',html);
+}
+function downloadText(filename,text,type='text/plain;charset=utf-8'){
+  const blob=new Blob(['\ufeff'+text],{type}); const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=filename; document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(a.href),1500);
+}
+function exportBomCsv(){
+  const r=window.__lastResult;if(!r){alert('Δεν υπάρχουν αποτελέσματα.');return;}
+  const rows=buildBom(r), sep=';';
+  const csv=[['Κωδικός','Μέλος','Διατομή','Πλήθος','Μήκος τεμαχίου (m)','Συνολικό μήκος (m)','kg/m','Συνολικό βάρος (kg)','Παρατηρήσεις'],...rows.map(x=>[x.code,x.member,x.section,x.qty,x.pieceLength.toFixed(3),x.totalLength.toFixed(3),x.kgm.toFixed(3),x.weight.toFixed(2),x.notes])].map(a=>a.map(v=>`"${String(v).replaceAll('"','""')}"`).join(sep)).join('\n');
+  downloadText('BOM_Cut_List_Stegastrou.csv',csv,'text/csv;charset=utf-8');
+}
+function exportBudget(){
+  const r=window.__lastResult;if(!r){alert('Δεν υπάρχουν αποτελέσματα.');return;} const b=buildBudget(r);
+  const win=window.open('','_blank','width=1000,height=800,scrollbars=yes');if(!win){alert('Παρακαλώ επιτρέψτε τα αναδυόμενα παράθυρα.');return;}
+  const rows=b.items.map((x,i)=>`<tr><td>${i+1}</td><td>${x[0]}</td><td>${fmt(x[1],2)}</td><td>${x[2]}</td><td>${fmt(x[3],2)}</td><td>${fmt(x[4],2)}</td></tr>`).join('');
+  win.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>Προμέτρηση και Προϋπολογισμός</title><style>body{font-family:Arial,sans-serif;margin:25mm;color:#222}h1,h2{color:#244b58}table{width:100%;border-collapse:collapse}th,td{border:1px solid #999;padding:7px;text-align:right}th:nth-child(2),td:nth-child(2){text-align:left}.total{font-weight:bold;background:#eee}.note{margin-top:18px;font-size:11px;color:#555}@media print{button{display:none}}</style></head><body><button onclick="window.print()">Εκτύπωση / PDF</button><h1>Προμέτρηση και Ενδεικτικός Προϋπολογισμός</h1><p>Στέγαστρο ${fmt(r.X,2)} × ${fmt(r.Y,2)} m — θεωρητικό βάρος χάλυβα ${fmt(b.steelWeight,1)} kg</p><table><tr><th>Α/Α</th><th>Εργασία / υλικό</th><th>Ποσότητα</th><th>Μον.</th><th>Τιμή μονάδας (€)</th><th>Δαπάνη (€)</th></tr>${rows}<tr class="total"><td colspan="5">Μερικό σύνολο</td><td>${fmt(b.subtotal,2)}</td></tr><tr><td colspan="5">Απρόβλεπτα ${fmt(b.c.cont,1)}%</td><td>${fmt(b.contingency,2)}</td></tr><tr class="total"><td colspan="5">Γενικό σύνολο χωρίς ΦΠΑ</td><td>${fmt(b.total,2)}</td></tr></table><h2>Παραδοχές</h2><div class="note">Η προμέτρηση είναι προκαταρκτική. Ο οπλισμός θεμελίωσης εκτιμάται σε 80 kg/m³ σκυροδέματος. Οι συνδέσεις, κοχλίες και τυχόν συγκολλημένα στοιχεία μηχανικής εμπλοκής προσεγγίζονται ως ποσοστό της προμήθειας και κατασκευής χάλυβα. Δεν περιλαμβάνονται ΦΠΑ, μεταφορές, άδειες, χωματουργικά, αποστραγγίσεις και ειδικές αρχιτεκτονικές εργασίες.</div></body></html>`);win.document.close();
+}
+function exportFullPackage(){
+  const r=window.__lastResult;if(!r){alert('Δεν υπάρχουν αποτελέσματα.');return;}
+  exportDxf(); setTimeout(exportBudget,300); setTimeout(exportSketchesPdf,600); setTimeout(exportReport,900);
+}
+
+/* ============ ΕΞΑΓΩΓΗ DXF 1:1 (ΜΟΝΑΔΑ ΣΧΕΔΙΟΥ: m) ============ */
+function dxfNum(v){
+  if(!Number.isFinite(v)) throw new Error('Μη έγκυρη αριθμητική τιμή κατά την παραγωγή DXF.');
+  return Number(v.toFixed(6)).toString();
+}
+
+function dxfPair(code, value){ return `${code}\n${value}\n`; }
+
+function dxfLine(layer, x1, y1, x2, y2){
+  return dxfPair(0,'LINE') + dxfPair(8,layer) +
+    dxfPair(10,dxfNum(x1)) + dxfPair(20,dxfNum(y1)) + dxfPair(30,'0') +
+    dxfPair(11,dxfNum(x2)) + dxfPair(21,dxfNum(y2)) + dxfPair(31,'0');
+}
+
+function dxfUnicode(text){
+  return String(text).replace(/[\u0080-\uFFFF]/g, ch => `\\U+${ch.charCodeAt(0).toString(16).toUpperCase().padStart(4,'0')}`);
+}
+
+function dxfPolyline(layer, pts, closed=true){
+  /* R12-compatible POLYLINE/VERTEX sequence. This is intentionally used
+     instead of LWPOLYLINE so the exported file remains valid AC1009 DXF. */
+  let out=dxfPair(0,'POLYLINE')+dxfPair(8,layer)+dxfPair(66,'1')+dxfPair(70,closed?'1':'0');
+  pts.forEach(([x,y])=>{
+    out+=dxfPair(0,'VERTEX')+dxfPair(8,layer)+
+      dxfPair(10,dxfNum(x))+dxfPair(20,dxfNum(y))+dxfPair(30,'0');
+  });
+  out+=dxfPair(0,'SEQEND')+dxfPair(8,layer);
+  return out;
+}
+
+function dxfMemberRect(layer,x1,y1,x2,y2,width){
+  const dx=x2-x1, dy=y2-y1, L=Math.hypot(dx,dy);
+  if(L<1e-9) return '';
+  const nx=-dy/L*width/2, ny=dx/L*width/2;
+  return dxfPolyline(layer,[[x1+nx,y1+ny],[x2+nx,y2+ny],[x2-nx,y2-ny],[x1-nx,y1-ny]],true);
+}
+
+function dxfHollowRect(layer,cx,cy,width,height,t){
+  let out=dxfRect(layer,cx,cy,width,height);
+  if(t>0 && width>2*t && height>2*t) out+=dxfRect(layer,cx,cy,width-2*t,height-2*t);
+  return out;
+}
+
+function dxfCircle(layer, x, y, radius){
+  return dxfPair(0,'CIRCLE') + dxfPair(8,layer) +
+    dxfPair(10,dxfNum(x)) + dxfPair(20,dxfNum(y)) + dxfPair(30,'0') +
+    dxfPair(40,dxfNum(radius));
+}
+
+function dxfText(layer, x, y, height, text, rotation=0){
+  const safe = dxfUnicode(String(text).replace(/[\r\n]+/g,' '));
+  return dxfPair(0,'TEXT') + dxfPair(8,layer) +
+    dxfPair(10,dxfNum(x)) + dxfPair(20,dxfNum(y)) + dxfPair(30,'0') +
+    dxfPair(40,dxfNum(height)) + dxfPair(1,safe) + dxfPair(7,'ARIAL') + dxfPair(50,dxfNum(rotation));
+}
+
+function dxfRect(layer, cx, cy, width, height){
+  const x1=cx-width/2, x2=cx+width/2, y1=cy-height/2, y2=cy+height/2;
+  return dxfLine(layer,x1,y1,x2,y1)+dxfLine(layer,x2,y1,x2,y2)+
+         dxfLine(layer,x2,y2,x1,y2)+dxfLine(layer,x1,y2,x1,y1);
+}
+
+function dxfDimHorizontal(x1, x2, yObject, yDim, text, textHeight){
+  const tick=Math.max(textHeight*0.35,0.04);
+  let out='';
+  out += dxfLine('DIMENSIONS',x1,yObject,x1,yDim);
+  out += dxfLine('DIMENSIONS',x2,yObject,x2,yDim);
+  out += dxfLine('DIMENSIONS',x1,yDim,x2,yDim);
+  out += dxfLine('DIMENSIONS',x1-tick,yDim-tick,x1+tick,yDim+tick);
+  out += dxfLine('DIMENSIONS',x2-tick,yDim-tick,x2+tick,yDim+tick);
+  out += dxfText('TEXT',(x1+x2)/2,yDim+textHeight*0.35,textHeight,text,0);
+  return out;
+}
+
+function dxfDimVertical(y1, y2, xObject, xDim, text, textHeight){
+  const tick=Math.max(textHeight*0.35,0.04);
+  let out='';
+  out += dxfLine('DIMENSIONS',xObject,y1,xDim,y1);
+  out += dxfLine('DIMENSIONS',xObject,y2,xDim,y2);
+  out += dxfLine('DIMENSIONS',xDim,y1,xDim,y2);
+  out += dxfLine('DIMENSIONS',xDim-tick,y1-tick,xDim+tick,y1+tick);
+  out += dxfLine('DIMENSIONS',xDim-tick,y2-tick,xDim+tick,y2+tick);
+  out += dxfText('TEXT',xDim-textHeight*0.35,(y1+y2)/2,textHeight,text,90);
+  return out;
+}
+
+function buildDxf(r){
+  const textH=Math.max(Math.min(r.X,r.Y)*0.025,0.18);
+  const mm=v=>Number(v||0)/1000;
+  const col=r.columnResult.sec, beam=r.beamResult.sec, purlin=r.purlinResult.sec;
+  const colB=Math.max(mm(col.b),0.04), colH=Math.max(mm(col.h),0.04), colT=Math.max(mm(col.t),0);
+  const beamB=Math.max(mm(beam.b),0.04), beamH=Math.max(mm(beam.h),0.04);
+  const purlinB=Math.max(mm(purlin.b),0.025), purlinH=Math.max(mm(purlin.h),0.025);
+  const roofBraceSec=r.roofBraceResult?.sec || r.roofBracingResult?.sec || null;
+  const roofBraceW=Math.max(mm(roofBraceSec?.b||roofBraceSec?.h||40),0.03);
+  const sideBraceSec=r.sideBraceResult?.sec || roofBraceSec;
+  const sideBraceW=Math.max(mm(sideBraceSec?.b||sideBraceSec?.h||40),0.03);
+  const headSec=r.headXResult?.sec || r.headYResult?.sec || beam;
+  const headH=Math.max(mm(headSec.h),0.04), headB=Math.max(mm(headSec.b),0.04);
+  let entities='';
+
+  /* ΚΑΤΟΨΗ — πραγματικά περιγράμματα */
+  const planX=0, planY=0;
+  entities += dxfText('TEXT',planX,planY+r.Y+1.2,textH*1.35,'ΚΑΤΟΨΗ - ΜΟΝΑΔΕΣ m - MODEL SPACE 1:1');
+  entities += dxfPolyline('ROOF',[[planX,planY],[planX+r.X,planY],[planX+r.X,planY+r.Y],[planX,planY+r.Y]],true);
+
+  /* Κάναβος αξόνων στα κέντρα των υποστυλωμάτων */
+  const gridExt=Math.max(0.55,textH*2.2), bubbleR=Math.max(0.16,textH*0.72);
+  for(let i=0;i<r.nRows;i++){
+    const gx=planX+i*r.bay;
+    entities += dxfLine('GRID',gx,planY-gridExt,gx,planY+r.Y+gridExt);
+    entities += dxfCircle('GRID',gx,planY-gridExt-bubbleR,bubbleR);
+    entities += dxfCircle('GRID',gx,planY+r.Y+gridExt+bubbleR,bubbleR);
+    entities += dxfText('GRID',gx-bubbleR*0.34,planY-gridExt-bubbleR-textH*0.28,textH*0.72,String(i+1));
+    entities += dxfText('GRID',gx-bubbleR*0.34,planY+r.Y+gridExt+bubbleR-textH*0.28,textH*0.72,String(i+1));
+  }
+  [['A',planY],['B',planY+r.Y]].forEach(([label,gy])=>{
+    entities += dxfLine('GRID',planX-gridExt,gy,planX+r.X+gridExt,gy);
+    entities += dxfCircle('GRID',planX-gridExt-bubbleR,gy,bubbleR);
+    entities += dxfCircle('GRID',planX+r.X+gridExt+bubbleR,gy,bubbleR);
+    entities += dxfText('GRID',planX-gridExt-bubbleR-textH*0.22,gy-textH*0.28,textH*0.72,label);
+    entities += dxfText('GRID',planX+r.X+gridExt+bubbleR-textH*0.22,gy-textH*0.28,textH*0.72,label);
+  });
+
+  for(let i=0;i<r.nRows;i++){
+    const x=planX+i*r.bay;
+    entities += dxfMemberRect('FRAMES',x,planY,x,planY+r.Y,beamB);
+    entities += dxfHollowRect('COLUMNS',x,planY,colB,colH,colT);
+    entities += dxfHollowRect('COLUMNS',x,planY+r.Y,colB,colH,colT);
+  }
+  if(r.shape==='duo'){
+    const ridgeY=planY+r.Y/2;
+    entities += dxfMemberRect('RIDGE',planX,ridgeY,planX+r.X,ridgeY,beamB);
+    for(let side=0;side<2;side++){
+      const y0=side===0?planY:ridgeY, y1=side===0?ridgeY:planY+r.Y;
+      for(let i=0;i<r.nPurlinLines;i++){
+        const yy=y0+(y1-y0)*i/Math.max(1,r.nPurlinLines-1);
+        entities += dxfMemberRect('PURLINS',planX,yy,planX+r.X,yy,purlinB);
+      }
+    }
+  }else{
+    for(let i=0;i<r.nPurlinLines;i++){
+      const yy=planY+r.Y*i/Math.max(1,r.nPurlinLines-1);
+      entities += dxfMemberRect('PURLINS',planX,yy,planX+r.X,yy,purlinB);
+    }
+  }
+  if(r.roofBracing==='yes'){
+    const be=Math.max(1,Math.round(r.nBracedBays/2)), bays=[];
+    for(let k=0;k<be;k++){bays.push(k);if(r.nBays-1-k!==k)bays.push(r.nBays-1-k);}
+    [...new Set(bays)].forEach(b=>{
+      const x1=planX+b*r.bay,x2=x1+r.bay;
+      if(r.shape==='duo'){
+        const ym=planY+r.Y/2;
+        entities+=dxfMemberRect('ROOF_BRACING_SHS',x1,planY,x2,ym,roofBraceW);
+        entities+=dxfMemberRect('ROOF_BRACING_SHS',x2,planY,x1,ym,roofBraceW);
+        entities+=dxfMemberRect('ROOF_BRACING_SHS',x1,ym,x2,planY+r.Y,roofBraceW);
+        entities+=dxfMemberRect('ROOF_BRACING_SHS',x2,ym,x1,planY+r.Y,roofBraceW);
+      }else{
+        entities+=dxfMemberRect('ROOF_BRACING_SHS',x1,planY,x2,planY+r.Y,roofBraceW);
+        entities+=dxfMemberRect('ROOF_BRACING_SHS',x2,planY,x1,planY+r.Y,roofBraceW);
+      }
+    });
+  }
+  if(r.roofBracing==='yes' && roofBraceSec){
+    entities += dxfText('MEMBER_TAGS',planX+r.bay*0.12,planY+r.Y*0.25,textH*0.68,`ΧΙΑΣΤΙ ΣΤΕΓΗΣ ${roofBraceSec.n}`);
+  }
+  if(r.headX==='yes' || r.headY==='yes'){
+    entities += dxfText('MEMBER_TAGS',planX+r.X*0.42,planY+textH*0.55,textH*0.68,`ΚΕΦΑΛΟΔΟΚΟΣ ${headSec.n}`);
+  }
+  entities += dxfDimHorizontal(planX,planX+r.X,planY,planY-0.8,`X = ${fmt(r.X,2)} m`,textH);
+  entities += dxfDimVertical(planY,planY+r.Y,planX,planX-0.8,`Y = ${fmt(r.Y,2)} m`,textH);
+  entities += dxfText('TEXT',planX,planY-1.55,textH,`Υποστύλωμα ${col.n} | Δοκός ${beam.n} | Τεγίδα ${purlin.n}`);
+
+  /* ΕΓΚΑΡΣΙΑ ΤΟΜΗ — πραγματικό πλάτος υποστυλωμάτων και ύψος δοκών */
+  const secX=0, secY=-(r.Y+r.Lc+r.ridgeRise+5.0);
+  entities += dxfText('TEXT',secX,secY+r.Lc+r.ridgeRise+1.1,textH*1.35,'ΕΓΚΑΡΣΙΑ ΤΟΜΗ');
+  entities += dxfLine('GROUND',secX-0.5,secY,secX+r.Y+0.5,secY);
+  const fB=r.footing.B,fH=r.footing.H,emb=r.embedDepth;
+  entities += dxfRect('FOUNDATIONS',secX,secY-fH/2,fB,fH);
+  entities += dxfRect('FOUNDATIONS',secX+r.Y,secY-fH/2,fB,fH);
+  entities += dxfRect('COLUMNS',secX,secY+(r.Lc-emb)/2,colB,r.Lc+emb);
+  if(r.shape==='duo'){
+    entities += dxfRect('COLUMNS',secX+r.Y,secY+(r.Lc-emb)/2,colB,r.Lc+emb);
+    entities += dxfMemberRect('BEAMS',secX,secY+r.Lc,secX+r.Y/2,secY+r.Lc+r.ridgeRise,beamH);
+    entities += dxfMemberRect('BEAMS',secX+r.Y/2,secY+r.Lc+r.ridgeRise,secX+r.Y,secY+r.Lc,beamH);
+  }else{
+    entities += dxfRect('COLUMNS',secX+r.Y,secY+(r.Lc+r.ridgeRise-emb)/2,colB,r.Lc+r.ridgeRise+emb);
+    entities += dxfMemberRect('BEAMS',secX,secY+r.Lc,secX+r.Y,secY+r.Lc+r.ridgeRise,beamH);
+  }
+  /* τεγίδες ως πραγματικές μικρές διατομές στις παρειές */
+  const addPurlinAt=(x,y,angle)=>{
+    const a=angle*Math.PI/180, ux=Math.cos(a),uy=Math.sin(a),vx=-uy,vy=ux;
+    /* Η τεγίδα εδράζεται στην άνω παρειά της κύριας δοκού/ζευκτού. */
+    const supportOffset=beamH/2+purlinH/2;
+    const cx=x+vx*supportOffset, cy=y+vy*supportOffset;
+    const hw=purlinB/2,hh=purlinH/2;
+    entities+=dxfPolyline('PURLINS',[[cx-ux*hw-vx*hh,cy-uy*hw-vy*hh],[cx+ux*hw-vx*hh,cy+uy*hw-vy*hh],[cx+ux*hw+vx*hh,cy+uy*hw+vy*hh],[cx-ux*hw+vx*hh,cy-uy*hw+vy*hh]],true);
+  };
+  const slopeAng=Math.atan2(r.ridgeRise,r.Y/(r.shape==='duo'?2:1))*180/Math.PI;
+  if(r.shape==='duo'){
+    for(let i=0;i<r.nPurlinLines;i++){
+      const t=i/Math.max(1,r.nPurlinLines-1);
+      addPurlinAt(secX+t*r.Y/2,secY+r.Lc+t*r.ridgeRise,slopeAng);
+      addPurlinAt(secX+r.Y/2+t*r.Y/2,secY+r.Lc+r.ridgeRise-t*r.ridgeRise,-slopeAng);
+    }
+  }else{
+    for(let i=0;i<r.nPurlinLines;i++){
+      const t=i/Math.max(1,r.nPurlinLines-1);
+      addPurlinAt(secX+t*r.Y,secY+r.Lc+t*r.ridgeRise,slopeAng);
+    }
+  }
+  entities += dxfText('MEMBER_TAGS',secX+r.Y*0.25,secY+r.Lc+r.ridgeRise*0.52+beamH,textH*0.72,`ΚΥΡΙΑ ΔΟΚΟΣ / ΖΕΥΚΤΟ ${beam.n}`);
+  entities += dxfText('MEMBER_TAGS',secX+r.Y*0.12,secY+r.Lc+r.ridgeRise*0.18+beamH+purlinH,textH*0.68,`ΤΕΓΙΔΕΣ ${purlin.n} — ΑΝΩ ΠΑΡΕΙΑ`);
+  if(r.roofBracing==='yes' && roofBraceSec){
+    entities += dxfText('MEMBER_TAGS',secX+r.Y*0.54,secY+r.Lc+r.ridgeRise+beamH+textH*0.35,textH*0.68,`ΧΙΑΣΤΙ ΣΤΕΓΗΣ ${roofBraceSec.n}`);
+  }
+  entities += dxfDimHorizontal(secX,secX+r.Y,secY,secY-0.8,`Y = ${fmt(r.Y,2)} m`,textH);
+  entities += dxfDimVertical(secY,secY+r.Lc,secX,secX-0.8,`H = ${fmt(r.Lc,2)} m`,textH);
+  entities += dxfText('TEXT',secX+0.15,secY-fH-0.35,textH*0.7,`Πέδιλο ${fB.toFixed(2)} x ${fB.toFixed(2)} x ${fH.toFixed(2)} m | εγκιβωτισμός ${emb.toFixed(2)} m`);
+
+  /* ΔΙΑΜΗΚΗΣ ΤΟΜΗ */
+  const longX=0,longY=secY-(r.Lc+4.5);
+  entities += dxfText('TEXT',longX,longY+r.Lc+1.1,textH*1.35,'ΔΙΑΜΗΚΗΣ ΤΟΜΗ');
+  entities += dxfLine('GROUND',longX-0.5,longY,longX+r.X+0.5,longY);
+  entities += dxfMemberRect('HEAD_BEAMS',longX,longY+r.Lc,longX+r.X,longY+r.Lc,headH);
+  for(let i=0;i<r.nRows;i++){
+    const x=longX+i*r.bay;
+    entities += dxfRect('FOUNDATIONS',x,longY-fH/2,fB,fH);
+    entities += dxfRect('COLUMNS',x,longY+(r.Lc-emb)/2,colB,r.Lc+emb);
+  }
+  if(r.sideBracing==='yes'){
+    const braced=Math.max(1,Math.round(r.nBracedBays/2)),bays=[];
+    for(let k=0;k<braced;k++){bays.push(k);if(r.nBays-1-k!==k)bays.push(r.nBays-1-k);}
+    [...new Set(bays)].forEach(b=>{
+      const x1=longX+b*r.bay,x2=x1+r.bay;
+      entities+=dxfMemberRect('SIDE_BRACING',x1,longY,x2,longY+r.Lc,sideBraceW);
+      entities+=dxfMemberRect('SIDE_BRACING',x2,longY,x1,longY+r.Lc,sideBraceW);
+    });
+  }
+  entities += dxfText('MEMBER_TAGS',longX+r.X*0.38,longY+r.Lc+headH/2+textH*0.55,textH*0.72,`ΚΕΦΑΛΟΔΟΚΟΣ ${headSec.n}`);
+  if(r.sideBracing==='yes'){
+    const sideLabel=sideBraceSec?.n ? `ΧΙΑΣΤΙ ΣΥΝΔΕΣΜΟΙ ${sideBraceSec.n}` : 'ΧΙΑΣΤΙ ΣΥΝΔΕΣΜΟΙ';
+    entities += dxfText('MEMBER_TAGS',longX+r.bay*0.15,longY+r.Lc*0.48,textH*0.72,sideLabel);
+  }
+  entities += dxfDimHorizontal(longX,longX+r.X,longY,longY-0.8,`X = ${fmt(r.X,2)} m`,textH);
+  entities += dxfDimVertical(longY,longY+r.Lc,longX,longX-0.8,`H = ${fmt(r.Lc,2)} m`,textH);
+
+  /* Κωδικοί μελών — χωρίς πίνακα κοπών */
+  for(let i=0;i<r.nRows;i++){
+    const x=planX+i*r.bay;
+    entities += dxfText('MEMBER_TAGS',x+0.12,planY+0.18,textH*0.72,`C${i+1}A ${col.n}`);
+    entities += dxfText('MEMBER_TAGS',x+0.12,planY+r.Y-0.32,textH*0.72,`C${i+1}B ${col.n}`);
+  }
+  for(let i=0;i<r.nBays;i++) entities += dxfText('MEMBER_TAGS',planX+(i+0.5)*r.bay,planY+r.Y/2+0.18,textH*0.72,`ΦΑΤΝΩΜΑ ${i+1}`);
+
+  const tbX=r.X+3.0,tbY=longY-2.2,tbW=Math.max(11,r.X*0.55),tbH=2.4;
+  entities += dxfRect('TITLE_BLOCK',tbX+tbW/2,tbY+tbH/2,tbW,tbH);
+  entities += dxfLine('TITLE_BLOCK',tbX,tbY+0.72,tbX+tbW,tbY+0.72);
+  entities += dxfText('TITLE_BLOCK',tbX+0.25,tbY+1.72,textH*0.85,'ΜΕΤΑΛΛΙΚΟ ΣΤΕΓΑΣΤΡΟ — ΚΑΤΑΣΚΕΥΑΣΤΙΚΗ ΑΠΕΙΚΟΝΙΣΗ');
+  entities += dxfText('TITLE_BLOCK',tbX+0.25,tbY+1.22,textH*0.64,`Υποστύλωμα: ${col.n} | Δοκός: ${beam.n} | Τεγίδα: ${purlin.n}`);
+  entities += dxfText('TITLE_BLOCK',tbX+0.25,tbY+0.82,textH*0.64,`Διαστάσεις: ${r.X.toFixed(2)} x ${r.Y.toFixed(2)} m | Μονάδες: m | Model Space 1:1`);
+  entities += dxfText('TITLE_BLOCK',tbX+0.25,tbY+0.25,textH*0.64,'Γραμματοσειρά ARIAL — Unicode ελληνικά | Τεχνικό Γραφείο Γεωργακόπουλος & Φουντάς');
+
+  const layers=[['0',7],['GRID',8],['ROOF',7],['FRAMES',8],['COLUMNS',1],['BEAMS',2],['HEAD_BEAMS',2],['PURLINS',4],['RIDGE',6],['ROOF_BRACING_SHS',3],['SIDE_BRACING',3],['GROUND',8],['FOUNDATIONS',9],['DIMENSIONS',5],['TEXT',7],['MEMBER_TAGS',6],['TITLE_BLOCK',7]];
+  let tables=dxfPair(0,'SECTION')+dxfPair(2,'TABLES');
+  tables+=dxfPair(0,'TABLE')+dxfPair(2,'STYLE')+dxfPair(70,'1');
+  tables+=dxfPair(0,'STYLE')+dxfPair(2,'ARIAL')+dxfPair(70,'0')+dxfPair(40,'0')+dxfPair(41,'1')+dxfPair(50,'0')+dxfPair(71,'0')+dxfPair(42,'0.2')+dxfPair(3,'arial.ttf')+dxfPair(4,'');
+  tables+=dxfPair(0,'ENDTAB');
+  tables+=dxfPair(0,'TABLE')+dxfPair(2,'LAYER')+dxfPair(70,String(layers.length));
+  layers.forEach(([name,color])=>{tables+=dxfPair(0,'LAYER')+dxfPair(2,name)+dxfPair(70,'0')+dxfPair(62,String(color))+dxfPair(6,'CONTINUOUS');});
+  tables+=dxfPair(0,'ENDTAB')+dxfPair(0,'ENDSEC');
+  let header=dxfPair(0,'SECTION')+dxfPair(2,'HEADER');
+  header+=dxfPair(9,'$ACADVER')+dxfPair(1,'AC1009');
+  header+=dxfPair(9,'$DWGCODEPAGE')+dxfPair(3,'ANSI_1252');
+  header+=dxfPair(9,'$INSUNITS')+dxfPair(70,'6');
+  header+=dxfPair(9,'$MEASUREMENT')+dxfPair(70,'1');
+  header+=dxfPair(0,'ENDSEC');
+  return header+tables+dxfPair(0,'SECTION')+dxfPair(2,'ENTITIES')+entities+dxfPair(0,'ENDSEC')+dxfPair(0,'EOF');
+}
+function exportDxf(){
+  const r=window.__lastResult;
+  if(!r){ alert('Δεν υπάρχουν έγκυρα αποτελέσματα για εξαγωγή DXF.'); return; }
+  try{
+    const dxf=buildDxf(r);
+    const blob=new Blob([dxf],{type:'application/dxf;charset=utf-8'});
+    const a=document.createElement('a');
+    a.href=URL.createObjectURL(blob);
+    const stamp=new Date().toISOString().slice(0,10);
+    a.download=`stegastro_${fmt(r.X,2).replace(',','_')}x${fmt(r.Y,2).replace(',','_')}_${stamp}.dxf`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(()=>URL.revokeObjectURL(a.href),1500);
+  }catch(err){
+    console.error(err);
+    alert(`Αποτυχία παραγωγής DXF: ${err.message}`);
+  }
+}
+
+/* ============ ΕΞΑΓΩΓΗ ΣΚΑΡΙΦΗΜΑΤΩΝ (PDF / HTML) ============ */
+function exportSketchesPdf(){
+  const r = window.__lastResult;
+  if(!r){ alert('Δεν υπάρχουν αποτελέσματα.'); return; }
+  
+  const win = window.open('', '_blank', 'width=1000,height=700,scrollbars=yes');
+  if(!win){ alert('Παρακαλώ επιτρέψτε τα αναδυόμενα παράθυρα (pop-ups).'); return; }
+
+  let html = `
+  <!DOCTYPE html>
+  <html><head><meta charset="UTF-8"><title>Σκαριφήματα Στεγάστρου</title>
+  <style>
+    body{background:#15181c;color:#dfe3e6;font-family:Arial,sans-serif;padding:20px;}
+    .sketch{margin-bottom:30px;border:1px solid #2c333b;border-radius:6px;padding:10px;background:#1c2126;}
+    .sketch h3{color:#4fb3a9;margin:0 0 10px 0;font-size:14px;}
+    svg{width:100%;height:auto;background:#161a1e;display:block;border:1px solid #2c333b;border-radius:4px;}
+    .toolbar{position:fixed;top:10px;right:10px;z-index:1000;background:#1c2126;padding:10px;border-radius:6px;border:1px solid #2c333b;}
+    .btn{background:#d99a44;color:#1a1408;border:none;padding:8px 16px;border-radius:4px;font-weight:600;cursor:pointer;}
+  </style></head><body>
+  <div class="toolbar"><button class="btn" onclick="window.print()">🖨️ Εκτύπωση / Αποθήκευση ως PDF</button></div>
+  <h2 style="color:#dfe3e6;">Σκαριφήματα Μεταλλικού Στεγάστρου</h2>
+  <div class="sketch"><h3>Κάτοψη</h3>${drawPlan(r)}</div>
+  <div class="sketch"><h3>Τομή κατά Χ (εγκάρσια)</h3>${drawSectionX(r)}</div>
+  <div class="sketch"><h3>Τομή κατά Υ (διαμήκης)</h3>${drawSectionY(r)}</div>
+  <div class="sketch"><h3>Λεπτομέρεια φατνώματος</h3>${drawDetail(r)}</div>
+  </body></html>`;
+
+  win.document.write(html);
+  win.document.close();
+}
+
+/* ============ ΕΞΑΓΩΓΗ ΑΝΑΛΥΤΙΚΟΥ ΤΕΥΧΟΥΣ ΥΠΟΛΟΓΙΣΜΩΝ ============ */
+function exportReport(){
+  const r=window.__lastResult;
+  if(!r){ alert('Δεν υπάρχουν έγκυρα αποτελέσματα.'); return; }
+  const win=window.open('','_blank','width=1100,height=800,scrollbars=yes');
+  if(!win){ alert('Παρακαλώ επιτρέψτε τα αναδυόμενα παράθυρα.'); return; }
+  const cov=r.covering==='panel'?'Πάνελ αλουμινίου 5 cm':'Ξύλινη κεραμοσκεπή';
+  const shape=r.shape==='duo'?'Δίριχτη':'Μονόριχτη';
+  const pill=u=>`<span class="pill ${u<=1?'ok':'warn'}">${Math.round(u*100)}%</span>`;
+  const result=u=>u<=1?'<b class="pass">ΙΚΑΝΟΠΟΙΕΙΤΑΙ</b>':'<b class="fail">ΔΕΝ ΙΚΑΝΟΠΟΙΕΙΤΑΙ</b>';
+  const p=r.purlinResult,b=r.beamResult,c=r.columnResult;
+  const wp=r.wDesignFinal*r.purlinSpacing;
+  const wpPerp=wp*Math.cos(r.angleDeg*Math.PI/180), wpPar=wp*Math.sin(r.angleDeg*Math.PI/180);
+  const wb=r.wDesignFinal*r.bay;
+  const Avb=shearArea(b.sec.A,b.sec.h,b.sec.b);
+  const comboRows=r.loadComb.combos.map(x=>`<tr class="${x.id===r.loadComb.downward.id?'gov':''}"><td>${x.id}</td><td>${x.label}</td><td>${fmt(x.value,3)}</td><td>${x.id===r.loadComb.downward.id?'Κρίσιμος καθοδικός':''}</td></tr>`).join('');
+  const iterRows=r.iterationLog.map(i=>`<tr><td>${i.pass}</td><td>${fmt(i.gOld,3)}</td><td>${fmt(i.gNew,3)}</td><td>${i.secP}</td><td>${i.secB}</td></tr>`).join('');
+  const warnings=r.warnings.length?r.warnings.map(w=>`<li>${w}</li>`).join(''):'<li>Δεν καταγράφηκαν λειτουργικές προειδοποιήσεις.</li>';
+  const colDetail=c.tension ? `
+    <h3>9.4 Έλεγχος εφελκυσμού και διαξονικής κάμψης</h3>
+    <div class="eq">N<sub>t,Rd</sub> = A·f<sub>y</sub>/γ<sub>M0</sub> = ${fmt(c.sec.A,2)}·${r.fy}·0,1/${GM0} = <b>${fmt(c.Nt,2)} kN</b></div>
+    <div class="eq">M<sub>y,Rd</sub> = W<sub>y</sub>·f<sub>y</sub>/γ<sub>M0</sub> = <b>${fmt(McClass(c.sec,'y',c.cls.bend,r.fy),2)} kNm</b></div>
+    <div class="eq">M<sub>z,Rd</sub> = W<sub>z</sub>·f<sub>y</sub>/γ<sub>M0</sub> = <b>${fmt(McClass(c.sec,'z',c.cls.bend,r.fy),2)} kNm</b></div>
+    <div class="eq">η = |N<sub>Ed</sub>|/N<sub>t,Rd</sub> + M<sub>Ed,y</sub>/M<sub>y,Rd</sub> + M<sub>Ed,z</sub>/M<sub>z,Rd</sub><br>
+    = ${fmt(Math.abs(r.NEd),2)}/${fmt(c.Nt,2)} + ${fmt(r.MEdy,2)}/${fmt(McClass(c.sec,'y',c.cls.bend,r.fy),2)} + ${fmt(r.MEdz,2)}/${fmt(McClass(c.sec,'z',c.cls.bend,r.fy),2)} = <b>${fmt(c.utilTension,4)}</b> ≤ 1,00 → ${result(c.utilTension)}</div>` : `
+    <h3>9.4 Λυγισμός περί y</h3>
+    <div class="eq">N<sub>cr,y</sub> = π²·E·I<sub>y</sub>/L<sub>cr,y</sub>² = π²·210000·${fmt(c.sec.Iy,1)}·10⁻⁵/${fmt(r.LcrStrong,2)}² = <b>${fmt(Ncr(c.sec.Iy,r.LcrStrong),2)} kN</b></div>
+    <div class="eq">λ̄<sub>y</sub> = √(A·f<sub>y</sub>/N<sub>cr,y</sub>) = <b>${fmt(c.by.lambdaBar,4)}</b>, χ<sub>y</sub> = <b>${fmt(c.by.chi,4)}</b></div>
+    <div class="eq">N<sub>b,Rd,y</sub> = χ<sub>y</sub>·A·f<sub>y</sub>/γ<sub>M1</sub> = <b>${fmt(c.by.NbRd,2)} kN</b></div>
+    <h3>9.5 Λυγισμός περί z</h3>
+    <div class="eq">N<sub>cr,z</sub> = π²·E·I<sub>z</sub>/L<sub>cr,z</sub>² = π²·210000·${fmt(c.sec.Iz,1)}·10⁻⁵/${fmt(r.LcrWeak,2)}² = <b>${fmt(Ncr(c.sec.Iz,r.LcrWeak),2)} kN</b></div>
+    <div class="eq">λ̄<sub>z</sub> = <b>${fmt(c.bz.lambdaBar,4)}</b>, χ<sub>z</sub> = <b>${fmt(c.bz.chi,4)}</b>, N<sub>b,Rd,z</sub> = <b>${fmt(c.bz.NbRd,2)} kN</b></div>
+    <h3>9.6 Αλληλεπίδραση θλίψης–διαξονικής κάμψης</h3>
+    <div class="eq">M<sub>y,Rd</sub>=${fmt(c.McY,2)} kNm, M<sub>z,Rd</sub>=${fmt(c.McZ,2)} kNm<br>
+    k<sub>yy</sub>=${fmt(c.kyy,4)}, k<sub>yz</sub>=${fmt(c.kyz,4)}, k<sub>zy</sub>=${fmt(c.kzy,4)}, k<sub>zz</sub>=${fmt(c.kzz,4)}</div>
+    <div class="eq">Έλεγχος 1 = N<sub>Ed</sub>/N<sub>b,Rd,y</sub> + k<sub>yy</sub>M<sub>y,Ed</sub>/M<sub>y,Rd</sub> + k<sub>yz</sub>M<sub>z,Ed</sub>/M<sub>z,Rd</sub><br>
+    = ${fmt(r.NEd,2)}/${fmt(c.by.NbRd,2)} + ${fmt(c.kyy,3)}·${fmt(r.MEdy,2)}/${fmt(c.McY,2)} + ${fmt(c.kyz,3)}·${fmt(r.MEdz,2)}/${fmt(c.McZ,2)} = <b>${fmt(c.u1,4)}</b> → ${result(c.u1)}</div>
+    <div class="eq">Έλεγχος 2 = N<sub>Ed</sub>/N<sub>b,Rd,z</sub> + k<sub>zy</sub>M<sub>y,Ed</sub>/M<sub>y,Rd</sub> + k<sub>zz</sub>M<sub>z,Ed</sub>/M<sub>z,Rd</sub><br>
+    = ${fmt(r.NEd,2)}/${fmt(c.bz.NbRd,2)} + ${fmt(c.kzy,3)}·${fmt(r.MEdy,2)}/${fmt(c.McY,2)} + ${fmt(c.kzz,3)}·${fmt(r.MEdz,2)}/${fmt(c.McZ,2)} = <b>${fmt(c.u2,4)}</b> → ${result(c.u2)}</div>`;
+
+  let html=`<!doctype html><html lang="el"><head><meta charset="utf-8"><title>Αναλυτικό τεύχος υπολογισμών στεγάστρου</title><style>
+  @page{size:A4;margin:13mm}body{font-family:Arial,sans-serif;color:#222;max-width:1000px;margin:auto;padding:24px;font-size:11.5px;line-height:1.48}h1{font-size:20px;border-bottom:3px solid #d99a44;padding-bottom:7px}h2{font-size:15px;margin-top:25px;border-bottom:1px solid #888;padding-bottom:4px}h3{font-size:12.5px;margin:16px 0 5px;color:#245d59}table{width:100%;border-collapse:collapse;margin:8px 0 14px}th,td{border:1px solid #bbb;padding:6px 7px;text-align:left;vertical-align:top}th{background:#eef1f3}.label{font-weight:bold;background:#f7f7f7}.eq{font-family:Consolas,monospace;background:#f5f7f8;border-left:4px solid #4fb3a9;padding:9px;margin:7px 0;line-height:1.6}.pill{padding:2px 7px;border-radius:10px;font-weight:bold}.ok{background:#d9efdf;color:#176b2c}.warn{background:#f5d7d7;color:#8a1f1f}.pass{color:#176b2c}.fail{color:#a11}.gov{background:#fff3d8}.toolbar{position:sticky;top:0;text-align:right;background:white;padding:8px 0}.note{border:1px solid #d99a44;background:#fff8eb;padding:9px}.pagebreak{page-break-before:always}.small{font-size:10px;color:#555}@media print{.toolbar{display:none}body{padding:0}}
+  </style></head><body><div class="toolbar"><button onclick="window.print()">Εκτύπωση / PDF</button> <button onclick="downloadWord()">Λήψη .doc</button></div>
+  <h1>ΑΝΑΛΥΤΙΚΟ ΤΕΥΧΟΣ ΠΡΟΔΙΑΣΤΑΣΙΟΛΟΓΗΣΗΣ ΜΕΤΑΛΛΙΚΟΥ ΣΤΕΓΑΣΤΡΟΥ</h1>
+  <p><b>Ημερομηνία:</b> ${new Date().toLocaleDateString('el-GR')}<br><b>Φορέας:</b> ανοικτό μεταλλικό στέγαστρο από RHS/SHS<br><b>Κανονιστικό πλαίσιο αναφοράς:</b> EN 1990, EN 1991-1-3, EN 1991-1-4, EN 1993-1-1, EN 1993-1-8, EN 1998-1.</p>
+  <div class="note"><b>Όριο χρήσης:</b> Προμελέτη με απλοποιημένα στατικά προσομοιώματα. Οι παρακάτω πράξεις τεκμηριώνουν τον αλγόριθμο επιλογής διατομών, αλλά δεν υποκαθιστούν χωρική ανάλυση, έλεγχο 2ης τάξης, συνδέσεων και θεμελίωσης.</div>
+  <h2>1. Γεωμετρία και στατικό σύστημα</h2><table><tr><td class="label">X / Y</td><td>${fmt(r.X,2)} / ${fmt(r.Y,2)} m</td><td class="label">Ύψος</td><td>${fmt(r.Lc,2)} m</td></tr><tr><td class="label">Σειρές / φατνώματα</td><td>${r.nRows} / ${r.nBays}</td><td class="label">Βήμα πλαισίων</td><td>${fmt(r.bay,2)} m</td></tr><tr><td class="label">Στέγη</td><td>${shape}, ${fmt(r.slopePct,1)}% (${fmt(r.angleDeg,1)}°)</td><td class="label">Επικάλυψη</td><td>${cov}</td></tr><tr><td class="label">Μήκος δοκού παρειάς</td><td>${fmt(r.slopeLength,3)} m</td><td class="label">Τεγίδες</td><td>${r.nPurlinLines} γραμμές/παρειά, s=${fmt(r.purlinSpacing,3)} m</td></tr></table>
+  <h2>2. Υλικά και ιδιότητες σχεδιασμού</h2><table><tr><td class="label">Χάλυβας</td><td>S${r.fy}, f<sub>y</sub>=${r.fy} MPa</td><td class="label">Πρότυπο</td><td>EN ${r.standard}, καμπύλη λυγισμού α=${ALPHA}</td></tr><tr><td class="label">E</td><td>${E} MPa</td><td class="label">γM0 / γM1 / γM2</td><td>${GM0} / ${GM1} / ${GM2}</td></tr></table>
+  <h2>3. Φορτία</h2>
+  <h3>3.1 Μόνιμα</h3><div class="eq">G<sub>k</sub> = g<sub>cover</sub> + g<sub>struct</sub> = ${fmt(r.gCover,3)} + ${fmt(r.gStruct,3)} = <b>${fmt(r.G,3)} kN/m²</b></div>
+  <h3>3.2 Χιόνι</h3><div class="eq">μ₁=${fmt(r.muSnow,3)}<br>s = μ₁·C<sub>e</sub>·C<sub>t</sub>·s<sub>k</sub> = ${fmt(r.muSnow,3)}·${fmt(r.Ce,2)}·${fmt(r.Ct,2)}·${fmt(r.sk,2)} = <b>${fmt(r.snow,3)} kN/m²</b></div>
+  <h3>3.3 Άνεμος</h3><div class="eq">v<sub>b</sub>=c<sub>dir</sub>·c<sub>season</sub>·v<sub>b,0</sub>=${fmt(r.cdir,2)}·${fmt(r.cseason,2)}·${fmt(r.wind.vb/(r.cdir*r.cseason),2)}=${fmt(r.wind.vb,2)} m/s<br>c<sub>r</sub>=k<sub>r</sub>ln(z/z₀), v<sub>m</sub>=c<sub>r</sub>c₀v<sub>b</sub>=${fmt(r.wind.vm,2)} m/s<br>q<sub>p</sub>=(1+7I<sub>v</sub>)·½ρv<sub>m</sub>²=<b>${fmt(r.wind.qp,3)} kN/m²</b><br>W⁺=c<sub>p,net,+</sub>q<sub>p</sub>=${fmt(r.cpnet,2)}·${fmt(r.wind.qp,3)}=${fmt(r.cpnet*r.wind.qp,3)} kN/m²<br>W⁻=${fmt(r.cpnet_neg,2)}·${fmt(r.wind.qp,3)}=${fmt(r.cpnet_neg*r.wind.qp,3)} kN/m²</div>
+  <h2>4. Συνδυασμοί ΟΚΑ</h2><table><tr><th>ID</th><th>Έκφραση</th><th>Τιμή kN/m²</th><th>Παρατήρηση</th></tr>${comboRows}<tr class="gov"><td>${r.loadComb.uplift.id}</td><td>${r.loadComb.uplift.label}</td><td>${fmt(r.loadComb.uplift.value,3)}</td><td>Αναρρόφηση</td></tr></table>
+  <h2>5. Σύγκλιση ιδίου βάρους</h2><table><tr><th>Βήμα</th><th>g_old</th><th>g_new</th><th>Τεγίδα</th><th>Δοκός</th></tr>${iterRows}</table>
+  <div class="pagebreak"></div>
+  <h2>6. Τεγίδα ${p.sec.n}</h2>
+  <h3>6.1 Γραμμικά φορτία και εντατικά μεγέθη</h3>
+  <div class="eq">w = q<sub>d</sub>·s = ${fmt(r.wDesignFinal,3)}·${fmt(r.purlinSpacing,3)} = ${fmt(wp,3)} kN/m<br>w⊥ = w·cosα = ${fmt(wpPerp,3)} kN/m<br>w∥ = w·sinα = ${fmt(wpPar,3)} kN/m<br>L = ${fmt(r.bay,3)} m<br>M<sub>Ed,y</sub>=w⊥L²/8=${fmt(wpPerp,3)}·${fmt(r.bay,3)}²/8=<b>${fmt(p.My,3)} kNm</b><br>M<sub>Ed,z</sub>=w∥L²/8=<b>${fmt(p.Mz,3)} kNm</b></div>
+  <h3>6.2 Κατηγορία και αντοχή σε διαξονική κάμψη</h3>
+  <div class="eq">Διατομή: A=${fmt(p.sec.A,2)} cm², I<sub>y</sub>=${fmt(p.sec.Iy,1)} cm⁴, I<sub>z</sub>=${fmt(p.sec.Iz,1)} cm⁴, W<sub>pl,y</sub>=${fmt(p.sec.Wply,1)} cm³, W<sub>pl,z</sub>=${fmt(p.sec.Wplz,1)} cm³<br>Κλάση κάμψης=${p.cls}<br>M<sub>c,Rd,y</sub>=W<sub>y</sub>f<sub>y</sub>/γM0=${fmt(p.McY,3)} kNm<br>M<sub>c,Rd,z</sub>=${fmt(p.McZ,3)} kNm</div>
+  <div class="eq">η<sub>M</sub>=M<sub>Ed,y</sub>/M<sub>c,Rd,y</sub>+M<sub>Ed,z</sub>/M<sub>c,Rd,z</sub><br>=${fmt(p.My,3)}/${fmt(p.McY,3)}+${fmt(p.Mz,3)}/${fmt(p.McZ,3)}=<b>${fmt(p.util,4)}</b> → ${result(p.util)}</div>
+  <h3>6.3 Βέλος κάμψης</h3><div class="eq">δ=5w⊥L⁴/(384EI<sub>y</sub>)=5·${fmt(wpPerp,3)}·${fmt(r.bay,3)}⁴·10⁸/(384·${E}·${fmt(p.sec.Iy,1)})=<b>${fmt(p.defl,2)} mm</b><br>δ<sub>lim</sub>=L/200=${fmt(p.limitDefl,2)} mm → ${result(p.defl/p.limitDefl)}</div>
+  <h2>7. Κύρια δοκός / ζευκτό ${b.sec.n}</h2>
+  <h3>7.1 Φορτίο και εντατικά μεγέθη</h3><div class="eq">w<sub>b</sub>=q<sub>d</sub>·b<sub>trib</sub>=${fmt(r.wDesignFinal,3)}·${fmt(r.bay,3)}=<b>${fmt(wb,3)} kN/m</b><br>L=${fmt(r.slopeLength,3)} m<br>M<sub>Ed</sub>=wL²/8=${fmt(wb,3)}·${fmt(r.slopeLength,3)}²/8=<b>${fmt(b.M,3)} kNm</b><br>V<sub>Ed</sub>=wL/2=<b>${fmt(b.V,3)} kN</b></div>
+  <h3>7.2 Κάμψη</h3><div class="eq">Κλάση=${b.cls}, W=${b.cls<=2?fmt(b.sec.Wply,1)+' cm³ (πλαστικό)':fmt(b.sec.Wy,1)+' cm³ (ελαστικό)'}<br>M<sub>c,Rd</sub>=W·f<sub>y</sub>/γM0=<b>${fmt(b.Mc,3)} kNm</b><br>η<sub>M</sub>=${fmt(b.M,3)}/${fmt(b.Mc,3)}=<b>${fmt(b.utilM,4)}</b> → ${result(b.utilM)}</div>
+  <h3>7.3 Διάτμηση</h3><div class="eq">A<sub>v</sub>=A·h/(b+h)=${fmt(b.sec.A,2)}·${b.sec.h}/(${b.sec.b}+${b.sec.h})=<b>${fmt(Avb,3)} cm²</b><br>V<sub>pl,Rd</sub>=A<sub>v</sub>·f<sub>y</sub>/(√3·γM0)=<b>${fmt(b.Vc,3)} kN</b><br>η<sub>V</sub>=${fmt(b.V,3)}/${fmt(b.Vc,3)}=<b>${fmt(b.utilV,4)}</b> → ${result(b.utilV)}</div>
+  <h3>7.4 Βέλος</h3><div class="eq">δ=5wL⁴/(384EI)=<b>${fmt(b.defl,2)} mm</b><br>δ<sub>lim</sub>=L/250=${fmt(b.limitDefl,2)} mm → ${result(b.defl/b.limitDefl)}</div>
+  <div class="pagebreak"></div><h2>8. Φορτία υποστυλώματος</h2>
+  <div class="eq">Επιφάνεια επιρροής A<sub>tr</sub>=bay·Y/2=${fmt(r.bay,3)}·${fmt(r.Y,3)}/2=${fmt(r.bay*r.Y/2,3)} m²<br>N<sub>Ed,roof</sub>=q<sub>d</sub>·A<sub>tr</sub>=${fmt(r.wDesignFinal,3)}·${fmt(r.bay*r.Y/2,3)}=${fmt(r.wDesignFinal*r.bay*r.Y/2,3)} kN<br>G<sub>col</sub>=m·g·(L+l<sub>emb</sub>)=${fmt(c.sec.m,2)}·9,81/1000·(${fmt(r.Lc,2)}+${fmt(r.embedDepth,2)})=${fmt(r.colSelfWeight,3)} kN<br>N<sub>Ed</sub>=<b>${fmt(r.NEd,3)} kN</b><br>V<sub>col</sub>=${fmt(r.Vcol,3)} kN, M<sub>Ed,y</sub>=V<sub>col</sub>·L=${fmt(r.MEdy,3)} kNm, M<sub>Ed,z</sub>=${fmt(r.MEdz,3)} kNm</div>
+  <h2>9. Υποστύλωμα ${c.sec.n}</h2><table><tr><td class="label">A</td><td>${fmt(c.sec.A,2)} cm²</td><td class="label">Iy / Iz</td><td>${fmt(c.sec.Iy,1)} / ${fmt(c.sec.Iz,1)} cm⁴</td></tr><tr><td class="label">Κλάση θλίψης / κάμψης</td><td>${c.cls.comp} / ${c.cls.bend}</td><td class="label">Lcr,y / Lcr,z</td><td>${fmt(r.LcrStrong,2)} / ${fmt(r.LcrWeak,2)} m</td></tr></table>${colDetail}
+  <h2>10. Χιαστί στέγης SHS — δύο παρειές</h2>
+  ${r.roofBrace?`<div class="eq">Οριζόντια δύναμη συστήματος F<sub>X</sub>=max(F<sub>seis</sub>,F<sub>wind,fr</sub>)=max(${fmt(r.FseismicX,2)},${fmt(r.FwindfrX,2)})=${fmt(r.FXtotal,2)} kN<br>Δύναμη ανά χιαστό φάτνωμα F<sub>bay</sub>=F<sub>X</sub>/n<sub>braced</sub>=${fmt(r.FXtotal,2)}/${r.nBracedBays}=${fmt(r.FPerBay,2)} kN<br>Κατανομή σε ${r.roofSlopeCount} παρειές: F<sub>slope</sub>=F<sub>bay</sub>/${r.roofSlopeCount}=<b>${fmt(r.FPerSlope,2)} kN</b><br>Μήκος διαγωνίου L<sub>d</sub>=√(bay²+(Y/2)²)=<b>${fmt(r.roofBraceLen,3)} m</b>, φ=${fmt(r.phiRoof*180/Math.PI,2)}°<br>N<sub>Ed,brace</sub>=F<sub>slope</sub>/cosφ=<b>${fmt(r.FRoofBrace,3)} kN</b></div>
+  <table><tr><td class="label">Διατομή ανά παρειά</td><td>${r.roofBrace.sec.n}</td><td class="label">Κλάση θλίψης</td><td>${r.roofBrace.cls.comp}</td></tr><tr><td class="label">Nt,Rd</td><td>${fmt(r.roofBrace.Nt,2)} kN</td><td class="label">Nb,Rd</td><td>${fmt(r.roofBrace.Nb,2)} kN</td></tr></table>
+  <div class="eq">Εφελκυσμός: η<sub>t</sub>=N<sub>Ed</sub>/N<sub>t,Rd</sub>=${fmt(r.FRoofBrace,3)}/${fmt(r.roofBrace.Nt,3)}=<b>${fmt(r.roofBrace.utilT,4)}</b><br>Θλίψη/λυγισμός: λ̄=${fmt(r.roofBrace.lambdaBar,4)}, χ=${fmt(r.roofBrace.chi,4)}, η<sub>c</sub>=${fmt(r.FRoofBrace,3)}/${fmt(r.roofBrace.Nb,3)}=<b>${fmt(r.roofBrace.utilC,4)}</b><br>Κρίσιμος έλεγχος η=max(ηt,ηc)=<b>${fmt(r.roofBrace.util,4)}</b> → ${result(r.roofBrace.util)}</div>`:'<p>Δεν επιλέχθηκαν χιαστί στέγης.</p>'}
+  <h2>11. Πλαϊνά χιαστί</h2><table><tr><td class="label">FEd</td><td>${fmt(r.FSideBrace,2)} kN</td><td class="label">Ράβδος</td><td>${r.sideRod?'Φ'+r.sideRod.d:'—'}</td></tr><tr><td class="label">Nt,Rd</td><td>${r.sideRod?fmt(r.sideRod.NtRd,2):'—'} kN</td><td class="label">η</td><td>${r.sideRod?fmt(r.sideRod.util,4):'—'}</td></tr></table>
+  <h2>12. Κεφαλοδοκοί</h2><table><tr><th>Μέλος</th><th>Διατομή</th><th>w</th><th>MEd</th><th>Mc,Rd</th><th>VEd/Vc,Rd</th><th>δ/δlim</th></tr><tr><td>X</td><td>${r.headXResult?r.headXResult.sec.n:'—'}</td><td>${r.headXResult?fmt(r.headXload,3):'—'}</td><td>${r.headXResult?fmt(r.headXResult.M,3):'—'}</td><td>${r.headXResult?fmt(r.headXResult.Mc,3):'—'}</td><td>${r.headXResult?fmt(r.headXResult.utilV,4):'—'}</td><td>${r.headXResult?fmt(r.headXResult.defl,2)+'/'+fmt(r.headXResult.limitDefl,2):'—'}</td></tr><tr><td>Y</td><td>${r.headYResult?r.headYResult.sec.n:'—'}</td><td>${r.headYResult?fmt(r.headYload,3):'—'}</td><td>${r.headYResult?fmt(r.headYResult.M,3):'—'}</td><td>${r.headYResult?fmt(r.headYResult.Mc,3):'—'}</td><td>${r.headYResult?fmt(r.headYResult.utilV,4):'—'}</td><td>${r.headYResult?fmt(r.headYResult.defl,2)+'/'+fmt(r.headYResult.limitDefl,2):'—'}</td></tr></table>
+  <h2>13. Εγκιβωτισμένη βάση υποστυλώματος και πέδιλο</h2>
+  <h3>13.1 Γεωμετρία σύνδεσης</h3><div class="eq">Μήκος εγκιβωτισμού l<sub>emb</sub>=<b>${fmt(r.footing.embedDepth,2)} m</b><br>Ελάχιστο απαιτούμενο ύψος H<sub>min</sub>=max(0,40, l<sub>emb</sub>+0,10)=<b>${fmt(r.footing.Hmin,2)} m</b><br>Επιλεγμένο πέδιλο B×B×H=<b>${fmt(r.footing.B,2)}×${fmt(r.footing.B,2)}×${fmt(r.footing.H,2)} m</b></div>
+  <h3>13.2 Μεταφορά τέμνουσας και ροπής μέσω εγκιβωτισμού</h3><div class="eq">V<sub>Ed</sub>=√(V<sub>y</sub>²+V<sub>z</sub>²)=√(${fmt(r.footing.Vy,2)}²+${fmt(r.footing.Vz,2)}²)=<b>${fmt(r.footing.Vres,2)} kN</b><br>M<sub>Ed</sub>=√(M<sub>y</sub>²+M<sub>z</sub>²)=<b>${fmt(r.footing.Mres,2)} kNm</b><br>p<sub>V</sub>=V/(b·l<sub>emb</sub>)=${fmt(r.footing.pShear,1)} kN/m²<br>p<sub>M</sub>=6M/(b·l<sub>emb</sub>²)=${fmt(r.footing.pMoment,1)} kN/m²<br>p<sub>Ed,max</sub>=p<sub>V</sub>+p<sub>M</sub>=<b>${fmt(r.footing.pEmbed,1)} kN/m²</b><br>f<sub>b,Rd</sub>=0,60·f<sub>cd</sub>=0,60·(${fmt(r.footing.fck,1)}/1,50)=<b>${fmt(r.footing.bearingLimit,1)} kN/m²</b><br>η<sub>emb</sub>=p<sub>Ed,max</sub>/f<sub>b,Rd</sub>=<b>${fmt(r.footing.embedUtil,4)}</b> → ${result(r.footing.embedUtil)}</div>
+  <h3>13.3 Τάσεις εδάφους με διαξονική εκκεντρότητα</h3><div class="eq">N<sub>tot</sub>=N<sub>comp</sub>+W<sub>f</sub>=${fmt(r.footing.Ncomp,2)}+${fmt(r.footing.weight,2)}=${fmt(r.footing.Ntot,2)} kN<br>q<sub>0</sub>=N<sub>tot</sub>/B²<br>q<sub>max/min</sub>=q<sub>0</sub>±6|M<sub>y</sub>|/B³±6|M<sub>z</sub>|/B³<br>q<sub>min</sub>=<b>${fmt(r.footing.qmin,2)}</b> kN/m² ≥ 0<br>q<sub>max</sub>=<b>${fmt(r.footing.qmax,2)}</b> kN/m² ≤ ${fmt(r.soilStress,2)} kN/m² → ${result(r.footing.soilOK?0:2)}</div>
+  <h3>13.4 Ανασήκωση χωρίς αγκύρια</h3><div class="eq">N<sub>uplift</sub>=${fmt(r.footing.Nuplift,2)} kN<br>W<sub>stab</sub>=W<sub>f</sub>+N<sub>comp</sub>=${fmt(r.footing.stabilizingWeight,2)} kN<br>η<sub>uplift</sub>=N<sub>uplift</sub>/W<sub>stab</sub>=<b>${fmt(r.footing.upliftUtil,4)}</b> → ${r.footing.upliftOK?'<b class="pass">ΙΚΑΝΟΠΟΙΕΙΤΑΙ</b>':'<b class="fail">ΔΕΝ ΙΚΑΝΟΠΟΙΕΙΤΑΙ ΧΩΡΙΣ ΜΗΧΑΝΙΚΗ ΕΜΠΛΟΚΗ</b>'}<br><i>Δεν λαμβάνεται αντοχή συνάφειας της λείας επιφάνειας του SHS σε καθαρό εφελκυσμό.</i></div>
+  <h2>15. Προμέτρηση και προϋπολογισμός</h2>${(()=>{const z=buildBudget(r);return `<div class="eq">Συνολικό θεωρητικό βάρος χάλυβα = <b>${fmt(z.steelWeight,2)} kg</b><br>Κεκλιμένη επιφάνεια επικάλυψης = X·L<sub>slope</sub>·n<sub>slope</sub> = ${fmt(r.X,2)}·${fmt(r.slopeLength,3)}·${r.roofSlopeCount} = <b>${fmt(z.roofArea,2)} m²</b><br>Όγκος πεδίλων = n<sub>col</sub>·B²·H = ${r.nCols}·${fmt(r.footing.B,2)}²·${fmt(r.footing.H,2)} = <b>${fmt(z.concreteVolume,3)} m³</b><br>Μερικό σύνολο = <b>€ ${fmt(z.subtotal,2)}</b><br>Απρόβλεπτα ${fmt(z.c.cont,1)}% = € ${fmt(z.contingency,2)}<br>Γενικό σύνολο χωρίς ΦΠΑ = <b>€ ${fmt(z.total,2)}</b></div>`})()}
+  <h2>16. Προειδοποιήσεις και τελικοί έλεγχοι</h2><ul>${warnings}<li>Οι SHS χιαστί στέγης θεωρούνται αρθρωτά συνδεδεμένες και ελέγχονται για αντιστροφή αξονικής δύναμης.</li><li>Να ελεγχθούν οι πραγματικές ιδιότητες διατομών από πιστοποιημένο κατάλογο παραγωγού.</li><li>Να γίνει χωρική ανάλυση 1ης/2ης τάξης, έλεγχος ατελειών και ειδική διαστασιολόγηση της εγκιβωτισμένης βάσης, της περίσφιγξης και τυχόν μηχανικών κλειδιών.</li></ul>
+  <script>function downloadWord(){const b=new Blob([document.documentElement.outerHTML],{type:'application/msword;charset=utf-8'});const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='analytiko_teyxos_stegastrou_v3.doc';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000);}<\/script></body></html>`;
+  win.document.write(html);win.document.close();
+}
+</script>
+</body>
+</html>

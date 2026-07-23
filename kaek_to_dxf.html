@@ -1,0 +1,456 @@
+<!DOCTYPE html>
+<html lang="el">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Αναζήτηση Γεωμετρίας ΚΑΕΚ & Αυτόματη Διόρθωση (Shift)</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #14171c;
+            color: #e6e9ee;
+            max-width: 860px;
+            margin: 40px auto;
+            padding: 20px;
+        }
+        .container {
+            background: #1c2129;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+            border: 1px solid #303947;
+        }
+        h2 {
+            color: #e8a33d;
+            margin-top: 0;
+        }
+        .form-group {
+            margin-bottom: 20px;
+        }
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: bold;
+            color: #8a94a3;
+        }
+        textarea, input[type="number"] {
+            width: 100%;
+            padding: 12px;
+            font-size: 16px;
+            background: #14171c;
+            border: 1px solid #303947;
+            border-radius: 4px;
+            box-sizing: border-box;
+            color: #e6e9ee;
+        }
+        textarea {
+            resize: vertical;
+            font-family: monospace;
+        }
+        input:focus, textarea:focus {
+            outline: none;
+            border-color: #e8a33d;
+        }
+        .hint {
+            font-size: 12px;
+            color: #8a94a3;
+            margin-top: 5px;
+        }
+        .panel {
+            background: #232a34;
+            border: 1px solid #303947;
+            border-radius: 6px;
+            padding: 16px;
+            margin: 20px 0;
+        }
+        .panel h3 {
+            font-size: 0.85rem;
+            color: #8a94a3;
+            text-transform: uppercase;
+            margin-bottom: 12px;
+            letter-spacing: 0.05em;
+        }
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 12px;
+        }
+        .check {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-top: 12px;
+            font-size: 0.85rem;
+            cursor: pointer;
+        }
+        .check input {
+            accent-color: #e8a33d;
+            width: 16px;
+            height: 16px;
+        }
+        #vectorReadout {
+            margin-top: 12px;
+            background: #14171c;
+            border: 1px solid #303947;
+            border-radius: 6px;
+            padding: 10px 12px;
+            font-family: monospace;
+            font-size: 0.85rem;
+            color: #e8a33d;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px 22px;
+        }
+        #vectorReadout span b { color: #e6e9ee; }
+        .btn-group {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-top: 20px;
+        }
+        button {
+            background-color: #076fe5;
+            color: white;
+            padding: 12px 20px;
+            border: none;
+            border-radius: 4px;
+            font-size: 16px;
+            cursor: pointer;
+            flex: 1;
+            min-width: 150px;
+            font-weight: bold;
+            transition: background 0.15s;
+        }
+        button:hover { background-color: #0556b3; }
+        button.download-btn { background-color: #28a745; }
+        button.download-btn:hover { background-color: #218838; }
+        button.dxf-btn { background-color: #e67e22; }
+        button.dxf-btn:hover { background-color: #d35400; }
+        button:disabled {
+            background-color: #4a4a4a;
+            color: #8a94a3;
+            cursor: not-allowed;
+        }
+        .loading {
+            display: none;
+            color: #e8a33d;
+            font-style: italic;
+            margin-top: 15px;
+        }
+        #resultContainer {
+            margin-top: 25px;
+            display: none;
+        }
+        pre {
+            background-color: #272822;
+            color: #f8f8f2;
+            padding: 15px;
+            border-radius: 5px;
+            overflow-x: auto;
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 14px;
+            max-height: 300px;
+        }
+        .log-area {
+            margin-bottom: 15px;
+            padding: 10px;
+            background: #232a34;
+            border: 1px solid #303947;
+            border-radius: 4px;
+            font-size: 13px;
+            max-height: 120px;
+            overflow-y: auto;
+        }
+        footer {
+            margin-top: 30px;
+            font-size: 0.75rem;
+            color: #8a94a3;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>Μαζική Άντληση & Διόρθωση (Shift) ΚΑΕΚ</h2>
+    <p style="color:#8a94a3; font-size:0.9rem; margin-bottom:20px;">
+        Εισάγετε έως 10 ΚΑΕΚ. Η εφαρμογή θα αντλήσει τα γεωτεμάχια και θα εφαρμόσει αυτόματα τη σταθερή μετάθεση που ορίζετε.
+    </p>
+    
+    <div class="form-group">
+        <label for="kaekInput">Αριθμοί ΚΑΕΚ (Έως 10):</label>
+        <textarea id="kaekInput" rows="6" placeholder="π.χ.&#10;150500401007&#10;150500401008"></textarea>
+        <div class="hint">Εισάγετε κάθε ΚΑΕΚ σε ξεχωριστή γραμμή. Θα υποβληθούν προς έλεγχο μόνο τα πρώτα 10.</div>
+    </div>
+
+    <!-- Παράμετροι Μετάθεσης -->
+    <div class="panel">
+        <h3>Παράμετροι Διόρθωσης (Μετάθεσης)</h3>
+        <div class="grid">
+            <div>
+                <label for="dx">ΔΧ (m)</label>
+                <input type="number" id="dx" value="0.0006" step="0.0001">
+            </div>
+            <div>
+                <label for="dy">ΔΥ (m)</label>
+                <input type="number" id="dy" value="0.0011" step="0.0001">
+            </div>
+        </div>
+        <div id="vectorReadout"></div>
+        <label class="check">
+            <input type="checkbox" id="keepOriginal" checked>
+            Συμπερίληψη και των αρχικών (αδιόρθωτων) Polylines στο DXF
+        </label>
+    </div>
+    
+    <div class="btn-group">
+        <button onclick="fetchMultipleKaekData()">Μαζική Αναζήτηση</button>
+        <button id="downloadBtn" class="download-btn" onclick="downloadJsonFile()" disabled>Λήψη JSON</button>
+        <button id="downloadDxfBtn" class="dxf-btn" onclick="downloadDxfFile()" disabled>Λήψη Διορθωμένου DXF</button>
+    </div>
+    
+    <div id="loadingMessage" class="loading">Γίνεται επικοινωνία με το Κτηματολόγιο... Παρακαλώ περιμένετε...</div>
+    
+    <div id="resultContainer">
+        <h3>Κατάσταση Αναζήτησης:</h3>
+        <div id="logOutput" class="log-area"></div>
+        
+        <h3>Συγκεντρωτικό JSON (Σύστημα ΕΓΣΑ '87):</h3>
+        <pre id="jsonOutput"></pre>
+    </div>
+</div>
+
+<footer>Τεχνικό Γραφείο Γεωργακόπουλος — Ενοποιημένο Εργαλείο ΚΑΕΚ v2.1</footer>
+
+<script>
+'use strict';
+
+let currentBatchData = [];
+let processedFilenamePart = "";
+
+const dxInput = document.getElementById('dx');
+const dyInput = document.getElementById('dy');
+const readoutEl = document.getElementById('vectorReadout');
+
+// Ζωντανή ένδειξη διανύσματος
+function updateReadout() {
+    const dx = parseFloat(dxInput.value) || 0;
+    const dy = parseFloat(dyInput.value) || 0;
+    const len = Math.hypot(dx, dy);
+    const az  = ((Math.atan2(dx, dy) * 180 / Math.PI) + 360) % 360;
+    readoutEl.innerHTML =
+        `<span>|δ| <b>${(len * 1000).toFixed(2)} mm</b></span>` +
+        `<span>αζιμούθιο <b>${az.toFixed(1)}°</b></span>` +
+        `<span>δΧ <b>${(dx * 1000).toFixed(2)} mm</b></span>` +
+        `<span>δΥ <b>${(dy * 1000).toFixed(2)} mm</b></span>`;
+}
+dxInput.addEventListener('input', updateReadout);
+dyInput.addEventListener('input', updateReadout);
+updateReadout();
+
+async function fetchMultipleKaekData() {
+    const rawInput = document.getElementById('kaekInput').value;
+    const loadingMessage = document.getElementById('loadingMessage');
+    const resultContainer = document.getElementById('resultContainer');
+    const jsonOutput = document.getElementById('jsonOutput');
+    const logOutput = document.getElementById('logOutput');
+    const downloadBtn = document.getElementById('downloadBtn');
+    const downloadDxfBtn = document.getElementById('downloadDxfBtn');
+    
+    // Απομόνωση των ΚΑΕΚ μέχρι 10
+    let kaekList = rawInput.split('\n')
+                          .map(k => k.trim())
+                          .filter(k => k.length > 0)
+                          .slice(0, 10);
+    
+    if (kaekList.length === 0) {
+        alert("Παρακαλώ εισάγετε τουλάχιστον ένα έγκυρο ΚΑΕΚ.");
+        return;
+    }
+    
+    loadingMessage.style.display = 'block';
+    resultContainer.style.display = 'none';
+    logOutput.innerHTML = "";
+    jsonOutput.textContent = "";
+    downloadBtn.disabled = true;
+    downloadDxfBtn.disabled = true;
+    
+    currentBatchData = [];
+    processedFilenamePart = kaekList[0] + (kaekList.length > 1 ? `_plus_${kaekList.length - 1}` : "");
+    
+    const baseUrl = "https://services-eu1.arcgis.com/40tFGWzosjaLJpmn/arcgis/rest/services/GEOTEMAXIA_LEITOURGOUN_ON_gdb/FeatureServer/0/query";
+    
+    for (let kaek of kaekList) {
+        logOutput.innerHTML += `• Αναζήτηση για το ΚΑΕΚ: <strong>${kaek}</strong>... `;
+        const url = `${baseUrl}?f=json&where=KAEK='${kaek}'&outFields=*&returnZ=true&outSR=2100`;
+        
+        try {
+            const response = await fetch(url);
+            if (response.ok) {
+                const data = await response.json();
+                if (data.features && data.features.length > 0) {
+                    const feature = data.features[0];
+                    
+                    currentBatchData.push({
+                        "kaek": kaek,
+                        "status": "success",
+                        "info": {
+                            "area_sqm": feature.attributes.AREA,
+                            "perimeter_m": feature.attributes.PERIMETER
+                        },
+                        "geometry_type": feature.geometry.rings ? "Polygon" : "Unknown",
+                        "polygon_vertices_EGSA87": feature.geometry.rings
+                    });
+                    logOutput.innerHTML += `<span style="color:#6fbf73;">Βρέθηκε!</span><br>`;
+                } else {
+                    logOutput.innerHTML += `<span style="color:#e67e22;">Δεν υπάρχει στη βάση.</span><br>`;
+                }
+            } else {
+                logOutput.innerHTML += `<span style="color:#e06c6c;">Σφάλμα server (${response.status}).</span><br>`;
+            }
+        } catch (error) {
+            logOutput.innerHTML += `<span style="color:#e06c6c;">Αποτυχία σύνδεσης.</span><br>`;
+        }
+    }
+    
+    loadingMessage.style.display = 'none';
+    resultContainer.style.display = 'block';
+    
+    if (currentBatchData.length > 0) {
+        const finalJson = {
+            "status": "batch_success",
+            "spatial_reference": "EGSA87 (EPSG:2100)",
+            "total_records_found": currentBatchData.length,
+            "properties": currentBatchData
+        };
+        
+        jsonOutput.textContent = JSON.stringify(finalJson, null, 4);
+        downloadBtn.disabled = false;
+        downloadDxfBtn.disabled = false;
+    } else {
+        jsonOutput.textContent = "Καμία γεωμετρία δεν εντοπίστηκε για τα δοθέντα ΚΑΕΚ.";
+    }
+}
+
+function downloadJsonFile() {
+    if (currentBatchData.length === 0) return;
+    const finalJson = {
+        "status": "batch_success",
+        "spatial_reference": "EGSA87 (EPSG:2100)",
+        "total_records_found": currentBatchData.length,
+        "properties": currentBatchData
+    };
+    const jsonString = JSON.stringify(finalJson, null, 4);
+    const blob = new Blob([jsonString], { type: "application/json;charset=utf-8;" });
+    triggerDownload(blob, `batch_kaek_${processedFilenamePart}.json`);
+}
+
+function fmt(n) { return Number(n.toFixed(9)).toString(); }
+
+function downloadDxfFile() {
+    if (currentBatchData.length === 0) return;
+    
+    const dx = parseFloat(dxInput.value) || 0;
+    const dy = parseFloat(dyInput.value) || 0;
+    const keepOriginal = document.getElementById('keepOriginal').checked;
+
+    let dxf = "  0\nSECTION\n  2\nENTITIES\n";
+    
+    for (let property of currentBatchData) {
+        let rings = property.polygon_vertices_EGSA87;
+        let kaek = property.kaek;
+        if (!rings) continue;
+        
+        const writePolyline = (vertices, layerName, offsetX, offsetY) => {
+            let out = "  0\nPOLYLINE\n";
+            out += `  8\n${layerName}\n`;
+            out += " 70\n1\n"; // Closed Polyline
+            out += " 66\n1\n"; 
+
+            for (let i = 0; i < vertices.length; i++) {
+                out += "  0\nVERTEX\n";
+                out += `  8\n${layerName}\n`;
+                out += ` 10\n${fmt(vertices[i][0] + offsetX)}\n`;
+                out += ` 20\n${fmt(vertices[i][1] + offsetY)}\n`;
+                out += " 30\n0.0\n";
+            }
+            out += "  0\nSEQEND\n";
+            return out;
+        };
+
+        const writeText = (cx, cy, layerName, textStr, height) => {
+            let out = "  0\nTEXT\n";
+            out += `  8\n${layerName}\n`;
+            out += ` 10\n${fmt(cx)}\n`;
+            out += ` 20\n${fmt(cy)}\n`;
+            out += ` 40\n${fmt(height)}\n`;
+            out += `  1\n${textStr}\n`;
+            out += " 72\n4\n"; // Middle-center alignment
+            out += ` 11\n${fmt(cx)}\n`;
+            out += ` 21\n${fmt(cy)}\n`;
+            return out;
+        };
+
+        let sumX = 0, sumY = 0, totalPointsForCentroid = 0;
+
+        for (let r = 0; r < rings.length; r++) {
+            const vertices = rings[r];
+            if (!vertices || vertices.length === 0) continue;
+
+            // 1. Νέα Διορθωμένα Polylines
+            dxf += writePolyline(vertices, `PST_KAEK_${kaek}`, dx, dy);
+
+            // 2. Αρχικά Polylines
+            if (keepOriginal) {
+                dxf += writePolyline(vertices, `KTIMATOLOGIO_${kaek}`, 0, 0);
+            }
+
+            let uniquePointsCount = vertices.length;
+            if (vertices[0][0] === vertices[vertices.length - 1][0] && vertices[0][1] === vertices[vertices.length - 1][1]) {
+                uniquePointsCount = vertices.length - 1;
+            }
+            for (let i = 0; i < vertices.length; i++) {
+                if (i < uniquePointsCount) {
+                    sumX += vertices[i][0];
+                    sumY += vertices[i][1];
+                    totalPointsForCentroid++;
+                }
+            }
+        }
+        
+        if (totalPointsForCentroid > 0) {
+            const origCenterX = sumX / totalPointsForCentroid;
+            const origCenterY = sumY / totalPointsForCentroid;
+            const perimeter = property.info.perimeter_m || 200;
+            const textHeight = Math.max(2.0, perimeter / 80);
+
+            // TEXT διορθωμένης θέσης
+            dxf += writeText(origCenterX + dx, origCenterY + dy, `PST_KAEK_TEXT_${kaek}`, kaek, textHeight);
+
+            // TEXT αρχικής θέσης
+            if (keepOriginal) {
+                dxf += writeText(origCenterX, origCenterY, `KAEK_TEXT_${kaek}`, kaek, textHeight);
+            }
+        }
+    }
+    
+    dxf += "  0\nENDSEC\n  0\nEOF\n";
+    
+    const blob = new Blob([dxf], { type: "application/dxf;charset=utf-8;" });
+    triggerDownload(blob, `batch_kaek_shifted_${processedFilenamePart}.dxf`);
+}
+
+function triggerDownload(blob, filename) {
+    const link = document.createElement("a");
+    const url = URL.createObjectURL(blob);
+    link.setAttribute("href", url);
+    link.setAttribute("download", filename);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+}
+</script>
+
+</body>
+</html>

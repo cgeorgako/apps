@@ -1,0 +1,465 @@
+<!DOCTYPE html>
+<html lang="el">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Διόρθωση ΚΑΕΚ — MYKAEK → PST_KAEK</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #14171c;
+    --panel: #1c2129;
+    --panel-2: #232a34;
+    --line: #303947;
+    --text: #e6e9ee;
+    --muted: #8a94a3;
+    --accent: #e8a33d;
+    --ok: #6fbf73;
+    --err: #e06c6c;
+    --radius: 10px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'IBM Plex Sans', system-ui, sans-serif;
+    font-size: 15px;
+    line-height: 1.5;
+    padding: 20px 14px 60px;
+    max-width: 860px;
+    margin: 0 auto;
+  }
+  .mono { font-family: 'IBM Plex Mono', monospace; }
+
+  header { margin-bottom: 22px; }
+  header h1 { font-size: 1.25rem; font-weight: 600; letter-spacing: 0.01em; }
+  header h1 .arrow { color: var(--accent); }
+  header p { color: var(--muted); font-size: 0.85rem; margin-top: 4px; }
+
+  #dropZone {
+    border: 1.5px dashed var(--line);
+    border-radius: var(--radius);
+    background: var(--panel);
+    padding: 34px 16px;
+    text-align: center;
+    cursor: pointer;
+    transition: border-color .15s, background .15s;
+  }
+  #dropZone:hover, #dropZone.drag { border-color: var(--accent); background: var(--panel-2); }
+  #dropZone .big { font-size: 1rem; font-weight: 500; }
+  #dropZone .hint { color: var(--muted); font-size: 0.8rem; margin-top: 4px; }
+  #fileInput { display: none; }
+  #fileName { margin-top: 10px; font-size: 0.82rem; color: var(--accent); word-break: break-all; }
+
+  .panel {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 16px;
+    margin-top: 16px;
+  }
+  .panel h2 {
+    font-size: 0.78rem; font-weight: 600;
+    text-transform: uppercase; letter-spacing: 0.08em;
+    color: var(--muted); margin-bottom: 12px;
+  }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; }
+  label { display: block; font-size: 0.78rem; color: var(--muted); margin-bottom: 4px; }
+  input[type="text"], input[type="number"] {
+    width: 100%; background: var(--bg); border: 1px solid var(--line);
+    border-radius: 6px; color: var(--text); padding: 8px 10px;
+    font-family: 'IBM Plex Mono', monospace; font-size: 0.9rem;
+  }
+  input:focus { outline: none; border-color: var(--accent); }
+  .check {
+    display: flex; align-items: center; gap: 8px;
+    margin-top: 12px; font-size: 0.85rem; color: var(--text);
+    cursor: pointer; user-select: none;
+  }
+  .check input { accent-color: var(--accent); width: 16px; height: 16px; }
+
+  #vectorReadout {
+    margin-top: 12px; background: var(--bg); border: 1px solid var(--line);
+    border-radius: 6px; padding: 10px 12px;
+    font-family: 'IBM Plex Mono', monospace; font-size: 0.82rem;
+    color: var(--accent); display: flex; flex-wrap: wrap; gap: 6px 22px;
+  }
+  #vectorReadout span b { color: var(--text); font-weight: 500; }
+
+  #results { display: none; }
+  .stats { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 14px; }
+  .stat {
+    background: var(--bg); border: 1px solid var(--line);
+    border-radius: 6px; padding: 8px 14px; font-size: 0.8rem; color: var(--muted);
+  }
+  .stat b {
+    display: block; color: var(--text);
+    font-family: 'IBM Plex Mono', monospace; font-size: 1.05rem; font-weight: 500;
+  }
+  .tableWrap { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: 0.8rem; }
+  th, td {
+    text-align: right; padding: 6px 10px; border-bottom: 1px solid var(--line);
+    font-family: 'IBM Plex Mono', monospace; white-space: nowrap;
+  }
+  th {
+    color: var(--muted); font-family: 'IBM Plex Sans', sans-serif;
+    font-weight: 500; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.05em;
+  }
+  th:first-child, td:first-child { text-align: left; }
+
+  #downloadBtn {
+    margin-top: 16px; width: 100%; background: var(--accent); color: #14171c;
+    border: none; border-radius: var(--radius); padding: 13px;
+    font-family: 'IBM Plex Sans', sans-serif; font-size: 0.95rem; font-weight: 600;
+    cursor: pointer; transition: background .15s;
+  }
+  #downloadBtn:hover { background: #f2b455; }
+  #message {
+    display: none; margin-top: 14px; padding: 10px 14px; border-radius: 6px; font-size: 0.85rem;
+  }
+  #message.err { display: block; background: #3a2426; color: var(--err); border: 1px solid #5c3336; }
+  #message.ok  { display: block; background: #223226; color: var(--ok);  border: 1px solid #35513a; }
+
+  footer { margin-top: 26px; font-size: 0.72rem; color: var(--muted); text-align: center; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Διόρθωση ΚΑΕΚ &nbsp;<span class="mono">MYKAEK <span class="arrow">→</span> PST_KAEK</span></h1>
+  <p>Εφαρμογή σταθερής μετάθεσης σε polylines DXF. Όλα γίνονται τοπικά στον browser — το αρχείο δεν αποστέλλεται πουθενά.</p>
+</header>
+
+<div id="dropZone">
+  <div class="big">Σύρε εδώ το DXF ή πάτησε για επιλογή</div>
+  <div class="hint">Υποστηρίζονται LWPOLYLINE και POLYLINE (ASCII DXF)</div>
+  <div id="fileName"></div>
+</div>
+<input type="file" id="fileInput" accept=".dxf,.DXF">
+
+<div class="panel">
+  <h2>Παράμετροι διόρθωσης</h2>
+  <div class="grid">
+    <div>
+      <label for="srcLayer">Layer προέλευσης</label>
+      <input type="text" id="srcLayer" value="MYKAEK">
+    </div>
+    <div>
+      <label for="dstLayer">Layer προορισμού</label>
+      <input type="text" id="dstLayer" value="PST_KAEK">
+    </div>
+    <div>
+      <label for="dx">ΔΧ (m)</label>
+      <input type="number" id="dx" value="0.0006" step="0.0001">
+    </div>
+    <div>
+      <label for="dy">ΔΥ (m)</label>
+      <input type="number" id="dy" value="0.0011" step="0.0001">
+    </div>
+  </div>
+  <div id="vectorReadout"></div>
+  <label class="check">
+    <input type="checkbox" id="keepOriginal">
+    Συμπερίληψη και των αρχικών polylines (layer προέλευσης) στο νέο DXF
+  </label>
+</div>
+
+<div class="panel" id="results">
+  <h2>Ευρήματα</h2>
+  <div class="stats" id="stats"></div>
+  <div class="tableWrap">
+    <table>
+      <thead>
+        <tr><th>#</th><th>Τύπος</th><th>Κορυφές</th><th>Κλειστή</th><th>Εμβαδόν (m²)</th></tr>
+      </thead>
+      <tbody id="tableBody"></tbody>
+    </table>
+  </div>
+  <button id="downloadBtn">Λήψη διορθωμένου DXF</button>
+
+  <div id="fallback" style="display:none; margin-top:12px;">
+    <p style="font-size:0.8rem; color:var(--muted); margin-bottom:8px;">
+      Αν η λήψη δεν ξεκινά, αντέγραψε το παρακάτω κείμενο και επικόλλησέ το σε νέο αρχείο
+      <span class="mono">.dxf</span> μέσω Notepad.
+    </p>
+    <textarea id="dxfText" readonly spellcheck="false"
+      style="width:100%; height:180px; background:var(--bg); color:var(--text);
+             border:1px solid var(--line); border-radius:6px; padding:10px;
+             font-family:'IBM Plex Mono',monospace; font-size:0.72rem; resize:vertical;"></textarea>
+    <button id="copyBtn"
+      style="margin-top:8px; width:100%; background:var(--panel-2); color:var(--text);
+             border:1px solid var(--line); border-radius:6px; padding:10px;
+             font-family:'IBM Plex Sans',sans-serif; font-size:0.85rem; cursor:pointer;">
+      Αντιγραφή στο πρόχειρο
+    </button>
+  </div>
+</div>
+
+<div id="message"></div>
+
+<footer>Τεχνικό Γραφείο Γεωργακόπουλος — Εργαλείο διόρθωσης DXF v1.1</footer>
+
+<script>
+'use strict';
+
+let parsedPolys = [];
+let sourceName  = '';
+let rawText     = '';
+
+const dropZone   = document.getElementById('dropZone');
+const fileInput  = document.getElementById('fileInput');
+const fileNameEl = document.getElementById('fileName');
+const results    = document.getElementById('results');
+const statsEl    = document.getElementById('stats');
+const tableBody  = document.getElementById('tableBody');
+const messageEl  = document.getElementById('message');
+const dxInput    = document.getElementById('dx');
+const dyInput    = document.getElementById('dy');
+const readoutEl  = document.getElementById('vectorReadout');
+
+// ---------- Ζωντανή ένδειξη διανύσματος ----------
+function updateReadout() {
+  const dx = parseFloat(dxInput.value) || 0;
+  const dy = parseFloat(dyInput.value) || 0;
+  const len = Math.hypot(dx, dy);
+  const az  = ((Math.atan2(dx, dy) * 180 / Math.PI) + 360) % 360;
+  readoutEl.innerHTML =
+    `<span>|δ| <b>${(len * 1000).toFixed(2)} mm</b></span>` +
+    `<span>αζιμούθιο <b>${az.toFixed(1)}°</b></span>` +
+    `<span>δΧ <b>${(dx * 1000).toFixed(2)} mm</b></span>` +
+    `<span>δΥ <b>${(dy * 1000).toFixed(2)} mm</b></span>`;
+}
+dxInput.addEventListener('input', updateReadout);
+dyInput.addEventListener('input', updateReadout);
+updateReadout();
+
+// ---------- Φόρτωση αρχείου ----------
+dropZone.addEventListener('click', () => fileInput.click());
+dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag'); });
+dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag'));
+dropZone.addEventListener('drop', e => {
+  e.preventDefault(); dropZone.classList.remove('drag');
+  if (e.dataTransfer.files.length) loadFile(e.dataTransfer.files[0]);
+});
+fileInput.addEventListener('change', () => { if (fileInput.files.length) loadFile(fileInput.files[0]); });
+document.getElementById('srcLayer').addEventListener('change', () => { if (rawText) analyze(); });
+
+function loadFile(file) {
+  sourceName = file.name;
+  fileNameEl.textContent = '📄 ' + file.name;
+  const reader = new FileReader();
+  reader.onload  = () => { rawText = reader.result; analyze(); };
+  reader.onerror = () => showMessage('Σφάλμα ανάγνωσης αρχείου.', 'err');
+  reader.readAsText(file);
+}
+
+// ---------- Parser ASCII DXF ----------
+function parseDXF(text, targetLayer) {
+  const lines = text.split(/\r\n|\r|\n/);
+  const polys = [];
+  const layersFound = new Set();
+  let inEntities = false;
+  let i = 0;
+  const N = lines.length;
+  const code = idx => parseInt(lines[idx], 10);
+  const val  = idx => (lines[idx + 1] !== undefined ? lines[idx + 1].trim() : '');
+
+  while (i + 1 < N) {
+    const c = code(i), v = val(i);
+
+    if (c === 0 && v === 'SECTION') {
+      inEntities = (code(i + 2) === 2 && val(i + 2) === 'ENTITIES');
+      i += 4; continue;
+    }
+    if (c === 0 && v === 'ENDSEC') { inEntities = false; i += 2; continue; }
+
+    // LWPOLYLINE
+    if (inEntities && c === 0 && v === 'LWPOLYLINE') {
+      const ent = { type: 'LWPOLYLINE', layer: '0', closed: false, verts: [] };
+      let cur = null;
+      i += 2;
+      while (i + 1 < N && code(i) !== 0) {
+        const cc = code(i), vv = val(i);
+        if      (cc === 8)           ent.layer  = vv;
+        else if (cc === 70)          ent.closed = ((parseInt(vv, 10) || 0) & 1) === 1;
+        else if (cc === 10) { cur = { x: parseFloat(vv), y: 0, z: 0, b: 0 }; ent.verts.push(cur); }
+        else if (cc === 20 && cur)   cur.y = parseFloat(vv);
+        else if (cc === 42 && cur)   cur.b = parseFloat(vv);
+        i += 2;
+      }
+      layersFound.add(ent.layer);
+      if (ent.layer.toUpperCase() === targetLayer) polys.push(ent);
+      continue;
+    }
+
+    // POLYLINE κλασική
+    if (inEntities && c === 0 && v === 'POLYLINE') {
+      const ent = { type: 'POLYLINE', layer: '0', closed: false, verts: [] };
+      i += 2;
+      while (i + 1 < N && code(i) !== 0) {
+        const cc = code(i), vv = val(i);
+        if      (cc === 8)  ent.layer  = vv;
+        else if (cc === 70) ent.closed = ((parseInt(vv, 10) || 0) & 1) === 1;
+        i += 2;
+      }
+      while (i + 1 < N && code(i) === 0 && val(i) === 'VERTEX') {
+        const vert = { x: 0, y: 0, z: 0, b: 0 };
+        i += 2;
+        while (i + 1 < N && code(i) !== 0) {
+          const cc = code(i), vv = val(i);
+          if      (cc === 10) vert.x = parseFloat(vv);
+          else if (cc === 20) vert.y = parseFloat(vv);
+          else if (cc === 30) vert.z = parseFloat(vv);
+          else if (cc === 42) vert.b = parseFloat(vv);
+          i += 2;
+        }
+        ent.verts.push(vert);
+      }
+      if (i + 1 < N && code(i) === 0 && val(i) === 'SEQEND') {
+        i += 2;
+        while (i + 1 < N && code(i) !== 0) i += 2;
+      }
+      layersFound.add(ent.layer);
+      if (ent.layer.toUpperCase() === targetLayer) polys.push(ent);
+      continue;
+    }
+
+    i += 2;
+  }
+  return { polys, layersFound };
+}
+
+// Εμβαδόν (shoelace) — μόνο για εμφάνιση
+function polyArea(verts) {
+  let s = 0; const n = verts.length;
+  for (let k = 0; k < n; k++) {
+    const a = verts[k], b = verts[(k + 1) % n];
+    s += a.x * b.y - b.x * a.y;
+  }
+  return Math.abs(s) / 2;
+}
+
+// ---------- Ανάλυση μετά τη φόρτωση ----------
+function analyze() {
+  const srcLayer = document.getElementById('srcLayer').value.trim().toUpperCase();
+  let parsed;
+  try { parsed = parseDXF(rawText, srcLayer); }
+  catch (e) {
+    showMessage('Το αρχείο δεν αναλύθηκε ως ASCII DXF. Αποθήκευσέ το ξανά ως DXF ASCII από το CAD.', 'err');
+    results.style.display = 'none'; return;
+  }
+  parsedPolys = parsed.polys;
+  if (parsedPolys.length === 0) {
+    const found = [...parsed.layersFound].sort().join(', ') || '—';
+    showMessage(`Δεν βρέθηκαν polylines στο layer «${srcLayer}». Layers στο αρχείο: ${found}`, 'err');
+    results.style.display = 'none'; return;
+  }
+  hideMessage();
+  const total = parsedPolys.reduce((s, p) => s + p.verts.length, 0);
+  statsEl.innerHTML =
+    `<div class="stat">Polylines<b>${parsedPolys.length}</b></div>` +
+    `<div class="stat">Κορυφές<b>${total}</b></div>` +
+    `<div class="stat">Κλειστές<b>${parsedPolys.filter(p => p.closed).length}</b></div>`;
+  tableBody.innerHTML = parsedPolys.map((p, i) =>
+    `<tr><td>${i+1}</td><td>${p.type}</td><td>${p.verts.length}</td>` +
+    `<td>${p.closed ? 'ΝΑΙ' : 'όχι'}</td>` +
+    `<td>${p.closed ? polyArea(p.verts).toFixed(2) : '—'}</td></tr>`
+  ).join('');
+  results.style.display = 'block';
+}
+
+// ---------- Κατασκευή DXF R12 ----------
+function fmt(n) { return Number(n.toFixed(9)).toString(); }
+
+function buildDXF(polys, dstLayer, srcLayer, keepOriginal, dx, dy) {
+  const out = [];
+  const push = (c, v) => { out.push(c, v); };
+
+  push(0,'SECTION'); push(2,'TABLES');
+  push(0,'TABLE'); push(2,'LAYER'); push(70, keepOriginal ? 2 : 1);
+  push(0,'LAYER'); push(2,dstLayer); push(70,0); push(62,3); push(6,'CONTINUOUS');
+  if (keepOriginal) {
+    push(0,'LAYER'); push(2,srcLayer); push(70,0); push(62,1); push(6,'CONTINUOUS');
+  }
+  push(0,'ENDTAB'); push(0,'ENDSEC');
+
+  push(0,'SECTION'); push(2,'ENTITIES');
+
+  const writePoly = (p, layer, offX, offY) => {
+    push(0,'POLYLINE'); push(8,layer); push(66,1); push(70, p.closed ? 1 : 0);
+    for (const v of p.verts) {
+      push(0,'VERTEX'); push(8,layer);
+      push(10, fmt(v.x + offX));
+      push(20, fmt(v.y + offY));
+      push(30, fmt(v.z || 0));
+      if (v.b) push(42, fmt(v.b));
+    }
+    push(0,'SEQEND'); push(8,layer);
+  };
+
+  for (const p of polys) writePoly(p, dstLayer, dx, dy);
+  if (keepOriginal) for (const p of polys) writePoly(p, srcLayer, 0, 0);
+
+  push(0,'ENDSEC'); push(0,'EOF');
+  return out.join('\r\n') + '\r\n';
+}
+
+// ---------- Download ----------
+function downloadText(filename, text) {
+  const blob = new Blob([text], { type: 'application/octet-stream' });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href = url; a.download = filename; a.style.display = 'none';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 20000);
+}
+
+document.getElementById('downloadBtn').addEventListener('click', () => {
+  const dx  = parseFloat(dxInput.value) || 0;
+  const dy  = parseFloat(dyInput.value) || 0;
+  const dst = document.getElementById('dstLayer').value.trim() || 'PST_KAEK';
+  const src = document.getElementById('srcLayer').value.trim()  || 'MYKAEK';
+  const keep = document.getElementById('keepOriginal').checked;
+
+  const dxf     = buildDXF(parsedPolys, dst, src, keep, dx, dy);
+  const outName = sourceName.replace(/\.dxf$/i, '') + '_diorthomeno.dxf';
+
+  downloadText(outName, dxf);
+
+  // Fallback: εμφάνιση textarea για αντιγραφή
+  document.getElementById('dxfText').value = dxf;
+  document.getElementById('fallback').style.display = 'block';
+
+  showMessage(
+    `Δημιουργήθηκε: ${outName} — ${parsedPolys.length} polylines στο layer «${dst}» ` +
+    `με μετάθεση (${dx>=0?'+':''}${dx}, ${dy>=0?'+':''}${dy}) m.` +
+    (window.self !== window.top ? ' ⚠️ Τρέχεις μέσα σε προεπισκόπηση — χρησιμοποίησε την Αντιγραφή.' : ''),
+    'ok'
+  );
+});
+
+document.getElementById('copyBtn').addEventListener('click', () => {
+  const ta = document.getElementById('dxfText');
+  ta.select(); ta.setSelectionRange(0, ta.value.length);
+  const done = () => showMessage('Αντιγράφηκε! Επικόλλησέ το σε νέο .txt, μετονόμασέ το σε .dxf.', 'ok');
+  if (navigator.clipboard?.writeText) {
+    navigator.clipboard.writeText(ta.value).then(done).catch(() => { document.execCommand('copy'); done(); });
+  } else { document.execCommand('copy'); done(); }
+});
+
+// Προειδοποίηση iframe
+if (window.self !== window.top) {
+  showMessage('⚠️ Προεπισκόπηση: η λήψη αρχείων μπλοκάρεται. Άνοιξε το εργαλείο τοπικά (διπλό κλικ στο .html).', 'err');
+}
+
+function showMessage(text, kind) { messageEl.textContent = text; messageEl.className = kind; }
+function hideMessage()           { messageEl.textContent = ''; messageEl.className = ''; }
+</script>
+</body>
+</html>

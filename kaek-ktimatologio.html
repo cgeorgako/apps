@@ -1,0 +1,649 @@
+<!DOCTYPE html>
+<html lang="el">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>ΚΑΕΚ → Κτηματολόγιο</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0f1115;
+    --surface:#191c22;
+    --surface-2:#20242c;
+    --border:#2b2f38;
+    --text:#e9e7e1;
+    --text-muted:#8b8d97;
+    --gold:#c9a227;
+    --gold-dim:#8a701e;
+    --green:#3f8a63;
+    --red:#c1554a;
+    --radius:14px;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--bg);
+    color:var(--text);
+    font-family:'IBM Plex Sans',system-ui,-apple-system,'Segoe UI',sans-serif;
+    min-height:100vh;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    padding:2rem 1rem 3rem;
+  }
+  .wrap{width:100%;max-width:460px;}
+
+  header{text-align:center;margin-bottom:1.75rem;}
+  header .eyebrow{
+    font-family:'IBM Plex Mono',monospace;
+    font-size:0.72rem;
+    letter-spacing:0.14em;
+    text-transform:uppercase;
+    color:var(--gold);
+    margin-bottom:0.4rem;
+  }
+  header h1{font-size:1.35rem;font-weight:700;margin:0;letter-spacing:-0.01em;}
+  header p{color:var(--text-muted);font-size:0.85rem;margin:0.4rem 0 0;}
+
+  .card{
+    background:var(--surface);
+    border:1px solid var(--border);
+    border-radius:var(--radius);
+    padding:1.5rem;
+    margin-bottom:1.25rem;
+  }
+
+  label{
+    display:block;
+    font-size:0.78rem;
+    font-weight:600;
+    color:var(--text-muted);
+    margin-bottom:0.45rem;
+  }
+
+  .kaek-input{
+    width:100%;
+    background:var(--surface-2);
+    border:1.5px solid var(--border);
+    border-radius:10px;
+    color:var(--text);
+    font-family:'IBM Plex Mono',monospace;
+    font-size:1.35rem;
+    font-weight:500;
+    letter-spacing:0.06em;
+    padding:0.75rem 0.9rem;
+    text-align:center;
+    transition:border-color 0.15s ease;
+  }
+  .kaek-input:focus{outline:none;border-color:var(--gold);}
+  .kaek-input.valid{border-color:var(--green);}
+  .kaek-input.invalid{border-color:var(--red);}
+
+  .breakdown{
+    display:flex;
+    justify-content:center;
+    gap:0.35rem;
+    margin-top:0.65rem;
+    font-family:'IBM Plex Mono',monospace;
+    font-size:0.68rem;
+    color:var(--text-muted);
+    flex-wrap:wrap;
+  }
+  .breakdown span{
+    background:var(--surface-2);
+    border:1px solid var(--border);
+    border-radius:6px;
+    padding:0.15rem 0.4rem;
+  }
+  .breakdown span b{color:var(--gold);font-weight:600;}
+
+  .hint{font-size:0.76rem;color:var(--text-muted);margin-top:0.5rem;min-height:1.1em;}
+  .hint.err{color:var(--red);}
+  .hint.ok{color:var(--green);}
+
+  .note-field{margin-top:1.1rem;}
+  .note-field input{
+    width:100%;
+    background:var(--surface-2);
+    border:1.5px solid var(--border);
+    border-radius:10px;
+    color:var(--text);
+    font-family:'IBM Plex Sans',sans-serif;
+    font-size:0.92rem;
+    padding:0.65rem 0.8rem;
+  }
+  .note-field input:focus{outline:none;border-color:var(--gold-dim);}
+
+  .actions{display:flex;gap:0.6rem;margin-top:1.25rem;}
+  button{
+    font-family:'IBM Plex Sans',sans-serif;
+    font-weight:600;
+    font-size:0.9rem;
+    border:none;
+    border-radius:10px;
+    padding:0.75rem 1rem;
+    cursor:pointer;
+    transition:transform 0.08s ease, opacity 0.15s ease;
+  }
+  button:active{transform:scale(0.97);}
+  button:disabled{opacity:0.4;cursor:not-allowed;}
+
+  .btn-primary{
+    flex:1;
+    background:var(--gold);
+    color:#1a1305;
+  }
+  .btn-primary:hover:not(:disabled){background:#ddb434;}
+
+  .btn-secondary{
+    background:var(--surface-2);
+    color:var(--text);
+    border:1px solid var(--border);
+  }
+  .btn-secondary:hover{border-color:var(--gold-dim);}
+
+  .quick-links{
+    display:flex;
+    flex-direction:column;
+    gap:0.5rem;
+  }
+  .quick-link{
+    display:flex;
+    align-items:center;
+    gap:0.6rem;
+    background:var(--surface-2);
+    border:1px solid var(--border);
+    border-radius:10px;
+    padding:0.65rem 0.8rem;
+    color:var(--text);
+    text-decoration:none;
+    font-size:0.85rem;
+    font-weight:500;
+    transition:border-color 0.15s ease;
+  }
+  .quick-link:hover{border-color:var(--gold-dim);}
+  .quick-link .ico{font-size:1rem;flex-shrink:0;}
+  .quick-link .txt{flex:1;}
+  .quick-link .txt small{display:block;color:var(--text-muted);font-weight:400;font-size:0.72rem;margin-top:0.1rem;}
+  .quick-link .arrow{color:var(--text-muted);font-size:0.9rem;}
+
+  .sso-note{
+    font-size:0.74rem;
+    color:var(--text-muted);
+    margin-top:0.9rem;
+    padding-top:0.9rem;
+    border-top:1px dashed var(--border);
+    line-height:1.5;
+  }
+
+  .history-head{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    margin-bottom:0.75rem;
+  }
+  .history-head h2{font-size:0.85rem;font-weight:600;margin:0;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.04em;}
+  .clear-link{background:none;border:none;color:var(--text-muted);font-size:0.75rem;padding:0.2rem;text-decoration:underline;}
+  .clear-link:hover{color:var(--red);}
+
+  .history-list{display:flex;flex-direction:column;gap:0.5rem;}
+  .history-item{
+    background:var(--surface);
+    border:1px solid var(--border);
+    border-radius:10px;
+    padding:0.65rem 0.8rem;
+    display:flex;
+    align-items:center;
+    gap:0.6rem;
+    cursor:pointer;
+  }
+  .history-item:hover{border-color:var(--gold-dim);}
+  .history-info{flex:1;min-width:0;}
+  .history-kaek{
+    font-family:'IBM Plex Mono',monospace;
+    font-size:0.88rem;
+    letter-spacing:0.03em;
+  }
+  .history-note{
+    font-size:0.76rem;
+    color:var(--text-muted);
+    white-space:nowrap;
+    overflow:hidden;
+    text-overflow:ellipsis;
+  }
+  .history-del{
+    background:none;
+    border:none;
+    color:var(--text-muted);
+    font-size:1rem;
+    padding:0.2rem 0.4rem;
+    line-height:1;
+  }
+  .history-del:hover{color:var(--red);}
+
+  .empty{
+    text-align:center;
+    color:var(--text-muted);
+    font-size:0.82rem;
+    padding:1.2rem 0.5rem;
+    border:1px dashed var(--border);
+    border-radius:10px;
+  }
+
+  .divider{
+    display:flex;
+    align-items:center;
+    gap:0.6rem;
+    margin:1rem 0;
+    color:var(--text-muted);
+    font-size:0.72rem;
+    text-transform:uppercase;
+    letter-spacing:0.06em;
+  }
+  .divider::before,.divider::after{
+    content:'';
+    flex:1;
+    height:1px;
+    background:var(--border);
+  }
+
+  .paste-zone{
+    border:1.5px dashed var(--border);
+    border-radius:10px;
+    padding:1rem;
+    text-align:center;
+    cursor:pointer;
+    transition:border-color 0.15s ease, background 0.15s ease;
+  }
+  .paste-zone:hover,.paste-zone:focus-visible{border-color:var(--gold-dim);outline:none;}
+  .paste-zone.drag{border-color:var(--gold);background:var(--surface-2);}
+  .paste-zone.loading{border-color:var(--gold);pointer-events:none;opacity:0.75;}
+  .paste-icon{font-size:1.3rem;margin-bottom:0.35rem;}
+  .paste-text{font-size:0.8rem;color:var(--text-muted);line-height:1.4;}
+  .paste-text .link{color:var(--gold);text-decoration:underline;}
+  .paste-zone.loading .paste-text{color:var(--gold);}
+
+  .toast{
+    position:fixed;
+    bottom:1.2rem;
+    left:50%;
+    transform:translateX(-50%) translateY(120%);
+    background:var(--surface-2);
+    border:1px solid var(--border);
+    color:var(--text);
+    padding:0.6rem 1rem;
+    border-radius:10px;
+    font-size:0.82rem;
+    transition:transform 0.25s ease;
+    z-index:50;
+    max-width:90vw;
+    text-align:center;
+  }
+  .toast.show{transform:translateX(-50%) translateY(0);}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header>
+    <div class="eyebrow">Τεχνικό Γραφείο Γεωργακόπουλος</div>
+    <h1>ΚΑΕΚ → Κτηματολόγιο</h1>
+    <p>Άνοιγμα σελίδας έρευνας απευθείας από τον 12ψήφιο κωδικό</p>
+  </header>
+
+  <div class="card">
+    <label>Γρήγορη πρόσβαση</label>
+    <div class="quick-links">
+      <a class="quick-link" href="https://ktimatologio.gov.gr/Professionals/Inquiry/Main/Home" target="_blank" rel="noopener noreferrer">
+        <span class="ico">🏛️</span>
+        <span class="txt">Είσοδος Μηχανικού<small>Σύνδεση + αρχικοποίηση session έρευνας</small></span>
+        <span class="arrow">↗</span>
+      </a>
+    </div>
+    <div class="sso-note">
+      Αν δεν είσαι ήδη συνδεδεμένος, θα προωθηθείς αυτόματα στο SSO του ΤΕΕ και μετά το login θα καταλήξεις εδώ. <b>Άνοιξε πάντα πρώτα αυτό το κουμπί</b> πριν χρησιμοποιήσεις την αναζήτηση ΚΑΕΚ παρακάτω — αρχικοποιεί τη session έρευνας του Κτηματολογίου, χωρίς την οποία η απευθείας αναζήτηση με ΚΑΕΚ επιστρέφει «Server Error». Χρησιμοποίησε τον διαχειριστή κωδικών του browser σου για αυτόματη συμπλήρωση — δεν αποθηκεύονται κωδικοί μέσα σε αυτό το εργαλείο.
+    </div>
+  </div>
+
+  <div class="card">
+    <label for="kaekInput">Αριθμός ΚΑΕΚ</label>
+    <div class="hint" style="margin-bottom:0.75rem;margin-top:-0.25rem;">Βλέπεις «Server Error»; Πάτα πρώτα «Είσοδος Μηχανικού» παραπάνω.</div>
+    <input
+      id="kaekInput"
+      class="kaek-input"
+      type="text"
+      inputmode="numeric"
+      autocomplete="off"
+      placeholder="150192801004"
+      maxlength="14"
+    >
+    <div id="breakdown" class="breakdown"></div>
+    <div id="hint" class="hint"></div>
+
+    <div class="divider">ή</div>
+
+    <div id="pasteZone" class="paste-zone" tabindex="0" role="button" aria-label="Επικόλληση ή ανέβασμα εικόνας με τον ΚΑΕΚ">
+      <div class="paste-icon">🖼️</div>
+      <div id="pasteText" class="paste-text">Επικόλληση εικόνας (Ctrl+V) με τον ΚΑΕΚ, ή <span class="link">επιλογή αρχείου / φωτογραφία</span></div>
+      <input type="file" id="fileInput" accept="image/*" style="display:none">
+    </div>
+
+    <div class="note-field">
+      <label for="noteInput">Σημείωση (προαιρετικό)</label>
+      <input id="noteInput" type="text" placeholder="π.χ. Οικόπεδο Παπαδόπουλου, Αμαλιάδα">
+    </div>
+
+    <div class="actions">
+      <button id="openBtn" class="btn-primary" disabled>Άνοιγμα στο Κτηματολόγιο</button>
+      <button id="copyBtn" class="btn-secondary" title="Αντιγραφή link">🔗</button>
+    </div>
+  </div>
+
+  <div class="history-head">
+    <h2>Πρόσφατες αναζητήσεις</h2>
+    <button id="clearHistoryBtn" class="clear-link">Καθαρισμός</button>
+  </div>
+  <div id="historyList" class="history-list"></div>
+</div>
+
+<div id="toast" class="toast"></div>
+
+<script>
+// ── Ρυθμίσεις ──
+const BASE_URL = 'https://ktimatologio.gov.gr/Professionals/Inquiry/Main/viewResults/';
+const URL_SUFFIX = '-0-0?p=1';
+const STORAGE_KEY = 'kaek_history_v1';
+const MAX_HISTORY = 25;
+
+const kaekInput = document.getElementById('kaekInput');
+const noteInput = document.getElementById('noteInput');
+const breakdownEl = document.getElementById('breakdown');
+const hintEl = document.getElementById('hint');
+const openBtn = document.getElementById('openBtn');
+const copyBtn = document.getElementById('copyBtn');
+const historyList = document.getElementById('historyList');
+const clearHistoryBtn = document.getElementById('clearHistoryBtn');
+const toast = document.getElementById('toast');
+
+// ── Καθαρισμός εισόδου: κρατάμε μόνο ψηφία, μέχρι 12 ──
+function cleanDigits(raw){
+  return raw.replace(/\D/g,'').slice(0,12);
+}
+
+function buildUrl(kaek){
+  return BASE_URL + kaek + URL_SUFFIX;
+}
+
+// ── Ζωντανή ανάλυση δομής ΚΑΕΚ (νομός/δήμος/τομέας/ενότητα/αύξων) ──
+function renderBreakdown(digits){
+  if(digits.length === 0){breakdownEl.innerHTML='';return;}
+  const parts = [
+    {label:'Νομός', len:2},
+    {label:'Δήμος/Κοιν.', len:3},
+    {label:'Τομέας', len:2},
+    {label:'Ενότητα', len:2},
+    {label:'Αύξων', len:3},
+  ];
+  let i = 0, html = '';
+  for(const p of parts){
+    const chunk = digits.slice(i, i+p.len);
+    if(chunk.length === 0) break;
+    html += `<span><b>${chunk}</b> ${p.label}</span>`;
+    i += p.len;
+  }
+  breakdownEl.innerHTML = html;
+}
+
+function validate(digits){
+  kaekInput.classList.remove('valid','invalid');
+  if(digits.length === 0){
+    hintEl.textContent = '';
+    hintEl.className = 'hint';
+    openBtn.disabled = true;
+    return;
+  }
+  if(digits.length < 12){
+    hintEl.textContent = `${digits.length}/12 ψηφία`;
+    hintEl.className = 'hint';
+    kaekInput.classList.add('invalid');
+    openBtn.disabled = true;
+    return;
+  }
+  hintEl.textContent = 'Έγκυρος αριθμός ψηφίων ✓';
+  hintEl.className = 'hint ok';
+  kaekInput.classList.add('valid');
+  openBtn.disabled = false;
+}
+
+kaekInput.addEventListener('input', () => {
+  const digits = cleanDigits(kaekInput.value);
+  kaekInput.value = digits;
+  renderBreakdown(digits);
+  validate(digits);
+});
+
+kaekInput.addEventListener('paste', (e) => {
+  const clipboard = e.clipboardData || window.clipboardData;
+  const hasImage = clipboard?.items && Array.from(clipboard.items).some(it => it.type && it.type.startsWith('image/'));
+  if(hasImage) return; // Το αναλαμβάνει ο global listener του OCR παρακάτω
+  e.preventDefault();
+  const text = clipboard.getData('text');
+  const digits = cleanDigits(text);
+  kaekInput.value = digits;
+  renderBreakdown(digits);
+  validate(digits);
+});
+
+kaekInput.addEventListener('keydown', (e) => {
+  if(e.key === 'Enter' && !openBtn.disabled) openBtn.click();
+});
+
+// ── OCR: αναγνώριση ΚΑΕΚ από εικόνα (Tesseract.js, lazy-loaded, 100% client-side) ──
+const pasteZone = document.getElementById('pasteZone');
+const pasteText = document.getElementById('pasteText');
+const fileInput = document.getElementById('fileInput');
+const DEFAULT_PASTE_TEXT = pasteText.innerHTML;
+
+let tesseractPromise = null;
+function loadTesseract(){
+  if(window.Tesseract) return Promise.resolve();
+  if(!tesseractPromise){
+    tesseractPromise = new Promise((resolve, reject) => {
+      const script = document.createElement('script');
+      script.src = 'https://cdn.jsdelivr.net/npm/tesseract.js@5.0.4/dist/tesseract.min.js';
+      script.onload = () => resolve();
+      script.onerror = () => reject(new Error('Αποτυχία φόρτωσης OCR'));
+      document.head.appendChild(script);
+    });
+  }
+  return tesseractPromise;
+}
+
+async function ocrImage(fileOrBlob){
+  if(!fileOrBlob || !fileOrBlob.type || !fileOrBlob.type.startsWith('image/')){
+    showToast('Το αρχείο δεν είναι εικόνα');
+    return;
+  }
+  pasteZone.classList.add('loading');
+  pasteText.textContent = 'Φόρτωση OCR…';
+  try{
+    await loadTesseract();
+    pasteText.textContent = 'Ανάλυση εικόνας…';
+    const result = await Tesseract.recognize(fileOrBlob, 'eng', {
+      tessedit_char_whitelist: '0123456789',
+    });
+    const digits = cleanDigits(result.data.text || '');
+    if(digits.length === 0){
+      showToast('Δεν βρέθηκαν ψηφία στην εικόνα — δοκίμασε πιο καθαρή/κοντινή φωτογραφία');
+    }else{
+      kaekInput.value = digits;
+      renderBreakdown(digits);
+      validate(digits);
+      showToast(digits.length === 12
+        ? `Αναγνωρίστηκε ${digits} — έλεγξέ τον πριν ανοίξεις`
+        : `Αναγνωρίστηκαν ${digits.length}/12 ψηφία — έλεγξε/συμπλήρωσε το πεδίο`);
+      kaekInput.focus();
+    }
+  }catch(err){
+    console.error(err);
+    showToast('Σφάλμα αναγνώρισης εικόνας — δοκίμασε ξανά');
+  }finally{
+    pasteZone.classList.remove('loading');
+    pasteText.innerHTML = DEFAULT_PASTE_TEXT;
+  }
+}
+
+// Επικόλληση εικόνας (Ctrl+V) — δουλεύει ανεξάρτητα από το πού βρίσκεται το focus.
+// Αν η επικόλληση γίνεται μέσα στο πεδίο ΚΑΕΚ και δεν υπάρχει εικόνα, προχωράει σαν κείμενο (βλ. παρακάτω).
+document.addEventListener('paste', (e) => {
+  const items = (e.clipboardData || window.clipboardData)?.items;
+  if(!items) return;
+  for(const item of items){
+    if(item.type && item.type.startsWith('image/')){
+      e.preventDefault();
+      const blob = item.getAsFile();
+      if(blob) ocrImage(blob);
+      return;
+    }
+  }
+});
+
+// Κλικ / πληκτρολόγιο → άνοιγμα file picker (λειτουργεί και για φωτογραφία στο κινητό)
+pasteZone.addEventListener('click', () => fileInput.click());
+pasteZone.addEventListener('keydown', (e) => {
+  if(e.key === 'Enter' || e.key === ' '){ e.preventDefault(); fileInput.click(); }
+});
+fileInput.addEventListener('change', () => {
+  if(fileInput.files && fileInput.files[0]) ocrImage(fileInput.files[0]);
+  fileInput.value = '';
+});
+
+// Drag & drop εικόνας
+['dragover','dragenter'].forEach(evt => {
+  pasteZone.addEventListener(evt, (e) => { e.preventDefault(); pasteZone.classList.add('drag'); });
+});
+['dragleave','dragend'].forEach(evt => {
+  pasteZone.addEventListener(evt, () => pasteZone.classList.remove('drag'));
+});
+pasteZone.addEventListener('drop', (e) => {
+  e.preventDefault();
+  pasteZone.classList.remove('drag');
+  const file = e.dataTransfer.files && e.dataTransfer.files[0];
+  if(file) ocrImage(file);
+});
+
+// ── Toast ──
+let toastTimer;
+function showToast(msg){
+  toast.textContent = msg;
+  toast.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => toast.classList.remove('show'), 2200);
+}
+
+// ── Ιστορικό (localStorage) ──
+function loadHistory(){
+  try{
+    return JSON.parse(localStorage.getItem(STORAGE_KEY)) || [];
+  }catch(e){
+    return [];
+  }
+}
+function saveHistory(list){
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
+}
+function addToHistory(kaek, note){
+  let list = loadHistory();
+  // Αν υπάρχει ήδη, το αφαιρούμε πρώτα ώστε να ανέβει στην κορυφή
+  list = list.filter(item => item.kaek !== kaek);
+  list.unshift({kaek, note: note || '', ts: Date.now()});
+  if(list.length > MAX_HISTORY) list = list.slice(0, MAX_HISTORY);
+  saveHistory(list);
+  renderHistory();
+}
+function removeFromHistory(kaek){
+  const list = loadHistory().filter(item => item.kaek !== kaek);
+  saveHistory(list);
+  renderHistory();
+}
+function formatDate(ts){
+  const d = new Date(ts);
+  return d.toLocaleDateString('el-GR', {day:'2-digit', month:'2-digit', year:'2-digit'}) +
+         ' ' + d.toLocaleTimeString('el-GR', {hour:'2-digit', minute:'2-digit'});
+}
+function renderHistory(){
+  const list = loadHistory();
+  if(list.length === 0){
+    historyList.innerHTML = '<div class="empty">Δεν υπάρχουν ακόμη αναζητήσεις</div>';
+    return;
+  }
+  historyList.innerHTML = list.map(item => `
+    <div class="history-item" data-kaek="${item.kaek}">
+      <div class="history-info">
+        <div class="history-kaek">${item.kaek}</div>
+        <div class="history-note">${item.note ? item.note + ' · ' : ''}${formatDate(item.ts)}</div>
+      </div>
+      <button class="history-del" data-del="${item.kaek}" title="Διαγραφή">✕</button>
+    </div>
+  `).join('');
+}
+
+historyList.addEventListener('click', (e) => {
+  const delBtn = e.target.closest('[data-del]');
+  if(delBtn){
+    removeFromHistory(delBtn.dataset.del);
+    return;
+  }
+  const item = e.target.closest('.history-item');
+  if(item){
+    window.open(buildUrl(item.dataset.kaek), '_blank');
+  }
+});
+
+clearHistoryBtn.addEventListener('click', () => {
+  if(loadHistory().length === 0) return;
+  if(confirm('Διαγραφή όλου του ιστορικού αναζητήσεων;')){
+    saveHistory([]);
+    renderHistory();
+  }
+});
+
+// ── Κύριες ενέργειες ──
+openBtn.addEventListener('click', () => {
+  const digits = cleanDigits(kaekInput.value);
+  if(digits.length !== 12) return;
+  window.open(buildUrl(digits), '_blank');
+  addToHistory(digits, noteInput.value.trim());
+});
+
+copyBtn.addEventListener('click', async () => {
+  const digits = cleanDigits(kaekInput.value);
+  if(digits.length !== 12){
+    showToast('Συμπλήρωσε πρώτα τον ΚΑΕΚ (12 ψηφία)');
+    return;
+  }
+  const url = buildUrl(digits);
+  try{
+    await navigator.clipboard.writeText(url);
+    showToast('Το link αντιγράφηκε ✓');
+  }catch(e){
+    const ta = document.createElement('textarea');
+    ta.value = url;
+    ta.style.cssText = 'position:fixed;opacity:0';
+    document.body.appendChild(ta);
+    ta.select();
+    try{ document.execCommand('copy'); showToast('Το link αντιγράφηκε ✓'); }
+    catch(err){ showToast('Αποτυχία αντιγραφής'); }
+    document.body.removeChild(ta);
+  }
+});
+
+// ── Αρχικοποίηση ──
+renderHistory();
+kaekInput.focus();
+</script>
+
+</body>
+</html>

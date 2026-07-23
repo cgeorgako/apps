@@ -1,0 +1,413 @@
+<!DOCTYPE html>
+<html lang="el">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Μετατροπή συντεταγμένων X,Y,Z → αρ.σημείου,X,Y,Z + DXF</title>
+<style>
+  :root{
+    --bg:#f5f4ef; --panel:#ffffff; --ink:#2c2c2a; --muted:#5f5e5a;
+    --line:#d9d7cd; --line2:#c4c2b8; --accent:#1d9e75; --accent-d:#0f6e56;
+    --blue:#185fa5; --danger:#a32d2d; --radius:10px;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; background:var(--bg); color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    line-height:1.55; padding:24px;
+  }
+  .wrap{max-width:920px; margin:0 auto;}
+  h1{font-size:22px; font-weight:600; margin:0 0 4px;}
+  .sub{color:var(--muted); font-size:14px; margin:0 0 22px;}
+  .panel{
+    background:var(--panel); border:1px solid var(--line);
+    border-radius:var(--radius); padding:18px 20px; margin-bottom:16px;
+  }
+  .panel h2{font-size:15px; font-weight:600; margin:0 0 12px; display:flex; align-items:center; gap:8px;}
+  .step-num{
+    width:22px; height:22px; border-radius:50%; background:var(--accent);
+    color:#fff; font-size:13px; display:inline-flex; align-items:center; justify-content:center; flex:none;
+  }
+  .drop{
+    border:2px dashed var(--line2); border-radius:var(--radius);
+    padding:26px; text-align:center; cursor:pointer; transition:.15s;
+    background:#fafaf7;
+  }
+  .drop:hover,.drop.over{border-color:var(--accent); background:#f0faf6;}
+  .drop p{margin:6px 0; color:var(--muted); font-size:14px;}
+  .drop strong{color:var(--ink);}
+  input[type=file]{display:none;}
+  .controls{display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:14px;}
+  .field label{display:block; font-size:13px; color:var(--muted); margin-bottom:5px;}
+  select,input[type=text],input[type=number]{
+    width:100%; padding:8px 10px; border:1px solid var(--line2);
+    border-radius:8px; font-size:14px; background:#fff; color:var(--ink);
+  }
+  .check{display:flex; align-items:center; gap:8px; font-size:14px; padding-top:22px;}
+  .check input{width:16px; height:16px;}
+  .btn{
+    border:none; border-radius:8px; padding:10px 18px; font-size:14px;
+    font-weight:600; cursor:pointer; transition:.15s;
+  }
+  .btn-primary{background:var(--accent); color:#fff;}
+  .btn-primary:hover{background:var(--accent-d);}
+  .btn-primary:disabled{background:var(--line2); cursor:not-allowed;}
+  .btn-out{background:#fff; border:1px solid var(--line2); color:var(--ink);}
+  .btn-out:hover{background:#f0faf6; border-color:var(--accent);}
+  .btn-row{display:flex; gap:10px; flex-wrap:wrap; margin-top:14px;}
+  .msg{font-size:13px; margin-top:10px;}
+  .msg.err{color:var(--danger);}
+  .msg.ok{color:var(--accent-d);}
+  table{width:100%; border-collapse:collapse; font-size:13px; font-variant-numeric:tabular-nums;}
+  th,td{padding:6px 9px; text-align:right; border-bottom:1px solid var(--line);}
+  th{color:var(--muted); font-weight:600; background:#fafaf7;}
+  th:first-child,td:first-child{text-align:left;}
+  .preview-wrap{max-height:280px; overflow:auto; border:1px solid var(--line); border-radius:8px;}
+  .stats{display:flex; gap:18px; flex-wrap:wrap; font-size:13px; color:var(--muted); margin-bottom:10px;}
+  .stats b{color:var(--ink);}
+  canvas{width:100%; border:1px solid var(--line); border-radius:8px; background:#fff; display:block;}
+  .hint{font-size:12px; color:var(--muted); margin-top:6px;}
+  .hidden{display:none;}
+  code{background:#f0efe8; padding:1px 5px; border-radius:4px; font-size:12px;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Μετατροπή συντεταγμένων</h1>
+  <p class="sub">Από <code>X,Y,Z</code> σε <code>αρ.σημείου,X,Y,Z</code> — με προαιρετική εξαγωγή σε DXF.</p>
+
+  <!-- ΒΗΜΑ 1: εισαγωγή -->
+  <div class="panel">
+    <h2><span class="step-num">1</span> Εισαγωγή αρχείου</h2>
+    <div class="drop" id="drop">
+      <p><strong>Σύρε εδώ</strong> το αρχείο .txt ή κάνε κλικ για επιλογή</p>
+      <p>Κάθε γραμμή: X, Y, Z (το διαχωριστικό ανιχνεύεται αυτόματα)</p>
+    </div>
+    <input type="file" id="file" accept=".txt,.csv,text/plain">
+    <div class="msg" id="loadMsg"></div>
+  </div>
+
+  <!-- ΒΗΜΑ 2: ρυθμίσεις -->
+  <div class="panel hidden" id="settingsPanel">
+    <h2><span class="step-num">2</span> Ρυθμίσεις</h2>
+    <div class="controls">
+      <div class="field">
+        <label>Διαχωριστικό εισόδου</label>
+        <select id="sepIn">
+          <option value="auto">Αυτόματη ανίχνευση</option>
+          <option value=",">Κόμμα ( , )</option>
+          <option value=";">Άνω-κάτω τελεία ( ; )</option>
+          <option value="\t">Tab</option>
+          <option value=" ">Κενό</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Διαχωριστικό εξόδου</label>
+        <select id="sepOut">
+          <option value=",">Κόμμα ( , )</option>
+          <option value=";">Άνω-κάτω τελεία ( ; )</option>
+          <option value="\t">Tab</option>
+          <option value=" ">Κενό</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Πρόθεμα αρ. σημείου</label>
+        <input type="text" id="prefix" placeholder="π.χ. S (προαιρετικό)">
+      </div>
+      <div class="field">
+        <label>Αρχικός αριθμός</label>
+        <input type="number" id="startNum" value="1" min="0">
+      </div>
+      <div class="field">
+        <label>Δεκαδικά ψηφία</label>
+        <input type="number" id="decimals" value="3" min="0" max="6">
+      </div>
+      <div class="field">
+        <label>Ύψος κειμένου DXF</label>
+        <input type="number" id="textH" value="0" min="0" step="0.1">
+        <div class="hint">0 = αυτόματο</div>
+      </div>
+    </div>
+    <div class="controls" style="margin-top:6px;">
+      <label class="check"><input type="checkbox" id="hasHeader"> Η 1η γραμμή είναι επικεφαλίδα</label>
+      <label class="check"><input type="checkbox" id="dxfLabels" checked> DXF: εμφάνιση αριθμών σημείων</label>
+      <label class="check"><input type="checkbox" id="dxfElev"> DXF: εμφάνιση υψομέτρου Z</label>
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-primary" id="processBtn">Επεξεργασία</button>
+    </div>
+    <div class="msg" id="procMsg"></div>
+  </div>
+
+  <!-- ΒΗΜΑ 3: αποτέλεσμα -->
+  <div class="panel hidden" id="resultPanel">
+    <h2><span class="step-num">3</span> Αποτέλεσμα &amp; λήψη</h2>
+    <div class="stats" id="stats"></div>
+    <div class="btn-row" style="margin-top:0; margin-bottom:14px;">
+      <button class="btn btn-primary" id="dlTxt">Λήψη .txt</button>
+      <button class="btn btn-out" id="dlDxf">Λήψη .dxf</button>
+    </div>
+    <div class="preview-wrap">
+      <table id="previewTable"></table>
+    </div>
+    <div class="hint" id="previewHint"></div>
+    <canvas id="plot" width="880" height="440" style="margin-top:14px;"></canvas>
+    <div class="hint">Προεπισκόπηση κατανομής σημείων (Υ προς τα πάνω, όπως στα τοπογραφικά).</div>
+  </div>
+</div>
+
+<script>
+"use strict";
+var rawText = "", fileName = "points", processed = [], bounds = null;
+
+var $ = function(id){ return document.getElementById(id); };
+
+/* ---------- φόρτωση αρχείου ---------- */
+var drop = $("drop"), fileInput = $("file");
+drop.addEventListener("click", function(){ fileInput.click(); });
+drop.addEventListener("dragover", function(e){ e.preventDefault(); drop.classList.add("over"); });
+drop.addEventListener("dragleave", function(){ drop.classList.remove("over"); });
+drop.addEventListener("drop", function(e){
+  e.preventDefault(); drop.classList.remove("over");
+  if(e.dataTransfer.files.length) loadFile(e.dataTransfer.files[0]);
+});
+fileInput.addEventListener("change", function(e){
+  if(e.target.files.length) loadFile(e.target.files[0]);
+});
+
+function loadFile(f){
+  fileName = f.name.replace(/\.[^.]+$/, "") || "points";
+  var reader = new FileReader();
+  reader.onload = function(ev){
+    rawText = ev.target.result;
+    var lines = rawText.split(/\r?\n/).filter(function(l){ return l.trim() !== ""; });
+    $("loadMsg").className = "msg ok";
+    $("loadMsg").textContent = "Φορτώθηκε: " + f.name + " — " + lines.length + " μη κενές γραμμές.";
+    $("settingsPanel").classList.remove("hidden");
+    $("resultPanel").classList.add("hidden");
+  };
+  reader.onerror = function(){
+    $("loadMsg").className = "msg err";
+    $("loadMsg").textContent = "Σφάλμα ανάγνωσης αρχείου.";
+  };
+  reader.readAsText(f);
+}
+
+/* ---------- ανίχνευση διαχωριστικού ---------- */
+function detectSep(lines){
+  var cands = [",", ";", "\t"];
+  var best = " ", bestScore = -1;
+  for(var i=0;i<cands.length;i++){
+    var c = cands[i], score = 0, ok = 0;
+    for(var j=0;j<Math.min(lines.length,20);j++){
+      var parts = lines[j].split(c);
+      if(parts.length >= 3) ok++;
+    }
+    score = ok;
+    if(score > bestScore){ bestScore = score; best = c; }
+  }
+  if(bestScore <= 0) best = /\s+/.test(lines[0] || "") ? " " : ",";
+  return best;
+}
+
+function splitLine(line, sep){
+  if(sep === " ") return line.trim().split(/\s+/);
+  return line.split(sep).map(function(s){ return s.trim(); });
+}
+
+/* ---------- επεξεργασία ---------- */
+$("processBtn").addEventListener("click", function(){
+  var lines = rawText.split(/\r?\n/).filter(function(l){ return l.trim() !== ""; });
+  if($("hasHeader").checked) lines = lines.slice(1);
+  if(!lines.length){
+    $("procMsg").className = "msg err";
+    $("procMsg").textContent = "Δεν βρέθηκαν δεδομένα.";
+    return;
+  }
+  var sepSel = $("sepIn").value;
+  var sep = sepSel === "auto" ? detectSep(lines)
+          : sepSel === "\\t" ? "\t" : sepSel;
+
+  var startNum = parseInt($("startNum").value, 10) || 0;
+  var prefix = $("prefix").value || "";
+  processed = [];
+  var errors = 0;
+
+  for(var i=0;i<lines.length;i++){
+    var p = splitLine(lines[i], sep);
+    if(p.length < 3){ errors++; continue; }
+    var x = parseFloat(String(p[0]).replace(",", "."));
+    var y = parseFloat(String(p[1]).replace(",", "."));
+    var z = parseFloat(String(p[2]).replace(",", "."));
+    if(isNaN(x) || isNaN(y) || isNaN(z)){ errors++; continue; }
+    processed.push({ id: prefix + (startNum + processed.length), x:x, y:y, z:z });
+  }
+
+  if(!processed.length){
+    $("procMsg").className = "msg err";
+    $("procMsg").textContent = "Καμία έγκυρη γραμμή. Έλεγξε το διαχωριστικό.";
+    return;
+  }
+  $("procMsg").className = "msg ok";
+  $("procMsg").textContent = "Επεξεργάστηκαν " + processed.length + " σημεία" +
+    (errors ? " (παραλείφθηκαν " + errors + " άκυρες γραμμές)." : ".");
+
+  computeBounds();
+  renderResult();
+  $("resultPanel").classList.remove("hidden");
+  $("resultPanel").scrollIntoView({ behavior:"smooth", block:"start" });
+});
+
+function computeBounds(){
+  var minX=Infinity,minY=Infinity,maxX=-Infinity,maxY=-Infinity;
+  var minZ=Infinity,maxZ=-Infinity;
+  processed.forEach(function(p){
+    if(p.x<minX)minX=p.x; if(p.x>maxX)maxX=p.x;
+    if(p.y<minY)minY=p.y; if(p.y>maxY)maxY=p.y;
+    if(p.z<minZ)minZ=p.z; if(p.z>maxZ)maxZ=p.z;
+  });
+  bounds = {minX:minX,minY:minY,maxX:maxX,maxY:maxY,minZ:minZ,maxZ:maxZ};
+}
+
+function fmt(n){
+  var d = parseInt($("decimals").value, 10);
+  if(isNaN(d)) d = 3;
+  return n.toFixed(d);
+}
+
+function renderResult(){
+  var b = bounds;
+  $("stats").innerHTML =
+    "Σημεία: <b>" + processed.length + "</b>" +
+    "<span>Εύρος Χ: <b>" + fmt(b.minX) + " – " + fmt(b.maxX) + "</b></span>" +
+    "<span>Εύρος Υ: <b>" + fmt(b.minY) + " – " + fmt(b.maxY) + "</b></span>" +
+    "<span>Εύρος Ζ: <b>" + fmt(b.minZ) + " – " + fmt(b.maxZ) + "</b></span>";
+
+  var max = 100, rows = processed.slice(0, max);
+  var html = "<thead><tr><th>Αρ.</th><th>X</th><th>Y</th><th>Z</th></tr></thead><tbody>";
+  rows.forEach(function(p){
+    html += "<tr><td>"+p.id+"</td><td>"+fmt(p.x)+"</td><td>"+fmt(p.y)+"</td><td>"+fmt(p.z)+"</td></tr>";
+  });
+  html += "</tbody>";
+  $("previewTable").innerHTML = html;
+  $("previewHint").textContent = processed.length > max
+    ? "Προβολή πρώτων " + max + " από " + processed.length + " σημεία."
+    : "";
+  drawPlot();
+}
+
+/* ---------- σχεδίαση προεπισκόπησης ---------- */
+function drawPlot(){
+  var cv = $("plot"), ctx = cv.getContext("2d");
+  var W = cv.width, H = cv.height, pad = 30;
+  ctx.clearRect(0,0,W,H);
+  var b = bounds;
+  var dx = b.maxX - b.minX || 1, dy = b.maxY - b.minY || 1;
+  var scale = Math.min((W-2*pad)/dx, (H-2*pad)/dy);
+  var offX = (W - dx*scale)/2, offY = (H - dy*scale)/2;
+
+  function tx(x){ return offX + (x - b.minX)*scale; }
+  function ty(y){ return H - (offY + (y - b.minY)*scale); }
+
+  ctx.fillStyle = "#1d9e75";
+  ctx.font = "10px sans-serif";
+  var showLabels = processed.length <= 200;
+  processed.forEach(function(p){
+    var px = tx(p.x), py = ty(p.y);
+    ctx.beginPath();
+    ctx.arc(px, py, 3, 0, Math.PI*2);
+    ctx.fill();
+    if(showLabels){
+      ctx.fillStyle = "#5f5e5a";
+      ctx.fillText(p.id, px+5, py-4);
+      ctx.fillStyle = "#1d9e75";
+    }
+  });
+}
+
+/* ---------- λήψη TXT ---------- */
+$("dlTxt").addEventListener("click", function(){
+  var so = $("sepOut").value;
+  var sep = so === "\\t" ? "\t" : so;
+  var lines = processed.map(function(p){
+    return [p.id, fmt(p.x), fmt(p.y), fmt(p.z)].join(sep);
+  });
+  download(fileName + "_numbered.txt", lines.join("\r\n"), "text/plain");
+});
+
+/* ---------- λήψη DXF ---------- */
+$("dlDxf").addEventListener("click", function(){
+  download(fileName + ".dxf", buildDXF(), "application/dxf");
+});
+
+function buildDXF(){
+  var withLabels = $("dxfLabels").checked;
+  var withElev = $("dxfElev").checked;
+  var th = parseFloat($("textH").value);
+  if(isNaN(th) || th <= 0){
+    var dx = bounds.maxX - bounds.minX, dy = bounds.maxY - bounds.minY;
+    var span = Math.max(dx, dy) || 100;
+    th = span / 150;
+    if(th <= 0) th = 1;
+  }
+  var d = parseInt($("decimals").value, 10);
+  if(isNaN(d)) d = 3;
+  var off = th * 0.6;
+  var s = [];
+  function p(code, val){ s.push(code); s.push(String(val)); }
+
+  /* --- HEADER (όρια σχεδίου) --- */
+  p(0,"SECTION"); p(2,"HEADER");
+  p(9,"$ACADVER"); p(1,"AC1009");
+  p(9,"$INSBASE"); p(10,0); p(20,0); p(30,0);
+  p(9,"$EXTMIN"); p(10,bounds.minX); p(20,bounds.minY); p(30,bounds.minZ);
+  p(9,"$EXTMAX"); p(10,bounds.maxX); p(20,bounds.maxY); p(30,bounds.maxZ);
+  p(0,"ENDSEC");
+
+  /* --- TABLES (layers) --- */
+  p(0,"SECTION"); p(2,"TABLES");
+  p(0,"TABLE"); p(2,"LAYER"); p(70,3);
+  layer("POINTS", 1);
+  layer("LABELS", 3);
+  layer("ELEV", 4);
+  p(0,"ENDTAB");
+  p(0,"ENDSEC");
+
+  function layer(name, color){
+    p(0,"LAYER"); p(2,name); p(70,0); p(62,color); p(6,"CONTINUOUS");
+  }
+
+  /* --- ENTITIES --- */
+  p(0,"SECTION"); p(2,"ENTITIES");
+  processed.forEach(function(pt){
+    p(0,"POINT"); p(8,"POINTS");
+    p(10,pt.x); p(20,pt.y); p(30,pt.z);
+    if(withLabels){
+      p(0,"TEXT"); p(8,"LABELS");
+      p(10, pt.x + off); p(20, pt.y + off); p(30, 0);
+      p(40, th); p(1, pt.id);
+    }
+    if(withElev){
+      p(0,"TEXT"); p(8,"ELEV");
+      p(10, pt.x + off); p(20, pt.y - off - th); p(30, 0);
+      p(40, th*0.8); p(1, pt.z.toFixed(d));
+    }
+  });
+  p(0,"ENDSEC");
+  p(0,"EOF");
+  return s.join("\r\n");
+}
+
+/* ---------- βοηθητικό download ---------- */
+function download(name, content, mime){
+  var blob = new Blob([content], { type: mime });
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement("a");
+  a.href = url; a.download = name;
+  document.body.appendChild(a); a.click();
+  document.body.removeChild(a);
+  setTimeout(function(){ URL.revokeObjectURL(url); }, 100);
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="el">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Διαδραστικός Υπολογισμός ΑΠΔ, Πίνακας Αποδοχών & Λογότυπο</title>
+    <style>
+        :root {
+            --primary-color: #1e3a8a;
+            --secondary-color: #3b82f6;
+            --bg-color: #f8fafc;
+            --text-color: #1e293b;
+            --accent-input: #fef2f2;
+            --border-input: #ef4444;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            line-height: 1.6;
+            margin: 0;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1150px;
+            margin: 0 auto;
+            background: #ffffff;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+
+        h1 {
+            color: var(--primary-color);
+            border-bottom: 3px solid var(--secondary-color);
+            padding-bottom: 10px;
+            margin-top: 0;
+            font-size: 24px;
+        }
+
+        h2 {
+            color: var(--primary-color);
+            font-size: 18px;
+            margin-top: 25px;
+            margin-bottom: 15px;
+        }
+
+        .instruction-box {
+            background-color: #f0fdf4;
+            border-left: 4px solid #22c55e;
+            padding: 15px;
+            margin-bottom: 15px;
+            border-radius: 0 8px 8px 0;
+            font-weight: 500;
+        }
+
+        .instruction-box span {
+            color: var(--border-input);
+            font-weight: bold;
+        }
+
+        /* Στυλ για το Αναπτυσσόμενο Μενού (Accordion) της Εικόνας */
+        .accordion-btn {
+            background-color: #34d399;
+            color: #064e3b;
+            cursor: pointer;
+            padding: 14px 15px;
+            width: 100%;
+            border: none;
+            text-align: left;
+            outline: none;
+            font-size: 15px;
+            font-weight: 700;
+            border-radius: 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: background-color 0.2s ease;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+
+        .accordion-btn:hover {
+            background-color: #059669;
+            color: white;
+        }
+
+        .accordion-btn::after {
+            content: '▼';
+            font-size: 12px;
+            transition: transform 0.3s ease;
+        }
+
+        .accordion-btn.active::after {
+            transform: rotate(-180deg);
+        }
+
+        .accordion-panel {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.4s ease-out;
+            background-color: #f8fafc;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+
+        .accordion-content {
+            padding: 15px;
+            border: 1px solid #cbd5e1;
+            border-radius: 8px;
+            text-align: center;
+            background: #ffffff;
+        }
+
+        /* Responsive Εικόνα Πίνακα */
+        .wages-image {
+            max-width: 100%;
+            height: auto;
+            border-radius: 6px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.12);
+            border: 1px solid #e2e8f0;
+            margin: 10px 0;
+        }
+
+        /* Κύριος Πίνακας */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 20px;
+            font-size: 14px;
+        }
+
+        th {
+            background-color: var(--primary-color);
+            color: white;
+            text-align: left;
+            padding: 12px;
+            font-weight: 600;
+        }
+
+        td {
+            padding: 10px;
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+        tr:hover td {
+            background-color: #f1f5f9;
+        }
+
+        .numeric {
+            text-align: right;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .bold {
+            font-weight: bold;
+        }
+
+        /* Κόκκινα κουτάκια εισαγωγής */
+        .user-input {
+            width: 90px;
+            padding: 8px;
+            border: 2px solid var(--border-input);
+            background-color: var(--accent-input);
+            border-radius: 6px;
+            text-align: right;
+            font-size: 14px;
+            font-weight: bold;
+            color: #b91c1c;
+        }
+
+        .user-input:focus {
+            outline: none;
+            box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.3);
+        }
+
+        .calculated-value {
+            font-weight: 600;
+            color: #334155;
+        }
+
+        .total-value {
+            font-weight: bold;
+            color: var(--primary-color);
+            font-size: 15px;
+        }
+
+        .grid-info {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-top: 30px;
+        }
+
+        .card {
+            background: #f1f5f9;
+            padding: 20px;
+            border-radius: 8px;
+            border: 1px solid #e2e8f0;
+        }
+
+        .card h3 {
+            margin-top: 0;
+            color: var(--primary-color);
+            font-size: 16px;
+            border-bottom: 1px solid #cbd5e1;
+            padding-bottom: 8px;
+        }
+
+        /* Υποσέλιδο και Λογότυπο */
+        .footer-note {
+            margin-top: 40px;
+            font-size: 12px;
+            color: #64748b;
+            text-align: center;
+            border-top: 1px solid #e2e8f0;
+            padding-top: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .footer-logo {
+            max-height: 60px;
+            width: auto;
+            object-fit: contain;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>Διαδραστικός Υπολογισμός Εισφορών ΑΠΔ</h1>
+    
+    <div class="instruction-box">
+        <strong>Οδηγίες:</strong> Συμπληρώστε τον Αριθμό Ενσήμων και το Ημερομίσθιο στα <span>κόκκινα πλαίσια</span>. 
+        Για να δείτε τα επίσημα όρια αποδοχών (από 04/2024), αναπτύξτε τον πράσινο πίνακα παρακάτω.
+    </div>
+
+    <button class="accordion-btn" onclick="toggleAccordion()">📋 Προβολή Επίσημου Πίνακα Αποδοχών & Τριετιών (Κλικ για εμφάνιση εικόνας)</button>
+    <div class="accordion-panel" id="wages-panel">
+        <div class="accordion-content">
+            <p style="margin-top:0; font-size: 13px; color: #475569; text-align: left;">
+                * Χρησιμοποιήστε τον παρακάτω επίσημο πίνακα για να βρείτε το σωστό νόμιμο ημερομίσθιο βάσει προϋπηρεσίας/τριετιών και να το εισάγετε στον υπολογιστή.
+            </p>
+            <img src="image_6af6a3.jpg" alt="Πίνακας Αποδοχών" class="wages-image">
+        </div>
+    </div>
+
+    <h2>Υπολογιστής Εισφορών (Live)</h2>
+    <table>
+        <thead>
+            <tr>
+                <th>Κατηγορία Ασφαλισμένου</th>
+                <th class="numeric" style="width: 120px;">Αριθμός Ενσήμων</th>
+                <th class="numeric" style="width: 120px;">Ημερομίσθιο (€)</th>
+                <th class="numeric">Αποδοχές (€)</th>
+                <th class="numeric">Εισφορές Ασφαλισμένου (€)</th>
+                <th class="numeric">Εισφορές Εργοδότη (€)</th>
+                <th class="numeric">ΣΥΝΟΛΟ (€)</th>
+                <th class="numeric">Πακέτο Κάλυψης</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td class="bold">ΠΑΛΑΙΟΙ ΑΣΦΑΛΙΣΜΕΝΟΙ 1</td>
+                <td class="numeric"><input type="number" id="enshma-palaioi" class="user-input" value="1" min="0" oninput="calculateAPD()"></td>
+                <td class="numeric"><input type="number" id="hmerom-palaioi" class="user-input" value="53.00" step="0.01" min="0" oninput="calculateAPD()"></td>
+                <td class="numeric calculated-value" id="apodoxes-palaioi">53.00</td>
+                <td class="numeric calculated-value" id="eisf-asf-palaioi">8.91</td>
+                <td class="numeric calculated-value" id="eisf-erg-palaioi">30.44</td>
+                <td class="numeric total-value" id="total-palaioi">39.35</td>
+                <td class="numeric bold" style="color: #64748b;">781</td>
+            </tr>
+            <tr>
+                <td class="bold">ΝΕΟΙ ΑΣΦΑΛΙΣΜΕΝΟΙ 1</td>
+                <td class="numeric"><input type="number" id="enshma-neoi" class="user-input" value="1" min="0" oninput="calculateAPD()"></td>
+                <td class="numeric"><input type="number" id="hmerom-neoi" class="user-input" value="35.00" step="0.01" min="0" oninput="calculateAPD()"></td>
+                <td class="numeric calculated-value" id="apodoxes-neoi">35.00</td>
+                <td class="numeric calculated-value" id="eisf-asf-neoi">4.40</td>
+                <td class="numeric calculated-value" id="eisf-erg-neoi">18.46</td>
+                <td class="numeric total-value" id="total-neoi">22.86</td>
+                <td class="numeric bold" style="color: #64748b;">1144</td>
+            </tr>
+            <tr>
+                <td class="bold">ΣΥΝΤΑΞΙΟΥΧΟΙ 1</td>
+                <td class="numeric"><input type="number" id="enshma-syntax" class="user-input" value="1" min="0" oninput="calculateAPD()"></td>
+                <td class="numeric"><input type="number" id="hmerom-syntax" class="user-input" value="58.00" step="0.01" min="0" oninput="calculateAPD()"></td>
+                <td class="numeric calculated-value" id="apodoxes-syntax">58.00</td>
+                <td class="numeric calculated-value" id="eisf-asf-syntax">5.80</td>
+                <td class="numeric calculated-value" id="eisf-erg-syntax">0.00</td>
+                <td class="numeric total-value" id="total-syntax">5.80</td>
+                <td class="numeric bold" style="color: #64748b;">2694</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <div class="grid-info">
+        <div class="card">
+            <h3>Σταθερές Ποσοστών (Βάσει Αρχείου)</h3>
+            <p><strong>Πακέτο 781 (Παλαιοί):</strong><br>Ασφαλισμένος: 16.82% | Εργοδότης: 57.427%</p>
+            <p><strong>Πακέτο 1144 (Νέοι):</strong><br>Ασφαλισμένος: 12.57% | Εργοδότης: 52.737%</p>
+            <p><strong>Πακέτο 2694 (Συνταξιούχοι):</strong><br>Ασφαλισμένος: 10.00% | Εργοδότης: 0.00%</p>
+        </div>
+        <div class="card">
+            <h3>Σημείωση Συνταξιούχων</h3>
+            <p>Όπως αναφέρει η Εγκύκλιος 38, για τους συνταξιούχους υποβάλλονται 2 ΑΠΔ ταυτόχρονα. Ο παραπάνω πίνακας υπολογίζει τη 2η ΑΠΔ (Πακέτο 2694) με εισφορές μόνο ασφαλισμένου = 10% επί των αποδοχών.</p>
+        </div>
+    </div>
+
+    <div class="footer-note">
+        <img src="image_6af2a3.png" alt="Λογότυπο" class="footer-logo">
+        <p>ΕΓΚΥΚΛΙΟΣ 38 - 24.12.2024 | ΤΕΕ Ν.Ε. ΗΛΕΙΑΣ - ΣΕΠΤΕΜΒ. 2025</p>
+    </div>
+</div>
+
+<script>
+// Διαχείριση Accordion για την εμφάνιση της εικόνας
+function toggleAccordion() {
+    const btn = document.querySelector('.accordion-btn');
+    const panel = document.getElementById('wages-panel');
+    
+    btn.classList.toggle('active');
+    if (panel.style.maxHeight) {
+        panel.style.maxHeight = null;
+    } else {
+        panel.style.maxHeight = panel.scrollHeight + "px";
+    }
+}
+
+// Λειτουργία live υπολογισμών
+function calculateAPD() {
+    // 1. ΠΑΛΑΙΟΙ ΑΣΦΑΛΙΣΜΕΝΟΙ (Πακέτο 781)
+    let e_palaioi = parseFloat(document.getElementById('enshma-palaioi').value) || 0;
+    let h_palaioi = parseFloat(document.getElementById('hmerom-palaioi').value) || 0;
+    let ap_palaioi = e_palaioi * h_palaioi;
+    let asf_palaioi = ap_palaioi * 0.1682;
+    let erg_palaioi = ap_palaioi * 0.57427;
+    let tot_palaioi = asf_palaioi + erg_palaioi;
+
+    document.getElementById('apodoxes-palaioi').innerText = ap_palaioi.toFixed(2);
+    document.getElementById('eisf-asf-palaioi').innerText = asf_palaioi.toFixed(2);
+    document.getElementById('eisf-erg-palaioi').innerText = erg_palaioi.toFixed(2);
+    document.getElementById('total-palaioi').innerText = tot_palaioi.toFixed(2);
+
+    // 2. ΝΕΟΙ ΑΣΦΑΛΙΣΜΕΝΟΙ (Πακέτο 1144)
+    let e_neoi = parseFloat(document.getElementById('enshma-neoi').value) || 0;
+    let h_neoi = parseFloat(document.getElementById('hmerom-neoi').value) || 0;
+    let ap_neoi = e_neoi * h_neoi;
+    let asf_neoi = ap_neoi * 0.1257;
+    let erg_neoi = ap_neoi * 0.52737;
+    let tot_neoi = asf_neoi + erg_neoi;
+
+    document.getElementById('apodoxes-neoi').innerText = ap_neoi.toFixed(2);
+    document.getElementById('eisf-asf-neoi').innerText = asf_neoi.toFixed(2);
+    document.getElementById('eisf-erg-neoi').innerText = erg_neoi.toFixed(2);
+    document.getElementById('total-neoi').innerText = tot_neoi.toFixed(2);
+
+    // 3. ΣΥΝΤΑΞΙΟΥΧΟΙ (Πακέτο 2694)
+    let e_syntax = parseFloat(document.getElementById('enshma-syntax').value) || 0;
+    let h_syntax = parseFloat(document.getElementById('hmerom-syntax').value) || 0;
+    let ap_syntax = e_syntax * h_syntax;
+    let asf_syntax = ap_syntax * 0.10;
+    let erg_syntax = 0;
+    let tot_syntax = asf_syntax + erg_syntax;
+
+    document.getElementById('apodoxes-syntax').innerText = ap_syntax.toFixed(2);
+    document.getElementById('eisf-asf-syntax').innerText = asf_syntax.toFixed(2);
+    document.getElementById('eisf-erg-syntax').innerText = erg_syntax.toFixed(2);
+    document.getElementById('total-syntax').innerText = tot_syntax.toFixed(2);
+}
+
+window.onload = calculateAPD;
+</script>
+
+</body>
+</html>

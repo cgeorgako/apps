@@ -1,0 +1,695 @@
+<!DOCTYPE html>
+<html lang="el">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Έλεγχος Συμβατότητας Εμβαδού — Κτηματολόγιο</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper:#f3efe6;
+    --paper-line:#dcd5c4;
+    --ink:#1c2530;
+    --ink-soft:#5a6573;
+    --kaek:#b5452f;        /* κτηματολόγιο - rust red */
+    --topo:#1f6f6b;        /* τοπογραφικό - teal */
+    --accent:#1c2530;
+    --ok:#1f6f3f;
+    --bad:#a3281b;
+    --warn:#9a6b12;
+    --card:#fbf9f3;
+    --border:#c8c0ad;
+    --border-strong:#1c2530;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{background:var(--paper);color:var(--ink);
+    font-family:'IBM Plex Sans',sans-serif;line-height:1.5;-webkit-font-smoothing:antialiased}
+  body{
+    background-image:
+      linear-gradient(var(--paper-line) 1px,transparent 1px),
+      linear-gradient(90deg,var(--paper-line) 1px,transparent 1px);
+    background-size:24px 24px;
+    background-position:-1px -1px;
+    min-height:100vh;padding:32px 18px 80px;
+  }
+  .wrap{max-width:1000px;margin:0 auto}
+  mono,.mono{font-family:'IBM Plex Mono',monospace;font-variant-numeric:tabular-nums}
+
+  /* ── Title block (engineering drawing style) ── */
+  .titleblock{border:2px solid var(--border-strong);background:var(--card);
+    display:grid;grid-template-columns:1fr auto;align-items:stretch;margin-bottom:26px}
+  .titleblock .main{padding:18px 22px}
+  .titleblock h1{font-size:21px;font-weight:700;letter-spacing:.2px;line-height:1.2}
+  .titleblock .sub{font-family:'IBM Plex Mono',monospace;font-size:11.5px;color:var(--ink-soft);
+    margin-top:6px;text-transform:uppercase;letter-spacing:.5px}
+  .titleblock .stamp{border-left:2px solid var(--border-strong);
+    padding:14px 18px;display:flex;flex-direction:column;justify-content:center;
+    font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--ink-soft);
+    text-align:right;min-width:150px;gap:2px}
+  .titleblock .stamp b{color:var(--ink);font-size:11px}
+
+  .panel{border:1px solid var(--border);background:var(--card);margin-bottom:20px}
+  .panel-h{padding:11px 18px;border-bottom:1px solid var(--border);
+    font-family:'IBM Plex Mono',monospace;font-size:11px;font-weight:600;
+    text-transform:uppercase;letter-spacing:1.2px;color:var(--ink-soft);
+    display:flex;align-items:center;gap:10px}
+  .panel-h .n{width:18px;height:18px;border:1.5px solid var(--ink);border-radius:50%;
+    display:inline-flex;align-items:center;justify-content:center;font-size:10px;color:var(--ink)}
+  .panel-b{padding:18px}
+
+  /* ── Dropzone ── */
+  #drop{display:block;border:2px dashed var(--border);background:rgba(255,255,255,.4);
+    padding:34px 20px;text-align:center;cursor:pointer;transition:.18s;border-radius:2px}
+  #drop:hover,#drop.over{border-color:var(--kaek);background:rgba(181,69,47,.05)}
+  #drop .big{font-size:15px;font-weight:600;margin-bottom:4px}
+  #drop .small{font-size:12.5px;color:var(--ink-soft)}
+  #drop .file{margin-top:12px;font-family:'IBM Plex Mono',monospace;font-size:12.5px;
+    color:var(--kaek);font-weight:600}
+  #file{display:none}
+
+  /* ── Choice ── */
+  .choice{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:18px}
+  .choice label{border:1.5px solid var(--border);padding:14px 16px;cursor:pointer;
+    transition:.15s;background:#fff;display:flex;gap:12px;align-items:flex-start}
+  .choice label:hover{border-color:var(--ink-soft)}
+  .choice input{display:none}
+  .choice input:checked + .ch{}
+  .choice label:has(input:checked){border-color:var(--ink);background:#fffdf6;
+    box-shadow:inset 0 0 0 1px var(--ink)}
+  .ch .t{display:block;font-weight:600;font-size:14px}
+  .ch .d{display:block;font-size:11.5px;color:var(--ink-soft);font-family:'IBM Plex Mono',monospace;margin-top:3px}
+  .choice .dot{width:13px;height:13px;border:1.5px solid var(--ink-soft);border-radius:50%;margin-top:3px;flex-shrink:0;position:relative}
+  .choice label:has(input:checked) .dot{border-color:var(--ink)}
+  .choice label:has(input:checked) .dot::after{content:"";position:absolute;inset:2.5px;background:var(--ink);border-radius:50%}
+
+  /* layer mapping */
+  .maprow{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:14px}
+  .maprow .fld label{font-size:11px;font-family:'IBM Plex Mono',monospace;
+    text-transform:uppercase;letter-spacing:.8px;color:var(--ink-soft);display:block;margin-bottom:5px}
+  select{width:100%;padding:9px 10px;border:1.5px solid var(--border);background:#fff;
+    font-family:'IBM Plex Mono',monospace;font-size:13px;color:var(--ink);border-radius:2px}
+
+  .tblform{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  @media(max-width:760px){.tblform{grid-template-columns:1fr}}
+  .tblform label{font-size:11px;font-family:'IBM Plex Mono',monospace;
+    text-transform:uppercase;letter-spacing:.6px;color:var(--ink-soft);display:block;margin-bottom:5px}
+  .tblform label small{text-transform:none;letter-spacing:0;font-size:10px}
+  .tblform input{width:100%;padding:9px 10px;border:1.5px solid var(--border);background:#fff;
+    font-family:'IBM Plex Mono',monospace;font-size:13px;color:var(--ink);border-radius:2px}
+  .tblform input:focus{outline:none;border-color:var(--ink)}
+  #tblout{margin-top:16px;overflow-x:auto}
+  #tblout img{max-width:100%;border:1px solid var(--paper-line);display:block}
+  #tblactions{margin-top:12px;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+  .copymsg{font-family:'IBM Plex Mono',monospace;font-size:11.5px;color:var(--ok)}
+
+  .btn{display:inline-block;width:fit-content;box-sizing:border-box;margin-top:18px;
+    padding:11px 20px;border:1px solid var(--ink);border-radius:2px;
+    background:var(--ink);color:var(--paper);
+    font-family:'IBM Plex Mono',monospace;font-weight:600;font-size:12px;letter-spacing:1px;
+    text-transform:uppercase;cursor:pointer;transition:.15s;user-select:none;white-space:nowrap}
+  .btn:hover{background:#0e1620}
+  .btn.disabled{opacity:.4;cursor:not-allowed;pointer-events:none}
+
+  /* ── Results ── */
+  #results{display:none}
+  .verdict{border:2px solid;padding:20px 22px;margin-bottom:20px;display:flex;
+    align-items:center;gap:18px;background:var(--card)}
+  .verdict.ok{border-color:var(--ok)}
+  .verdict.bad{border-color:var(--bad)}
+  .verdict .icon{width:52px;height:52px;border:2.5px solid;border-radius:50%;flex-shrink:0;
+    display:flex;align-items:center;justify-content:center;font-size:26px;font-weight:700}
+  .verdict.ok .icon{border-color:var(--ok);color:var(--ok)}
+  .verdict.bad .icon{border-color:var(--bad);color:var(--bad)}
+  .verdict .vt{font-size:19px;font-weight:700;letter-spacing:.3px}
+  .verdict.ok .vt{color:var(--ok)}
+  .verdict.bad .vt{color:var(--bad)}
+  .verdict .vd{font-size:13px;color:var(--ink-soft);margin-top:3px;font-family:'IBM Plex Mono',monospace}
+
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+  @media(max-width:760px){.grid2,.choice,.maprow{grid-template-columns:1fr}}
+
+  table{width:100%;border-collapse:collapse;font-size:13.5px}
+  table td{padding:9px 4px;border-bottom:1px solid var(--paper-line)}
+  table tr:last-child td{border-bottom:none}
+  table td.lbl{color:var(--ink-soft);width:60%}
+  table td.val{text-align:right;font-family:'IBM Plex Mono',monospace;font-weight:600}
+  table tr.major td{border-top:1.5px solid var(--ink);padding-top:12px;font-size:14.5px}
+  table tr.major td.lbl{color:var(--ink);font-weight:600;font-family:'IBM Plex Sans'}
+  .swatch{display:inline-block;width:10px;height:10px;margin-right:7px;vertical-align:middle}
+  .sw-k{background:var(--kaek)}.sw-t{background:var(--topo)}
+
+  svg{width:100%;height:auto;display:block;background:#fff;border:1px solid var(--paper-line)}
+
+  .legalbox{font-size:12.5px;color:var(--ink-soft);line-height:1.65}
+  .legalbox b{color:var(--ink)}
+  .formula{font-family:'IBM Plex Mono',monospace;background:#fff;border:1px solid var(--border);
+    padding:12px 14px;margin:12px 0;font-size:13px;color:var(--ink);overflow-x:auto;white-space:nowrap}
+  .note{background:#fdf6e3;border-left:3px solid var(--warn);padding:10px 14px;
+    font-size:12.5px;color:#6b5410;margin-top:14px}
+  .err{background:#fbeae7;border-left:3px solid var(--bad);padding:12px 15px;
+    font-size:13px;color:#7a2017;margin-top:14px;font-family:'IBM Plex Mono',monospace}
+  .legend{display:flex;gap:20px;font-size:12px;font-family:'IBM Plex Mono',monospace;
+    margin-top:10px;color:var(--ink-soft);flex-wrap:wrap}
+  .legend span{display:flex;align-items:center;gap:6px}
+  .legend i{width:14px;height:3px;display:inline-block}
+
+  footer{text-align:center;font-family:'IBM Plex Mono',monospace;font-size:10.5px;
+    color:var(--ink-soft);margin-top:30px;letter-spacing:.5px;line-height:1.8}
+  .printbtn{background:none;border:1px solid var(--border);color:var(--ink-soft);
+    font-family:'IBM Plex Mono',monospace;font-size:11px;padding:7px 14px;cursor:pointer;
+    letter-spacing:1px;text-transform:uppercase;margin-top:6px}
+  .printbtn:hover{border-color:var(--ink);color:var(--ink)}
+  @media print{body{background:#fff}.no-print{display:none!important}.panel,.titleblock{break-inside:avoid}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="titleblock">
+    <div class="main">
+      <h1>Έλεγχος Συμβατότητας Εμβαδού Γεωτεμαχίου</h1>
+      <div class="sub">DXF · TOPO_PROP vs PST_KAEK · Αποδεκτή Απόκλιση Κτηματολογίου</div>
+    </div>
+    <div class="stamp">
+      <span>ΝΟΜ. ΒΑΣΗ</span>
+      <b>ΟΚΧΕ 461/03</b>
+      <span>ΦΕΚ 1510 Β΄/2008</span>
+      <span>αρθρ. 13α Ν.2664/98</span>
+    </div>
+  </div>
+
+  <!-- STEP 1 : input -->
+  <div class="panel no-print">
+    <div class="panel-h"><span class="n">1</span> Εισαγωγή αρχείου DXF</div>
+    <div class="panel-b">
+      <label id="drop" for="file">
+        <div class="big">Επιλέξτε ή σύρετε εδώ το αρχείο DXF</div>
+        <div class="small">κάντε κλικ για επιλογή — απαιτούνται τα layers <b>TOPO_PROP</b> & <b>PST_KAEK</b></div>
+        <div class="file" id="fname"></div>
+      </label>
+      <input type="file" id="file" style="position:absolute;left:-9999px;width:1px;height:1px;opacity:0">
+
+      <div id="mapwrap" style="display:none">
+        <div class="maprow">
+          <div class="fld">
+            <label><span class="swatch sw-t"></span>Layer Τοπογραφικού (μετρηθέν)</label>
+            <select id="selTopo"></select>
+          </div>
+          <div class="fld">
+            <label><span class="swatch sw-k"></span>Layer ΚΑΕΚ (κτημ. βάση)</label>
+            <select id="selKaek"></select>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- STEP 2 : χώρος -->
+  <div class="panel no-print">
+    <div class="panel-h"><span class="n">2</span> Επιλογή κατηγορίας περιοχής</div>
+    <div class="panel-b">
+      <div class="choice">
+        <label>
+          <input type="radio" name="zone" value="urban" checked>
+          <span class="dot"></span>
+          <span class="ch"><span class="t">ΑΣΤΙΚΟΣ ΧΩΡΟΣ</span><span class="d">Uo = 0,50 μ.</span></span>
+        </label>
+        <label>
+          <input type="radio" name="zone" value="rural">
+          <span class="dot"></span>
+          <span class="ch"><span class="t">ΕΞΩΑΣΤΙΚΟΣ ΧΩΡΟΣ</span><span class="d">Uo = 2,00 μ. (αγροτικό)</span></span>
+        </label>
+      </div>
+      <div class="btn disabled" id="run" role="button" tabindex="0">Εκτέλεση ελέγχου</div>
+      <div id="errbox"></div>
+    </div>
+  </div>
+
+  <!-- RESULTS -->
+  <div id="results">
+    <div class="verdict" id="verdict">
+      <div class="icon" id="vicon"></div>
+      <div><div class="vt" id="vtext"></div><div class="vd" id="vdesc"></div></div>
+    </div>
+
+    <div class="grid2">
+      <div class="panel">
+        <div class="panel-h"><span class="n">3</span> Αποτελέσματα μετρήσεων</div>
+        <div class="panel-b">
+          <table id="restab"></table>
+        </div>
+      </div>
+      <div class="panel">
+        <div class="panel-h"><span class="n">4</span> Γεωμετρική απεικόνιση</div>
+        <div class="panel-b">
+          <div id="svgwrap"></div>
+          <div class="legend">
+            <span><i class="sw-k" style="height:3px"></i> ΚΑΕΚ (κτημ. βάση)</span>
+            <span><i class="sw-t" style="height:3px"></i> Τοπογραφικό (μετρηθέν)</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-h"><span class="n">5</span> Νομική & μαθηματική τεκμηρίωση</div>
+      <div class="panel-b">
+        <div class="legalbox">
+          Η <b>αποδεκτή απόκλιση εμβαδού</b> ανά γεωτεμάχιο υπολογίζεται κατά την Απόφαση
+          ΟΚΧΕ <b>461/03/21.7.2008</b> (ΦΕΚ 1510 Β΄/31.7.2008, κατ' άρθρο 13α Ν. 2664/1998):
+          <div class="formula">Α = [ (√Ε + 2·Uo)² − Ε ] × (Π / Πτ)&nbsp;&nbsp;,&nbsp;&nbsp;Πτ = 4·√Ε</div>
+          όπου <b>Ε</b> το εμβαδόν του γεωτεμαχίου στην κτηματολογική βάση (ΚΑΕΚ), <b>Π</b> η
+          περίμετρός του, <b>Πτ</b> η περίμετρος του «ανηγμένου τετραγώνου» και
+          <b>Uo = 0,50 μ.</b> για αστικές / <b>Uo = 2,00 μ.</b> για αγροτικές περιοχές.
+          Η τιμή της αποδεκτής απόκλισης <b>δεν μπορεί να υπερβαίνει το 7%</b> του εμβαδού της
+          κτηματολογικής βάσης (άρθρο 3 της ίδιας απόφασης· εφαρμόζεται ως ανώτατο όριο).
+        </div>
+        <div id="calcsteps"></div>
+        <div class="note">
+          Το εργαλείο υπολογίζει το Ε και την Π από το πολύγωνο του layer ΚΑΕΚ και τα συγκρίνει με
+          το μετρηθέν εμβαδόν του τοπογραφικού. Ελέγξτε ότι τα πολύγωνα είναι κλειστά και σε
+          ΕΓΣΑ87 (μέτρα). Τυχόν τόξα (bulge) προσεγγίζονται ως ευθύγραμμα τμήματα.
+        </div>
+        <button class="printbtn no-print" onclick="window.print()">Εκτύπωση / Αποθήκευση PDF</button>
+      </div>
+    </div>
+
+    <div class="panel" id="tblpanel" style="display:none">
+      <div class="panel-h"><span class="n">6</span> Πίνακας για AutoCAD (εικόνα)</div>
+      <div class="panel-b">
+        <div class="tblform">
+          <div class="fld">
+            <label>Κωδικός Γεωτεμαχίου</label>
+            <input type="text" id="inKodikos" placeholder="π.χ. ΟΤ-12 / Γεωτ. 3">
+          </div>
+          <div class="fld">
+            <label>Αριθμός ΚΑΕΚ <small>(αυτόματα από το DXF — διορθώσιμο)</small></label>
+            <input type="text" id="inKaek" placeholder="π.χ. 050123456789">
+          </div>
+        </div>
+        <button class="btn" id="genTbl" style="margin-top:14px">Δημιουργία πίνακα</button>
+        <div id="tblout"></div>
+        <div id="tblactions" style="display:none">
+          <button class="printbtn no-print" id="dlPng">⤓ Λήψη PNG</button>
+          <button class="printbtn no-print" id="copyPng">⧉ Αντιγραφή στο πρόχειρο</button>
+          <span id="copymsg" class="copymsg"></span>
+        </div>
+        <div class="note">
+          Επικόλληση στο AutoCAD: είτε <b>Ctrl+V</b> μετά την «Αντιγραφή», είτε λήψη του PNG και
+          εισαγωγή με την εντολή <b>IMAGEATTACH</b>. Η εικόνα είναι υψηλής ανάλυσης (×3) για καθαρό κείμενο.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <footer>
+    ΕΡΓΑΛΕΙΟ ΕΛΕΓΧΟΥ — ΓΕΩΡΓΑΚΟΠΟΥΛΟΣ ΧΡ. · ΑΜΑΛΙΑΔΑ ΗΛΕΙΑΣ<br>
+    Ενημερωτικού χαρακτήρα — δεν υποκαθιστά την επίσημη βεβαίωση/έλεγχο του φορέα.
+  </footer>
+</div>
+
+<script>
+/* ============ DXF PARSER (ASCII) ============ */
+function parseDXF(text){
+  // normalize line endings, split into (code,value) pairs
+  const lines = text.split(/\r\n|\r|\n/);
+  const pairs = [];
+  for(let i=0;i+1<lines.length;i+=2){
+    const code = parseInt(lines[i].trim(),10);
+    const val = lines[i+1];
+    if(isNaN(code)) { i-=1; continue; } // resync if misaligned
+    pairs.push([code, val!==undefined?val:""]);
+  }
+  // locate ENTITIES section
+  let start=-1,end=pairs.length;
+  for(let i=0;i<pairs.length;i++){
+    if(pairs[i][0]===2 && pairs[i][1].trim()==="ENTITIES"){start=i+1;}
+    if(start>-1 && pairs[i][0]===0 && pairs[i][1].trim()==="ENDSEC"){end=i;break;}
+  }
+  if(start<0){ // fallback: scan everything
+    start=0;end=pairs.length;
+  }
+  const polylines=[]; // {layer, pts:[[x,y]], closed}
+  const texts=[];     // {layer, text}
+  let i=start;
+  while(i<end){
+    const [c,v]=pairs[i];
+    if(c===0 && v.trim()==="LWPOLYLINE"){
+      const res=readLW(pairs,i+1,end); polylines.push(res.poly); i=res.next; continue;
+    }
+    if(c===0 && v.trim()==="POLYLINE"){
+      const res=readOldPoly(pairs,i+1,end); polylines.push(res.poly); i=res.next; continue;
+    }
+    if(c===0 && (v.trim()==="TEXT" || v.trim()==="MTEXT")){
+      const res=readText(pairs,i+1,end); if(res.txt.text) texts.push(res.txt); i=res.next; continue;
+    }
+    i++;
+  }
+  return {polys:polylines, texts};
+}
+function cleanMtext(s){
+  // strip common MTEXT formatting codes
+  return s
+    .replace(/\\P/g,' ')                 // paragraph breaks -> space
+    .replace(/\\[A-Za-z][^;\\]*;/g,'')   // \fArial|...; \A1; \H2.5x; \C1; etc.
+    .replace(/[{}]/g,'')                 // grouping braces
+    .replace(/\\[~LlOoKkXxQqHhWwFfTtAaCcPp]/g,'')
+    .replace(/\\\\/g,'\\')
+    .trim();
+}
+function readText(pairs,i,end){
+  let layer="0", main="", extra="";
+  while(i<end){
+    const [c,v]=pairs[i];
+    if(c===0) break;
+    if(c===8) layer=v.trim();
+    else if(c===1) main=v;          // primary text
+    else if(c===3) extra+=v;        // MTEXT continuation chunks
+    i++;
+  }
+  const text=cleanMtext(extra+main);
+  return {txt:{layer,text},next:i};
+}
+function readLW(pairs,i,end){
+  let layer="0", closed=false, pts=[], pendingX=null;
+  while(i<end){
+    const [c,v]=pairs[i];
+    if(c===0) break;
+    if(c===8) layer=v.trim();
+    else if(c===70) closed=(parseInt(v,10)&1)===1;
+    else if(c===10){ pendingX=parseFloat(v); }
+    else if(c===20){ if(pendingX!==null){ pts.push([pendingX,parseFloat(v)]); pendingX=null; } }
+    i++;
+  }
+  return {poly:{layer,pts,closed},next:i};
+}
+function readOldPoly(pairs,i,end){
+  let layer="0", closed=false, pts=[];
+  // header of POLYLINE
+  while(i<end){
+    const [c,v]=pairs[i];
+    if(c===0) break;
+    if(c===8) layer=v.trim();
+    else if(c===70) closed=(parseInt(v,10)&1)===1;
+    i++;
+  }
+  // following VERTEX entities until SEQEND
+  while(i<end){
+    const [c,v]=pairs[i];
+    if(c===0 && v.trim()==="VERTEX"){
+      let x=null,y=null,j=i+1;
+      while(j<end){
+        const [cc,vv]=pairs[j];
+        if(cc===0) break;
+        if(cc===10) x=parseFloat(vv);
+        else if(cc===20) y=parseFloat(vv);
+        j++;
+      }
+      if(x!==null&&y!==null) pts.push([x,y]);
+      i=j; continue;
+    }
+    if(c===0 && v.trim()==="SEQEND"){ i++; break; }
+    if(c===0) break;
+    i++;
+  }
+  return {poly:{layer,pts,closed},next:i};
+}
+/* ============ GEOMETRY ============ */
+function area(pts){ // shoelace, auto-close, absolute
+  const n=pts.length; if(n<3) return 0;
+  let s=0;
+  for(let k=0;k<n;k++){ const [x1,y1]=pts[k],[x2,y2]=pts[(k+1)%n]; s+=x1*y2-x2*y1; }
+  return Math.abs(s)/2;
+}
+function perimeter(pts,closed){
+  const n=pts.length; if(n<2) return 0;
+  let p=0, lim=closed?n:n-1;
+  for(let k=0;k<lim;k++){ const [x1,y1]=pts[k],[x2,y2]=pts[(k+1)%n];
+    p+=Math.hypot(x2-x1,y2-y1); }
+  return p;
+}
+function isClosedGeom(pts){
+  if(pts.length<3) return false;
+  const a=pts[0],b=pts[pts.length-1];
+  return Math.hypot(a[0]-b[0],a[1]-b[1])<1e-6;
+}
+
+/* ============ STATE / UI ============ */
+let POLYS=[], TEXTS=[], LAYERS=[], LAST=null;
+const $=id=>document.getElementById(id);
+const drop=$('drop'),fileInput=$('file');
+
+['dragover','dragenter'].forEach(e=>drop.addEventListener(e,ev=>{ev.preventDefault();drop.classList.add('over');}));
+['dragleave','drop'].forEach(e=>drop.addEventListener(e,ev=>{ev.preventDefault();drop.classList.remove('over');}));
+drop.addEventListener('drop',ev=>{ if(ev.dataTransfer.files.length) handleFile(ev.dataTransfer.files[0]); });
+fileInput.onchange=e=>{ if(e.target.files.length) handleFile(e.target.files[0]); };
+
+function handleFile(f){
+  $('errbox').innerHTML='';
+  $('fname').textContent='⤓ '+f.name;
+  const rd=new FileReader();
+  rd.onload=()=>{
+    try{
+      const res=parseDXF(rd.result);
+      POLYS=res.polys; TEXTS=res.texts;
+      const polyLayers=[...new Set(POLYS.filter(p=>p.pts.length>=3).map(p=>p.layer))];
+      LAYERS=polyLayers;
+      if(LAYERS.length===0){ showErr('Δεν βρέθηκαν πολυγραμμές (LWPOLYLINE/POLYLINE) στο DXF.'); return; }
+      buildSelectors();
+      $('run').classList.remove('disabled');
+    }catch(err){ showErr('Σφάλμα ανάγνωσης DXF: '+err.message); }
+  };
+  rd.readAsText(f);
+}
+function buildSelectors(){
+  const st=$('selTopo'),sk=$('selKaek');
+  st.innerHTML=''; sk.innerHTML='';
+  LAYERS.forEach(l=>{
+    st.insertAdjacentHTML('beforeend',`<option value="${esc(l)}">${esc(l)}</option>`);
+    sk.insertAdjacentHTML('beforeend',`<option value="${esc(l)}">${esc(l)}</option>`);
+  });
+  // auto-match preferred names (case-insensitive)
+  const findL=name=>LAYERS.find(l=>l.toUpperCase()===name);
+  const t=findL('TOPO_PROP'), k=findL('PST_KAEK');
+  if(t) st.value=t;
+  if(k) sk.value=k;
+  $('mapwrap').style.display='block';
+}
+function esc(s){return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
+function showErr(m){ $('errbox').innerHTML=`<div class="err">⚠ ${esc(m)}</div>`; }
+
+/* pick largest-area polyline on a layer */
+function pickPoly(layer){
+  const cands=POLYS.filter(p=>p.layer===layer && p.pts.length>=3);
+  if(cands.length===0) return null;
+  cands.forEach(p=>p._a=area(p.pts));
+  cands.sort((a,b)=>b._a-a._a);
+  return {poly:cands[0], count:cands.length};
+}
+
+$('run').onclick=()=>{
+  $('errbox').innerHTML='';
+  const lt=$('selTopo').value, lk=$('selKaek').value;
+  if(lt===lk){ showErr('Επιλέξτε διαφορετικά layers για τοπογραφικό και ΚΑΕΚ.'); return; }
+  const T=pickPoly(lt), K=pickPoly(lk);
+  if(!T){ showErr('Δεν βρέθηκε κλειστή πολυγραμμή στο layer τοπογραφικού.'); return; }
+  if(!K){ showErr('Δεν βρέθηκε κλειστή πολυγραμμή στο layer ΚΑΕΚ.'); return; }
+
+  const zone=document.querySelector('input[name=zone]:checked').value;
+  const Uo = zone==='urban'?0.50:2.00;
+
+  const E  = area(K.poly.pts);                                   // ΚΑΕΚ area
+  const Pi = perimeter(K.poly.pts, true);                        // ΚΑΕΚ perimeter (force closed)
+  const Etopo = area(T.poly.pts);                                // measured area
+  const sqrtE = Math.sqrt(E);
+  const Pt = 4*sqrtE;
+  const Et = Math.pow(sqrtE + 2*Uo, 2);
+  const Aform = (Et - E) * (Pi/Pt);
+  const Acap = 0.07*E;
+  const Afin = Math.min(Aform, Acap);
+  const dE = Math.abs(Etopo - E);
+  const pct = E>0 ? (dE/E*100) : 0;
+  const ok = dE <= Afin + 1e-9;
+
+  renderResults({E,Pi,Etopo,Uo,zone,sqrtE,Pt,Et,Aform,Acap,Afin,dE,pct,ok,
+                 Tpoly:T.poly,Kpoly:K.poly,Tcount:T.count,Kcount:K.count,kaekLayer:lk});
+};
+
+function fmt(n,d=2){ return n.toLocaleString('el-GR',{minimumFractionDigits:d,maximumFractionDigits:d}); }
+
+function renderResults(r){
+  $('results').style.display='block';
+  // verdict
+  const vc=$('verdict'),ic=$('vicon');
+  vc.className='verdict '+(r.ok?'ok':'bad');
+  ic.textContent=r.ok?'✓':'✕';
+  $('vtext').textContent=r.ok?'ΕΝΤΟΣ ΟΡΙΩΝ ΑΝΟΧΗΣ':'ΕΚΤΟΣ ΟΡΙΩΝ ΑΝΟΧΗΣ';
+  $('vdesc').textContent=`ΔΕ = ${fmt(r.dE)} μ²  (${fmt(r.pct,2)}%)  ${r.ok?'≤':'>'}  Α = ${fmt(r.Afin)} μ²`;
+
+  // table
+  const cap = r.Aform>r.Acap ? ' ← ισχύει το όριο 7%' : '';
+  $('restab').innerHTML=`
+    <tr><td class="lbl"><span class="swatch sw-k"></span>Εμβαδόν ΚΑΕΚ (Ε)</td><td class="val">${fmt(r.E)} μ²</td></tr>
+    <tr><td class="lbl"><span class="swatch sw-k"></span>Περίμετρος ΚΑΕΚ (Π)</td><td class="val">${fmt(r.Pi)} μ</td></tr>
+    <tr><td class="lbl"><span class="swatch sw-t"></span>Εμβαδόν Τοπογραφικού</td><td class="val">${fmt(r.Etopo)} μ²</td></tr>
+    <tr><td class="lbl">Κατηγορία περιοχής</td><td class="val">${r.zone==='urban'?'ΑΣΤΙΚΟΣ':'ΕΞΩΑΣΤΙΚΟΣ'} · Uo=${fmt(r.Uo)}</td></tr>
+    <tr><td class="lbl">Αποδεκτή απόκλιση τύπου (Α)</td><td class="val">${fmt(r.Aform)} μ²</td></tr>
+    <tr><td class="lbl">Ανώτατο όριο 7% του Ε</td><td class="val">${fmt(r.Acap)} μ²${cap}</td></tr>
+    <tr class="major"><td class="lbl">Τελική αποδεκτή απόκλιση Α</td><td class="val">${fmt(r.Afin)} μ²</td></tr>
+    <tr class="major"><td class="lbl">Διαφορά εμβαδών |ΔΕ|</td><td class="val">${fmt(r.dE)} μ² (${fmt(r.pct,2)}%)</td></tr>`;
+
+  // calc steps
+  $('calcsteps').innerHTML=`
+    <div class="formula">√Ε = √${fmt(r.E)} = ${fmt(r.sqrtE,3)} μ</div>
+    <div class="formula">Πτ = 4·√Ε = ${fmt(r.Pt,3)} μ&nbsp;&nbsp;|&nbsp;&nbsp;Ετ = (√Ε + 2·${fmt(r.Uo)})² = ${fmt(r.Et)} μ²</div>
+    <div class="formula">Α = (${fmt(r.Et)} − ${fmt(r.E)}) × (${fmt(r.Pi)} / ${fmt(r.Pt,3)}) = ${fmt(r.Aform)} μ²</div>
+    <div class="formula">Α(τελικό) = min(${fmt(r.Aform)} ; 7%·Ε=${fmt(r.Acap)}) = ${fmt(r.Afin)} μ²</div>`;
+
+  // multi-poly note
+  let notes=[];
+  if(r.Kcount>1) notes.push(`Βρέθηκαν ${r.Kcount} πολυγραμμές στο ΚΑΕΚ layer — χρησιμοποιήθηκε η μεγαλύτερη.`);
+  if(r.Tcount>1) notes.push(`Βρέθηκαν ${r.Tcount} πολυγραμμές στο τοπογραφικό layer — χρησιμοποιήθηκε η μεγαλύτερη.`);
+  const existingNote=document.querySelector('#results .note');
+  // keep default note; append extra if any
+  drawSVG(r.Kpoly.pts, r.Tpoly.pts);
+
+  // store + prepare AutoCAD table panel
+  LAST=r;
+  $('tblpanel').style.display='block';
+  $('inKaek').value = detectKaek(r.kaekLayer);
+  $('tblout').innerHTML='';
+  $('tblactions').style.display='none';
+  $('results').scrollIntoView({behavior:'smooth',block:'start'});
+}
+
+/* βρες τον αριθμό ΚΑΕΚ από TEXT/MTEXT στο layer του ΚΑΕΚ */
+function detectKaek(layer){
+  const cand=TEXTS.filter(t=>t.layer.toUpperCase()===layer.toUpperCase() && t.text.trim());
+  if(!cand.length) return '';
+  // προτίμησε κείμενα που μοιάζουν με ΚΑΕΚ (πολλά ψηφία)
+  const score=s=>(s.match(/\d/g)||[]).length;
+  cand.sort((a,b)=>score(b.text)-score(a.text));
+  return cand[0].text.trim();
+}
+
+/* ============ SVG OVERLAY ============ */
+function drawSVG(kpts,tpts){
+  const all=[...kpts,...tpts];
+  let minX=Infinity,minY=Infinity,maxX=-Infinity,maxY=-Infinity;
+  all.forEach(([x,y])=>{minX=Math.min(minX,x);minY=Math.min(minY,y);maxX=Math.max(maxX,x);maxY=Math.max(maxY,y);});
+  const w=maxX-minX||1,h=maxY-minY||1;
+  const pad=Math.max(w,h)*0.08;
+  const W=460,H=380;
+  const sc=Math.min((W-2)/(w+2*pad),(H-2)/(h+2*pad));
+  const tx=x=>(x-minX+pad)*sc;
+  const ty=y=>H-(y-minY+pad)*sc; // flip Y
+  const path=pts=>pts.map((p,i)=>(i?'L':'M')+tx(p[0]).toFixed(1)+' '+ty(p[1]).toFixed(1)).join(' ')+' Z';
+  const svg=`<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg">
+    <path d="${path(kpts)}" fill="rgba(181,69,47,.10)" stroke="#b5452f" stroke-width="2"/>
+    <path d="${path(tpts)}" fill="rgba(31,111,107,.10)" stroke="#1f6f6b" stroke-width="2" stroke-dasharray="6 4"/>
+    ${kpts.map(p=>`<circle cx="${tx(p[0]).toFixed(1)}" cy="${ty(p[1]).toFixed(1)}" r="2.4" fill="#b5452f"/>`).join('')}
+    ${tpts.map(p=>`<circle cx="${tx(p[0]).toFixed(1)}" cy="${ty(p[1]).toFixed(1)}" r="2.4" fill="#1f6f6b"/>`).join('')}
+  </svg>`;
+  $('svgwrap').innerHTML=svg;
+}
+
+/* ============ ΠΙΝΑΚΑΣ -> ΕΙΚΟΝΑ (canvas) ============ */
+let TBL_CANVAS=null;
+function gline(ctx,x1,y1,x2,y2,S){ctx.beginPath();ctx.moveTo(x1,y1);ctx.lineTo(x2,y2);ctx.lineWidth=1*S;ctx.strokeStyle='#1c2530';ctx.stroke();}
+function buildTableCanvas(){
+  const r=LAST; if(!r) return null;
+  const kodikos=($('inKodikos').value.trim())||'—';
+  const kaek=($('inKaek').value.trim())||'—';
+  const cols=[
+    {h:['Κωδικός','Γεωτεμαχίου'],          v:kodikos},
+    {h:['Αριθμός','ΚΑΕΚ'],                  v:kaek},
+    {h:['Εμβαδόν','Τοπογραφ.','(μ²)'],      v:fmt(r.Etopo)},
+    {h:['Εμβαδόν','Κτηματολ.','(μ²)'],      v:fmt(r.E)},
+    {h:['Περίμετρος','Κτηματολ.','(μ)'],    v:fmt(r.Pi)},
+    {h:['Διαφορά','Εμβαδού','(μ²)'],        v:fmt(r.dE)},
+    {h:['Αποδεκτή','Απόκλιση','(μ²)'],      v:fmt(r.Afin)},
+    {h:['Αποτέλεσμα','Ελέγχου'],            v:(r.ok?'ΕΝΤΟΣ ΟΡΙΩΝ':'ΕΚΤΟΣ ΟΡΙΩΝ'), color:(r.ok?'#1f6f3f':'#a3281b')},
+  ];
+  const S=3;
+  const cv=document.createElement('canvas');
+  const ctx=cv.getContext('2d');
+  const fHead=`600 ${12*S}px 'IBM Plex Sans', Arial, sans-serif`;
+  const fVal =`600 ${13*S}px 'IBM Plex Sans', Arial, sans-serif`;
+  const fTitle=`700 ${12.5*S}px 'IBM Plex Sans', Arial, sans-serif`;
+  const padX=11*S, padY=8*S, lh=15*S;
+  // πλάτη στηλών
+  const colW=cols.map(c=>{
+    let w=0; ctx.font=fHead; c.h.forEach(l=>w=Math.max(w,ctx.measureText(l).width));
+    ctx.font=fVal; w=Math.max(w,ctx.measureText(c.v).width);
+    return Math.ceil(w)+2*padX;
+  });
+  const maxHL=Math.max(...cols.map(c=>c.h.length));
+  const titleH=Math.round(26*S), headH=maxHL*lh+2*padY, dataH=lh+2*padY;
+  let totalW=colW.reduce((a,b)=>a+b,0);
+  // εξασφάλιση πλάτους για τον τίτλο
+  ctx.font=fTitle;
+  const titleStr='ΕΛΕΓΧΟΣ ΣΥΜΒΑΤΟΤΗΤΑΣ ΕΜΒΑΔΟΥ — ΟΚΧΕ 461/03';
+  const titleW=ctx.measureText(titleStr).width+4*padX;
+  if(titleW>totalW){ const ex=(titleW-totalW)/colW.length; for(let k=0;k<colW.length;k++) colW[k]+=ex; totalW=titleW; }
+  const totalH=titleH+headH+dataH;
+  cv.width=Math.ceil(totalW); cv.height=totalH;
+  // φόντο
+  ctx.fillStyle='#fff'; ctx.fillRect(0,0,cv.width,cv.height);
+  // τίτλος
+  ctx.fillStyle='#1c2530'; ctx.fillRect(0,0,cv.width,titleH);
+  ctx.fillStyle='#f3efe6'; ctx.font=fTitle; ctx.textAlign='center'; ctx.textBaseline='middle';
+  ctx.fillText(titleStr, cv.width/2, titleH/2);
+  // header bg
+  ctx.fillStyle='#f3efe6'; ctx.fillRect(0,titleH,cv.width,headH);
+  // περιεχόμενο
+  let x=0;
+  cols.forEach((c,idx)=>{
+    const cw=colW[idx];
+    ctx.fillStyle='#1c2530'; ctx.font=fHead; ctx.textAlign='center'; ctx.textBaseline='middle';
+    const sy=titleH+padY+lh/2;
+    c.h.forEach((l,li)=>ctx.fillText(l, x+cw/2, sy+li*lh));
+    ctx.font=fVal; ctx.fillStyle=c.color||'#1c2530';
+    ctx.fillText(c.v, x+cw/2, titleH+headH+dataH/2);
+    x+=cw;
+  });
+  // πλέγμα
+  ctx.strokeStyle='#1c2530';
+  ctx.strokeRect(0.5*S,0.5*S,cv.width-1*S,totalH-1*S);
+  gline(ctx,0,titleH,cv.width,titleH,S);
+  gline(ctx,0,titleH+headH,cv.width,titleH+headH,S);
+  x=0; for(let idx=0;idx<colW.length-1;idx++){ x+=colW[idx]; gline(ctx,x,titleH,x,totalH,S); }
+  return cv;
+}
+$('genTbl').onclick=async()=>{
+  try{ await document.fonts.ready; }catch(e){}
+  const cv=buildTableCanvas(); if(!cv) return;
+  TBL_CANVAS=cv;
+  $('tblout').innerHTML=`<img src="${cv.toDataURL('image/png')}" alt="Πίνακας ελέγχου συμβατότητας">`;
+  $('tblactions').style.display='flex';
+  $('copymsg').textContent='';
+};
+$('dlPng').onclick=()=>{
+  if(!TBL_CANVAS) return;
+  TBL_CANVAS.toBlob(b=>{
+    const kod=(($('inKodikos').value.trim())||'geotemaxio').replace(/[^\wΑ-Ωα-ω\-]+/g,'_');
+    const a=document.createElement('a');
+    a.href=URL.createObjectURL(b); a.download='elegxos_'+kod+'.png';
+    document.body.appendChild(a); a.click();
+    setTimeout(()=>{URL.revokeObjectURL(a.href); a.remove();},1000);
+  },'image/png');
+};
+$('copyPng').onclick=async()=>{
+  if(!TBL_CANVAS) return;
+  try{
+    const blob=await new Promise(res=>TBL_CANVAS.toBlob(res,'image/png'));
+    await navigator.clipboard.write([new ClipboardItem({'image/png':blob})]);
+    $('copymsg').textContent='Αντιγράφηκε στο πρόχειρο ✓';
+  }catch(e){
+    $('copymsg').textContent='Η αντιγραφή δεν υποστηρίζεται εδώ — χρησιμοποιήστε «Λήψη PNG».';
+  }
+};
+</script>
+</body>
+</html>

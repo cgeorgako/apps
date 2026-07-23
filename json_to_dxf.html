@@ -1,0 +1,638 @@
+<!DOCTYPE html>
+<html lang="el">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>JSON → DXF Converter</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  :root {
+    --bg: #0f1117;
+    --surface: #1a1d27;
+    --surface2: #232734;
+    --border: #2e3343;
+    --accent: #4f8cff;
+    --accent-dim: #3a6acc;
+    --accent-glow: rgba(79,140,255,0.15);
+    --text: #e4e7ef;
+    --text-dim: #8b90a0;
+    --success: #34d399;
+    --error: #f87171;
+    --radius: 10px;
+  }
+  body {
+    font-family: 'Inter', system-ui, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    padding: 24px;
+  }
+  .header { text-align: center; margin-bottom: 32px; }
+  .header h1 {
+    font-size: 1.6rem; font-weight: 700; letter-spacing: -0.03em;
+    background: linear-gradient(135deg, var(--accent), #a78bfa);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  }
+  .header p { color: var(--text-dim); font-size: 0.85rem; margin-top: 6px; }
+  .container {
+    max-width: 1100px; margin: 0 auto;
+    display: grid; grid-template-columns: 1fr 1fr; gap: 20px;
+  }
+  @media (max-width: 800px) { .container { grid-template-columns: 1fr; } }
+  .panel {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 20px;
+  }
+  .panel-title {
+    font-size: 0.8rem; font-weight: 600; text-transform: uppercase;
+    letter-spacing: 0.06em; color: var(--text-dim); margin-bottom: 14px;
+  }
+  .dropzone {
+    border: 2px dashed var(--border); border-radius: var(--radius);
+    padding: 40px 20px; text-align: center; cursor: pointer;
+    transition: all 0.2s; position: relative;
+  }
+  .dropzone:hover, .dropzone.drag-over {
+    border-color: var(--accent); background: var(--accent-glow);
+  }
+  .dropzone.has-file {
+    border-color: var(--success); border-style: solid;
+    background: rgba(52,211,153,0.06);
+  }
+  .dropzone input[type="file"] {
+    position: absolute; inset: 0; opacity: 0; cursor: pointer;
+  }
+  .dropzone-icon { font-size: 2.2rem; margin-bottom: 8px; }
+  .dropzone-text { font-size: 0.9rem; color: var(--text-dim); }
+  .dropzone-filename {
+    font-size: 0.85rem; color: var(--success);
+    font-weight: 600; margin-top: 6px; word-break: break-all;
+  }
+  .options-grid {
+    display: grid; grid-template-columns: 1fr 1fr;
+    gap: 12px; margin-top: 16px;
+  }
+  .option-group { display: flex; flex-direction: column; gap: 5px; }
+  .option-group label {
+    font-size: 0.75rem; font-weight: 500; color: var(--text-dim);
+  }
+  .option-group select,
+  .option-group input[type="number"],
+  .option-group input[type="text"] {
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 6px; color: var(--text); padding: 7px 10px;
+    font-size: 0.82rem; font-family: inherit; outline: none;
+  }
+  .option-group select:focus, .option-group input:focus {
+    border-color: var(--accent);
+  }
+  .checkbox-row {
+    display: flex; align-items: center; gap: 8px; margin-top: 14px;
+  }
+  .checkbox-row input[type="checkbox"] {
+    accent-color: var(--accent); width: 16px; height: 16px;
+  }
+  .checkbox-row label {
+    font-size: 0.82rem; color: var(--text); cursor: pointer;
+  }
+  .btn {
+    display: inline-flex; align-items: center; justify-content: center;
+    gap: 6px; padding: 10px 20px; border: none; border-radius: 8px;
+    font-family: inherit; font-size: 0.85rem; font-weight: 600;
+    cursor: pointer; transition: all 0.15s;
+  }
+  .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+  .btn-primary {
+    background: var(--accent); color: #fff; width: 100%; margin-top: 18px;
+  }
+  .btn-primary:hover:not(:disabled) {
+    background: var(--accent-dim); transform: translateY(-1px);
+    box-shadow: 0 4px 16px rgba(79,140,255,0.3);
+  }
+  .btn-download {
+    background: var(--success); color: #0f1117; width: 100%; margin-top: 12px;
+  }
+  .btn-download:hover:not(:disabled) { filter: brightness(1.1); }
+  .stats {
+    display: grid; grid-template-columns: repeat(3, 1fr);
+    gap: 10px; margin-top: 14px;
+  }
+  .stat-card {
+    background: var(--surface2); border-radius: 8px;
+    padding: 10px; text-align: center;
+  }
+  .stat-value { font-size: 1.2rem; font-weight: 700; color: var(--accent); }
+  .stat-label { font-size: 0.7rem; color: var(--text-dim); margin-top: 2px; }
+  #preview-container {
+    position: relative; width: 100%; aspect-ratio: 4/3;
+    background: var(--surface2); border-radius: 8px;
+    overflow: hidden; margin-top: 10px;
+  }
+  #preview { width: 100%; height: 100%; display: block; }
+  .preview-empty {
+    position: absolute; inset: 0; display: flex;
+    align-items: center; justify-content: center;
+    color: var(--text-dim); font-size: 0.85rem;
+  }
+  .features-table-wrap {
+    max-height: 200px; overflow-y: auto; margin-top: 14px;
+    border-radius: 8px; border: 1px solid var(--border);
+  }
+  .features-table-wrap::-webkit-scrollbar { width: 6px; }
+  .features-table-wrap::-webkit-scrollbar-track { background: var(--surface2); }
+  .features-table-wrap::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+  table { width: 100%; border-collapse: collapse; font-size: 0.78rem; }
+  th {
+    position: sticky; top: 0; background: var(--surface2); color: var(--text-dim);
+    font-weight: 600; text-align: left; padding: 8px 10px;
+    border-bottom: 1px solid var(--border); font-size: 0.72rem;
+    text-transform: uppercase; letter-spacing: 0.04em;
+  }
+  td {
+    padding: 6px 10px; border-bottom: 1px solid var(--border);
+    color: var(--text); font-variant-numeric: tabular-nums;
+  }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: var(--accent-glow); }
+  .status {
+    font-size: 0.82rem; margin-top: 12px; padding: 8px 12px;
+    border-radius: 6px; display: none;
+  }
+  .status.show { display: block; }
+  .status.success { background: rgba(52,211,153,0.1); color: var(--success); }
+  .status.error { background: rgba(248,113,113,0.1); color: var(--error); }
+</style>
+</head>
+<body>
+<div class="header">
+  <h1>JSON → DXF Converter</h1>
+  <p>Μετατροπή ESRI JSON σε DXF (R12 / AC1009) — Κτηματολόγιο / Τοπογραφικά</p>
+</div>
+<div class="container">
+  <div class="panel">
+    <div class="panel-title">Εισαγωγή JSON</div>
+    <div class="dropzone" id="dropzone">
+      <div class="dropzone-icon">📄</div>
+      <div class="dropzone-text">Σύρετε αρχείο JSON ή κλικ για επιλογή</div>
+      <div class="dropzone-filename" id="filename"></div>
+      <input type="file" id="fileInput" accept=".json,.geojson">
+    </div>
+    <div class="options-grid">
+      <div class="option-group">
+        <label>Layer Πολυγώνων</label>
+        <input type="text" id="layerPolygons" value="PARCELS">
+      </div>
+      <div class="option-group">
+        <label>Layer Κειμένων</label>
+        <input type="text" id="layerText" value="LABELS">
+      </div>
+      <div class="option-group">
+        <label>Layer Σημείων</label>
+        <input type="text" id="layerPoints" value="POINTS">
+      </div>
+      <div class="option-group">
+        <label>Ύψος Κειμένου</label>
+        <input type="number" id="textHeight" value="2" min="0.1" step="0.5">
+      </div>
+      <div class="option-group">
+        <label>Χρώμα Πολυγώνων (ACI)</label>
+        <input type="number" id="colorPolygons" value="3" min="0" max="256">
+      </div>
+      <div class="option-group">
+        <label>Χρώμα Κειμένων (ACI)</label>
+        <input type="number" id="colorText" value="1" min="0" max="256">
+      </div>
+    </div>
+    <div class="checkbox-row">
+      <input type="checkbox" id="addLabels" checked>
+      <label for="addLabels">Εισαγωγή ετικετών (KAEK, AREA)</label>
+    </div>
+    <div class="checkbox-row">
+      <input type="checkbox" id="closedPoly" checked>
+      <label for="closedPoly">Κλειστά πολύγωνα (closed polyline)</label>
+    </div>
+    <button class="btn btn-primary" id="convertBtn" disabled>⚙️ Μετατροπή σε DXF</button>
+    <button class="btn btn-download" id="downloadBtn" disabled style="display:none">💾 Λήψη DXF</button>
+    <div class="status" id="status"></div>
+  </div>
+  <div class="panel">
+    <div class="panel-title">Προεπισκόπηση</div>
+    <div id="stats" style="display:none">
+      <div class="stats">
+        <div class="stat-card">
+          <div class="stat-value" id="statFeatures">0</div>
+          <div class="stat-label">Features</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" id="statType">—</div>
+          <div class="stat-label">Τύπος</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" id="statSR">—</div>
+          <div class="stat-label">SRID</div>
+        </div>
+      </div>
+    </div>
+    <div id="preview-container">
+      <canvas id="preview"></canvas>
+      <div class="preview-empty" id="previewEmpty">Φόρτωση JSON για προεπισκόπηση</div>
+    </div>
+    <div class="features-table-wrap" id="tableWrap" style="display:none">
+      <table>
+        <thead id="tableHead"></thead>
+        <tbody id="tableBody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<script>
+let jsonData = null;
+let dxfContent = null;
+let loadedFileName = 'output';
+
+const dropzone = document.getElementById('dropzone');
+const fileInput = document.getElementById('fileInput');
+const filenameEl = document.getElementById('filename');
+const convertBtn = document.getElementById('convertBtn');
+const downloadBtn = document.getElementById('downloadBtn');
+const statusEl = document.getElementById('status');
+const canvas = document.getElementById('preview');
+const ctx = canvas.getContext('2d');
+const previewEmpty = document.getElementById('previewEmpty');
+
+// ============ FILE HANDLING ============
+fileInput.addEventListener('change', e => handleFile(e.target.files[0]));
+dropzone.addEventListener('dragover', e => { e.preventDefault(); dropzone.classList.add('drag-over'); });
+dropzone.addEventListener('dragleave', () => dropzone.classList.remove('drag-over'));
+dropzone.addEventListener('drop', e => {
+  e.preventDefault(); dropzone.classList.remove('drag-over');
+  if (e.dataTransfer.files.length) handleFile(e.dataTransfer.files[0]);
+});
+
+function handleFile(file) {
+  if (!file) return;
+  loadedFileName = file.name.replace(/\.\w+$/, '');
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      jsonData = JSON.parse(e.target.result);
+      validateAndDisplay();
+    } catch (err) {
+      showStatus('Σφάλμα ανάγνωσης JSON: ' + err.message, 'error');
+    }
+  };
+  reader.readAsText(file);
+}
+
+function validateAndDisplay() {
+  const isEsri = jsonData.features && (jsonData.geometryType || jsonData.fields);
+  const isGeoJSON = jsonData.type === 'FeatureCollection' && jsonData.features;
+  if (!isEsri && !isGeoJSON) {
+    showStatus('Μη αναγνωρίσιμη μορφή. Αναμένεται ESRI JSON ή GeoJSON.', 'error');
+    return;
+  }
+  if (isGeoJSON) jsonData = convertGeoJSONtoEsri(jsonData);
+  dropzone.classList.add('has-file');
+  filenameEl.textContent = '✓ ' + loadedFileName + '.json';
+  convertBtn.disabled = false;
+  downloadBtn.style.display = 'none';
+  dxfContent = null;
+  updateStats();
+  drawPreview();
+  buildTable();
+  showStatus('JSON φορτώθηκε — ' + jsonData.features.length + ' features.', 'success');
+}
+
+function convertGeoJSONtoEsri(gj) {
+  const esri = {
+    geometryType: 'esriGeometryPolygon',
+    spatialReference: { wkid: 2100 },
+    fields: [], features: []
+  };
+  if (gj.features.length > 0) {
+    const gt = gj.features[0].geometry?.type;
+    if (gt === 'Point' || gt === 'MultiPoint') esri.geometryType = 'esriGeometryPoint';
+    else if (gt === 'LineString' || gt === 'MultiLineString') esri.geometryType = 'esriGeometryPolyline';
+  }
+  if (gj.features.length > 0 && gj.features[0].properties) {
+    for (const key of Object.keys(gj.features[0].properties)) {
+      esri.fields.push({ name: key, type: 'esriFieldTypeString' });
+    }
+  }
+  if (gj.crs?.properties?.name) {
+    const m = gj.crs.properties.name.match(/(\d+)$/);
+    if (m) esri.spatialReference.wkid = parseInt(m[1]);
+  }
+  for (const f of gj.features) {
+    const ef = { attributes: f.properties || {}, geometry: {} };
+    const g = f.geometry;
+    if (!g) continue;
+    if (g.type === 'Polygon') ef.geometry.rings = g.coordinates;
+    else if (g.type === 'MultiPolygon') ef.geometry.rings = g.coordinates.flat();
+    else if (g.type === 'LineString') ef.geometry.paths = [g.coordinates];
+    else if (g.type === 'MultiLineString') ef.geometry.paths = g.coordinates;
+    else if (g.type === 'Point') { ef.geometry.x = g.coordinates[0]; ef.geometry.y = g.coordinates[1]; }
+    else if (g.type === 'MultiPoint') {
+      for (const pt of g.coordinates)
+        esri.features.push({ attributes: { ...f.properties }, geometry: { x: pt[0], y: pt[1] } });
+      continue;
+    }
+    esri.features.push(ef);
+  }
+  return esri;
+}
+
+// ============ STATS & TABLE ============
+function updateStats() {
+  document.getElementById('stats').style.display = '';
+  document.getElementById('statFeatures').textContent = jsonData.features.length;
+  const typeMap = {
+    esriGeometryPolygon: 'Polygon', esriGeometryPolyline: 'Polyline',
+    esriGeometryPoint: 'Point', esriGeometryMultipoint: 'MultiPoint'
+  };
+  document.getElementById('statType').textContent = typeMap[jsonData.geometryType] || jsonData.geometryType || '—';
+  document.getElementById('statSR').textContent = jsonData.spatialReference?.wkid || '—';
+}
+
+function buildTable() {
+  if (!jsonData.features.length) return;
+  document.getElementById('tableWrap').style.display = '';
+  const fields = jsonData.fields?.map(f => f.name) || Object.keys(jsonData.features[0].attributes || {});
+  document.getElementById('tableHead').innerHTML = '<tr>' + fields.map(f => '<th>' + f + '</th>').join('') + '</tr>';
+  document.getElementById('tableBody').innerHTML = jsonData.features.map(f => {
+    return '<tr>' + fields.map(fn => {
+      let v = f.attributes?.[fn] ?? '';
+      if (typeof v === 'number') v = Math.round(v * 100) / 100;
+      return '<td>' + v + '</td>';
+    }).join('') + '</tr>';
+  }).join('');
+}
+
+// ============ PREVIEW ============
+function drawPreview() {
+  previewEmpty.style.display = 'none';
+  const rect = canvas.parentElement.getBoundingClientRect();
+  canvas.width = rect.width * devicePixelRatio;
+  canvas.height = rect.height * devicePixelRatio;
+  ctx.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0);
+  const w = rect.width, h = rect.height;
+  ctx.clearRect(0, 0, w, h);
+
+  const allPts = [];
+  for (const f of jsonData.features) {
+    const g = f.geometry; if (!g) continue;
+    if (g.rings) g.rings.forEach(r => r.forEach(p => allPts.push(p)));
+    if (g.paths) g.paths.forEach(p => p.forEach(pt => allPts.push(pt)));
+    if (g.x !== undefined) allPts.push([g.x, g.y]);
+  }
+  if (!allPts.length) return;
+
+  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+  for (const [x, y] of allPts) {
+    if (x < minX) minX = x; if (x > maxX) maxX = x;
+    if (y < minY) minY = y; if (y > maxY) maxY = y;
+  }
+  const pad = 30;
+  const dw = maxX - minX || 1, dh = maxY - minY || 1;
+  const scale = Math.min((w - pad*2) / dw, (h - pad*2) / dh);
+  const ox = pad + ((w - pad*2) - dw * scale) / 2;
+  const oy = pad + ((h - pad*2) - dh * scale) / 2;
+  const tx = x => ox + (x - minX) * scale;
+  const ty = y => oy + (maxY - y) * scale;
+
+  for (const f of jsonData.features) {
+    const g = f.geometry; if (!g) continue;
+    if (g.rings) {
+      for (const ring of g.rings) {
+        ctx.beginPath();
+        ring.forEach((p, i) => { i === 0 ? ctx.moveTo(tx(p[0]), ty(p[1])) : ctx.lineTo(tx(p[0]), ty(p[1])); });
+        ctx.closePath();
+        ctx.fillStyle = 'rgba(79,140,255,0.12)'; ctx.fill();
+        ctx.strokeStyle = '#4f8cff'; ctx.lineWidth = 1.5; ctx.stroke();
+      }
+      if (f.attributes) {
+        const ring = g.rings[0];
+        let cx = 0, cy = 0;
+        ring.forEach(p => { cx += p[0]; cy += p[1]; });
+        cx /= ring.length; cy /= ring.length;
+        const label = f.attributes.KAEK || '';
+        if (label) {
+          ctx.font = '600 11px Inter, sans-serif';
+          ctx.fillStyle = '#e4e7ef'; ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle'; ctx.fillText(label, tx(cx), ty(cy));
+        }
+      }
+    }
+    if (g.paths) {
+      for (const path of g.paths) {
+        ctx.beginPath();
+        path.forEach((p, i) => { i === 0 ? ctx.moveTo(tx(p[0]), ty(p[1])) : ctx.lineTo(tx(p[0]), ty(p[1])); });
+        ctx.strokeStyle = '#4f8cff'; ctx.lineWidth = 1.5; ctx.stroke();
+      }
+    }
+    if (g.x !== undefined) {
+      ctx.beginPath(); ctx.arc(tx(g.x), ty(g.y), 4, 0, Math.PI * 2);
+      ctx.fillStyle = '#4f8cff'; ctx.fill();
+      ctx.strokeStyle = '#fff'; ctx.lineWidth = 1; ctx.stroke();
+    }
+  }
+}
+
+// ============ DXF GENERATION — R12 (AC1009) ============
+convertBtn.addEventListener('click', () => {
+  if (!jsonData) return;
+  try {
+    dxfContent = generateDXF();
+    downloadBtn.style.display = '';
+    downloadBtn.disabled = false;
+    showStatus('DXF δημιουργήθηκε — ' + (dxfContent.length / 1024).toFixed(1) + ' KB', 'success');
+  } catch (err) {
+    showStatus('Σφάλμα: ' + err.message, 'error');
+  }
+});
+
+downloadBtn.addEventListener('click', () => {
+  if (!dxfContent) return;
+  const blob = new Blob([dxfContent], { type: 'application/dxf' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href = url;
+  a.download = loadedFileName + '.dxf'; a.click();
+  URL.revokeObjectURL(url);
+});
+
+function generateDXF() {
+  const layerPoly = document.getElementById('layerPolygons').value || 'PARCELS';
+  const layerTxt  = document.getElementById('layerText').value || 'LABELS';
+  const layerPts  = document.getElementById('layerPoints').value || 'POINTS';
+  const textH     = parseFloat(document.getElementById('textHeight').value) || 2;
+  const colorPoly = parseInt(document.getElementById('colorPolygons').value) || 3;
+  const colorTxt  = parseInt(document.getElementById('colorText').value) || 1;
+  const addLabels = document.getElementById('addLabels').checked;
+  const closedPoly = document.getElementById('closedPoly').checked;
+
+  const out = [];
+  function g(code, value) {
+    // DXF group code: right-justified in 3-char field
+    out.push(String(code).padStart(3));
+    out.push(String(value));
+  }
+
+  // ---- HEADER ----
+  g(0, 'SECTION'); g(2, 'HEADER');
+  g(9, '$ACADVER'); g(1, 'AC1009');
+  g(9, '$INSBASE'); g(10, 0.0); g(20, 0.0); g(30, 0.0);
+
+  // Compute extents
+  let xMin = Infinity, yMin = Infinity, xMax = -Infinity, yMax = -Infinity;
+  for (const f of jsonData.features) {
+    const ge = f.geometry; if (!ge) continue;
+    if (ge.rings) ge.rings.forEach(r => r.forEach(p => { xMin = Math.min(xMin, p[0]); yMin = Math.min(yMin, p[1]); xMax = Math.max(xMax, p[0]); yMax = Math.max(yMax, p[1]); }));
+    if (ge.paths) ge.paths.forEach(r => r.forEach(p => { xMin = Math.min(xMin, p[0]); yMin = Math.min(yMin, p[1]); xMax = Math.max(xMax, p[0]); yMax = Math.max(yMax, p[1]); }));
+    if (ge.x !== undefined) { xMin = Math.min(xMin, ge.x); yMin = Math.min(yMin, ge.y); xMax = Math.max(xMax, ge.x); yMax = Math.max(yMax, ge.y); }
+  }
+  if (isFinite(xMin)) {
+    g(9, '$EXTMIN'); g(10, xMin); g(20, yMin); g(30, 0.0);
+    g(9, '$EXTMAX'); g(10, xMax); g(20, yMax); g(30, 0.0);
+  }
+  g(0, 'ENDSEC');
+
+  // ---- TABLES ----
+  g(0, 'SECTION'); g(2, 'TABLES');
+
+  // LTYPE table
+  g(0, 'TABLE'); g(2, 'LTYPE'); g(70, 1);
+  g(0, 'LTYPE'); g(2, 'CONTINUOUS'); g(70, 0);
+  g(3, 'Solid line'); g(72, 65); g(73, 0); g(40, 0.0);
+  g(0, 'ENDTAB');
+
+  // LAYER table
+  const allLayers = [[layerPoly, colorPoly], [layerTxt, colorTxt], [layerPts, 7]];
+  g(0, 'TABLE'); g(2, 'LAYER'); g(70, allLayers.length);
+  for (const [lyr, col] of allLayers) {
+    g(0, 'LAYER'); g(2, lyr); g(70, 0); g(62, col); g(6, 'CONTINUOUS');
+  }
+  g(0, 'ENDTAB');
+
+  // STYLE table
+  g(0, 'TABLE'); g(2, 'STYLE'); g(70, 1);
+  g(0, 'STYLE'); g(2, 'STANDARD'); g(70, 0); g(40, 0.0); g(41, 1.0);
+  g(0, 'ENDTAB');
+
+  g(0, 'ENDSEC');
+
+  // ---- ENTITIES ----
+  g(0, 'SECTION'); g(2, 'ENTITIES');
+
+  for (const f of jsonData.features) {
+    const ge = f.geometry;
+    const attrs = f.attributes || {};
+    if (!ge) continue;
+
+    // ==== POLYGONS / RINGS → POLYLINE + VERTEX + SEQEND (R12) ====
+    if (ge.rings) {
+      for (const ring of ge.rings) {
+        let pts = ring;
+        // Remove duplicate closing vertex when using closed flag
+        if (closedPoly && pts.length > 1) {
+          const first = pts[0], last = pts[pts.length - 1];
+          if (first[0] === last[0] && first[1] === last[1]) {
+            pts = pts.slice(0, -1);
+          }
+        }
+
+        g(0, 'POLYLINE');
+        g(8, layerPoly);
+        g(62, colorPoly);
+        g(66, 1);                       // vertices follow
+        g(70, closedPoly ? 1 : 0);      // 1 = closed
+
+        for (const p of pts) {
+          g(0, 'VERTEX');
+          g(8, layerPoly);
+          g(10, p[0]);
+          g(20, p[1]);
+          g(30, 0.0);
+        }
+
+        g(0, 'SEQEND');
+        g(8, layerPoly);
+      }
+
+      // Labels at centroid
+      if (addLabels) {
+        const ring0 = ge.rings[0];
+        let cx = 0, cy = 0;
+        for (const p of ring0) { cx += p[0]; cy += p[1]; }
+        cx /= ring0.length; cy /= ring0.length;
+
+        const kaek = attrs.KAEK;
+        const area = attrs.AREA;
+
+        if (kaek !== undefined && kaek !== null && kaek !== '') {
+          g(0, 'TEXT'); g(8, layerTxt); g(62, colorTxt);
+          g(10, cx); g(20, cy + textH * 0.8); g(30, 0.0);
+          g(40, textH); g(1, String(kaek));
+          g(72, 1);                    // horizontal center
+          g(11, cx); g(21, cy + textH * 0.8); g(31, 0.0);
+        }
+        if (area !== undefined && area !== null && area !== '') {
+          const areaVal = typeof area === 'number' ? Math.round(area * 100) / 100 : area;
+          g(0, 'TEXT'); g(8, layerTxt); g(62, colorTxt);
+          g(10, cx); g(20, cy - textH * 0.8); g(30, 0.0);
+          g(40, textH * 0.75); g(1, 'E=' + areaVal);
+          g(72, 1);
+          g(11, cx); g(21, cy - textH * 0.8); g(31, 0.0);
+        }
+      }
+    }
+
+    // ==== POLYLINES / PATHS ====
+    if (ge.paths) {
+      for (const path of ge.paths) {
+        g(0, 'POLYLINE');
+        g(8, layerPoly); g(62, colorPoly);
+        g(66, 1); g(70, 0);  // open
+        for (const p of path) {
+          g(0, 'VERTEX'); g(8, layerPoly);
+          g(10, p[0]); g(20, p[1]); g(30, 0.0);
+        }
+        g(0, 'SEQEND'); g(8, layerPoly);
+      }
+    }
+
+    // ==== POINTS ====
+    if (ge.x !== undefined) {
+      g(0, 'POINT'); g(8, layerPts);
+      g(10, ge.x); g(20, ge.y); g(30, 0.0);
+
+      if (addLabels) {
+        const fields = jsonData.fields?.map(fd => fd.name) || Object.keys(attrs);
+        for (let i = 0; i < fields.length; i++) {
+          const fn = fields[i];
+          const val = attrs[fn];
+          if (val === undefined || val === null || val === '') continue;
+          g(0, 'TEXT'); g(8, layerTxt); g(62, colorTxt);
+          g(10, ge.x + textH * 0.3); g(20, ge.y - textH * i * 1.4); g(30, 0.0);
+          g(40, textH); g(1, fn + '=' + val);
+        }
+      }
+    }
+  }
+
+  g(0, 'ENDSEC');
+  g(0, 'EOF');
+
+  return out.join('\n') + '\n';
+}
+
+// ============ UTILS ============
+function showStatus(msg, type) {
+  statusEl.textContent = msg;
+  statusEl.className = 'status show ' + type;
+}
+window.addEventListener('resize', () => { if (jsonData) drawPreview(); });
+</script>
+</body>
+</html>
