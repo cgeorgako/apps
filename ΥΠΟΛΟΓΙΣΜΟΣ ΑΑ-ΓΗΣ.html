@@ -1,0 +1,483 @@
+<!DOCTYPE html>
+<html lang="el">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Υπολογισμός Αντικειμενικής Αξίας Γης (ΑΑ-ΓΗΣ) | Τεχνικό Γραφείο Γεωργακόπουλος &amp; Φουντάς</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
+
+:root{
+  --bg:#15181c;
+  --panel:#1c2126;
+  --panel2:#20262c;
+  --line:#2c333b;
+  --text:#dfe3e6;
+  --muted:#8b98a3;
+  --amber:#d99a44;
+  --amber-soft:#c98a3a22;
+  --teal:#4fb3a9;
+  --teal-soft:#4fb3a922;
+  --red:#d9634a;
+  --green:#5aa66b;
+  --font-sans:'IBM Plex Sans', 'Segoe UI', system-ui, sans-serif;
+  --font-mono:'IBM Plex Mono', 'Consolas', monospace;
+}
+*{box-sizing:border-box;}
+body{
+  margin:0; background:var(--bg); color:var(--text);
+  font-family:var(--font-sans); font-size:14px; line-height:1.55;
+  padding:0 0 60px;
+}
+header{
+  background:linear-gradient(180deg,#1a1f24,#161a1e);
+  border-bottom:1px solid var(--line);
+  padding:22px 28px 18px;
+}
+header .eyebrow{
+  color:var(--amber); font-family:var(--font-mono); font-size:11px;
+  letter-spacing:.12em; text-transform:uppercase; margin-bottom:6px;
+}
+header h1{margin:0; font-size:21px; font-weight:600; letter-spacing:-0.01em;}
+header .sub{color:var(--muted); font-size:12.5px; margin-top:4px;}
+
+.disclaimer{
+  max-width:900px; margin:16px auto 0; padding:12px 16px;
+  background:var(--amber-soft); border:1px solid #c98a3a44; border-left:3px solid var(--amber);
+  border-radius:4px; font-size:12.5px; color:#e8c896;
+}
+.disclaimer b{color:var(--amber);}
+.disclaimer a{color:var(--amber); font-weight:600;}
+
+.wrap{max-width:900px; margin:0 auto; padding:0 28px;}
+
+.card{
+  background:var(--panel); border:1px solid var(--line); border-radius:6px;
+  padding:18px 20px 20px; margin-top:18px;
+}
+.card h2{
+  font-size:12.5px; text-transform:uppercase; letter-spacing:.08em;
+  color:var(--teal); margin:0 0 4px; font-weight:600;
+  display:flex; align-items:center; gap:8px;
+}
+.card h2::after{content:''; flex:1; height:1px; background:var(--line);}
+.card .card-sub{font-size:11.5px; color:var(--muted); margin-bottom:14px;}
+.tag{
+  font-family:var(--font-mono); font-size:10px; color:var(--muted);
+  background:var(--panel2); border:1px solid var(--line); border-radius:3px;
+  padding:1px 6px; margin-right:6px;
+}
+
+.bullet{display:grid; grid-template-columns:26px 1fr; gap:2px 10px; margin-bottom:14px; align-items:start;}
+.bullet .num{
+  width:22px; height:22px; border-radius:3px; background:var(--teal-soft); color:var(--teal);
+  display:flex; align-items:center; justify-content:center; font-family:var(--font-mono); font-size:11px;
+  margin-top:1px;
+}
+.bullet .body{min-width:0;}
+.bullet label{display:block; font-size:13px; color:var(--text); margin-bottom:6px; font-weight:500;}
+.bullet .hint{font-size:11px; color:var(--muted); margin-top:4px; line-height:1.5;}
+.bullet .hint a{color:var(--teal);}
+
+input[type=text], input[type=number], select, textarea{
+  width:100%; background:var(--panel2); border:1px solid var(--line); color:var(--text);
+  padding:9px 10px; border-radius:4px; font-family:var(--font-mono); font-size:13px;
+}
+input:focus, select:focus, textarea:focus{outline:none; border-color:var(--teal);}
+input[readonly]{color:var(--amber); background:#20262c99; border-style:dashed;}
+.row2{display:grid; grid-template-columns:1fr 1fr; gap:10px;}
+.row3{display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px;}
+@media (max-width:640px){ .row2, .row3{grid-template-columns:1fr;} }
+
+.check-line{display:flex; align-items:center; gap:8px; margin-bottom:10px; font-size:13px;}
+.check-line input[type=checkbox]{width:16px; height:16px; accent-color:var(--teal);}
+
+.out-line{
+  display:flex; justify-content:space-between; align-items:baseline; gap:10px;
+  padding:9px 0; border-bottom:1px solid #23282e; font-size:13px;
+}
+.out-line:last-child{border-bottom:none;}
+.out-line .k{color:var(--muted);}
+.out-line .v{font-family:var(--font-mono); color:var(--text); text-align:right;}
+.out-line .v.hi{color:var(--amber); font-weight:600;}
+
+.badge{
+  display:inline-block; padding:2px 8px; border-radius:20px; font-size:10.5px; font-family:var(--font-mono);
+  background:var(--teal-soft); color:var(--teal); border:1px solid #4fb3a955;
+}
+.badge.warn{background:#4a2c2c22; color:var(--red); border-color:#4a2c2c55;}
+
+.note{font-size:11.5px; color:var(--muted); margin-top:10px; line-height:1.6; padding-top:10px; border-top:1px dashed var(--line);}
+.note b{color:#b7c0c8;}
+
+.total-box{
+  background:linear-gradient(180deg,#20262c,#1c2126); border:1px solid var(--amber-soft2, #c98a3a55);
+  border-radius:6px; padding:20px; margin-top:18px; text-align:center;
+}
+.total-box .lbl{font-size:11.5px; color:var(--muted); text-transform:uppercase; letter-spacing:.08em;}
+.total-box .val{font-family:var(--font-mono); font-size:34px; color:var(--amber); font-weight:600; margin-top:6px;}
+.total-box .sub{font-size:12px; color:var(--muted); margin-top:6px;}
+
+.formula{
+  font-family:var(--font-mono); font-size:12px; color:var(--teal); background:var(--panel2);
+  border:1px solid var(--line); border-radius:4px; padding:10px 12px; margin:10px 0; overflow-x:auto; white-space:pre;
+}
+
+button.act{
+  padding:11px 18px; border:none; border-radius:4px; font-weight:600; font-size:13.5px;
+  cursor:pointer; font-family:var(--font-sans); background:var(--amber); color:#1a1408;
+}
+button.act:hover{background:#e8ab5a;}
+button.ghost{
+  background:transparent; color:var(--teal); border:1px solid var(--teal); margin-left:10px;
+  padding:11px 18px; border-radius:4px; font-weight:600; font-size:13.5px; cursor:pointer; font-family:var(--font-sans);
+}
+button.ghost:hover{background:var(--teal-soft);}
+.actions{margin-top:20px; display:flex; justify-content:flex-end;}
+
+footer{
+  max-width:900px; margin:30px auto 0; padding:16px 28px 0; border-top:1px solid var(--line);
+  color:var(--muted); font-size:11.5px; text-align:right;
+}
+
+@media print{
+  header .eyebrow, .actions, .disclaimer, .hint, .note{display:none !important;}
+  body{background:#fff; color:#111;}
+  .card{background:#fff; border:1px solid #999; break-inside:avoid;}
+  input, select{background:#fff; color:#111; border:1px solid #999;}
+  .total-box{background:#fff; border:2px solid #111;}
+  .total-box .val{color:#111;}
+}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="eyebrow">Τεχνικό Γραφείο Μελετών — Γεωργακόπουλος Χρήστος / Φουντάς Αθανάσιος</div>
+  <h1>Υπολογισμός Αντικειμενικής Αξίας Γης (ΑΑ-ΓΗΣ)</h1>
+  <div class="sub">Αδόμητα Αγροτεμάχια Εκτός Σχεδίου Πόλης ή Οικισμών χωρίς Ειδικούς Όρους Δόμησης — βάσει Εντύπου ΑΑ-ΓΗΣ (Υ.Οικ., Σεπτέμβριος 1999)</div>
+</header>
+
+<div class="disclaimer">
+  <b>ΑΒΑ / ΕΒΑ:</b> Οι τιμές ζώνης αντλούνται από την ιστοσελίδα
+  <a href="https://maps.gsis.gr/valuemaps/" target="_blank" rel="noopener">maps.gsis.gr/valuemaps</a>
+  για τη θέση του ακινήτου. Το εργαλείο υπολογίζει τη <b>Βασική Αξία (ΒΑ)</b> και τους
+  <b>Συντελεστές Αυξομείωσης (ΣΑ)</b> του εντύπου. Η <b>Οικοπεδική Αξία (ΑΟικ)</b> δεν εφαρμόζεται σε αδόμητο
+  γεωτεμάχιο· η <b>Αξία Δυνατότητας (ΑΔ)</b> είναι προαιρετική ενότητα παρακάτω.
+</div>
+
+<div class="wrap">
+
+  <!-- ΣΤΟΙΧΕΙΑ ΥΠΟΧΡΕΟΥ / ΘΕΣΗ ΑΚΙΝΗΤΟΥ -->
+  <div class="card">
+    <h2><span class="tag">§0</span>Στοιχεία Υπόχρεου &amp; Θέση Ακινήτου</h2>
+    <div class="card-sub">Συμπληρωματικά πεδία εντύπου — δεν συμμετέχουν στον υπολογισμό.</div>
+    <div class="row3">
+      <div class="bullet"><div class="num">·</div><div class="body"><label>Επώνυμο / Επωνυμία</label><input type="text" id="ownerLast"></div></div>
+      <div class="bullet"><div class="num">·</div><div class="body"><label>Όνομα</label><input type="text" id="ownerFirst"></div></div>
+      <div class="bullet"><div class="num">·</div><div class="body"><label>Πατρώνυμο</label><input type="text" id="ownerFather"></div></div>
+    </div>
+    <div class="row3">
+      <div class="bullet"><div class="num">·</div><div class="body"><label>ΑΦΜ</label><input type="text" id="ownerAfm"></div></div>
+      <div class="bullet"><div class="num">·</div><div class="body"><label>Είδος εμπράγματου δικαιώματος</label>
+        <select id="ownerRight">
+          <option>Πλήρης κυριότητα</option>
+          <option>Ψιλή κυριότητα</option>
+          <option>Επικαρπία</option>
+        </select></div></div>
+      <div class="bullet"><div class="num">·</div><div class="body"><label>Ποσοστό συμμετοχής (%)</label><input type="number" id="ownerPct" value="100" min="0.01" max="100" step="0.01" oninput="calc()"></div></div>
+    </div>
+    <div class="row2">
+      <div class="bullet"><div class="num">·</div><div class="body"><label>Νομός / Δήμος-Κοινότητα</label><input type="text" id="posNomos" placeholder="π.χ. Ηλείας / Ήλιδας"></div></div>
+      <div class="bullet"><div class="num">·</div><div class="body"><label>Δημ./Κοιν. Διαμέρισμα &amp; Οικισμός-Θέση</label><input type="text" id="posThesi" placeholder="π.χ. Βαρθολομιό — θέση «...»"></div></div>
+    </div>
+    <div class="bullet"><div class="num">·</div><div class="body"><label>Αριθμός γεωτεμαχίου Κτηματολογίου / ΚΑΕΚ</label><input type="text" id="posKaek" placeholder="π.χ. 12ψήφιο ΚΑΕΚ"></div></div>
+  </div>
+
+  <!-- Α. ΒΑΣΙΚΗ ΑΞΙΑ -->
+  <div class="card">
+    <h2><span class="tag">Α</span>Βασική Αξία Γης (ΒΑ) <span class="badge" style="margin-left:auto">έντυπο σελ. 2</span></h2>
+    <div class="card-sub">Υπολογίζεται ως: Επιφάνεια × (ΑΒΑ ή ΕΒΑ) × Συντελεστής Χρήσης [× Συντελεστής Άρδευσης, όπου εφαρμόζεται].</div>
+
+    <div class="bullet">
+      <div class="num">201</div>
+      <div class="body">
+        <label>Επιφάνεια εδαφικής έκτασης (τ.μ.)</label>
+        <input type="number" id="area" min="0" step="0.01" placeholder="π.χ. 8000" oninput="calc()">
+        <div class="hint" id="areaStremmata"></div>
+      </div>
+    </div>
+
+    <div class="row2">
+      <div class="bullet">
+        <div class="num">202</div>
+        <div class="body">
+          <label>ΑΒΑ — Αρχική Βασική Αξία (€/τ.μ.)</label>
+          <input type="number" id="aba" min="0" step="0.01" oninput="calc()">
+          <div class="hint">Από <a href="https://maps.gsis.gr/valuemaps/" target="_blank" rel="noopener">maps.gsis.gr/valuemaps</a> — αγροτική γη, μη αρδευόμενη, μονοετής, χωρίς πρόσωπο ή &gt;800μ από θάλασσα.</div>
+        </div>
+      </div>
+      <div class="bullet">
+        <div class="num">203</div>
+        <div class="body">
+          <label>ΕΒΑ — Ειδική Βασική Αξία (€/τ.μ.)</label>
+          <input type="number" id="eba" min="0" step="0.01" oninput="calc()">
+          <div class="hint">Μόνο αν η θέση έχει πρόσωπο σε Εθνική/Επαρχιακή ή απέχει έως 800μ από τη θάλασσα (βλ. §Δ παρακάτω).</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="row2">
+      <div class="bullet">
+        <div class="num">204</div>
+        <div class="body">
+          <label>Συντελεστής Χρήσης</label>
+          <select id="usage" onchange="calc()">
+            <option value="monoetis" data-c="1.00">Αγροτική — Μονοετής καλλιέργεια (1,00)</option>
+            <option value="elies" data-c="1.40">Αγροτική — Πολυετής: Ελιές (1,40)</option>
+            <option value="dendro" data-c="1.60">Αγροτική — Πολυετής: λοιπές δενδροκαλλιέργειες / αμπέλια (1,60)</option>
+            <option value="voskotopos" data-c="0.25">Βοσκότοπος (0,25)</option>
+            <option value="dasiki" data-c="0.60">Δασική έκταση (0,60)</option>
+            <option value="metalleftiki" data-c="1.10">Μεταλλευτική / λατομική (1,10)</option>
+            <option value="ypaithria" data-c="1.30">Υπαίθρια έκθεση / στάθμευση (1,30)</option>
+          </select>
+        </div>
+      </div>
+      <div class="bullet" id="irrigationWrap">
+        <div class="num">205</div>
+        <div class="body">
+          <label>Άρδευση (μόνο για αγροτική έκταση)</label>
+          <select id="irrigated" onchange="calc()">
+            <option value="0" data-c="1.00">Μη αρδευόμενη (1,00)</option>
+            <option value="1" data-c="1.80">Αρδευόμενη (1,80)</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <div class="formula" id="baFormula">ΒΑ = —</div>
+    <div class="out-line"><span class="k">Εφαρμοζόμενη τιμή ζώνης</span><span class="v" id="outAppliedVal">—</span></div>
+    <div class="out-line"><span class="k">ΒΑ — Βασική Αξία Γης</span><span class="v hi" id="outBA">—</span></div>
+  </div>
+
+  <!-- Β. ΟΙΚΟΠΕΔΙΚΗ ΑΞΙΑ -->
+  <div class="card">
+    <h2><span class="tag">Β</span>Οικοπεδική Αξία (ΑΟικ) <span class="badge" style="margin-left:auto">έντυπο σελ. 3</span></h2>
+    <div class="bullet">
+      <div class="num">·</div>
+      <div class="body">
+        <label>Το γεωτεμάχιο είναι αδόμητο;</label>
+        <select id="isUnbuilt" onchange="calc()">
+          <option value="1">Ναι — αδόμητο</option>
+          <option value="0">Όχι — υπάρχει κτίσμα</option>
+        </select>
+        <div class="hint" id="unbuiltNote"></div>
+      </div>
+    </div>
+    <div class="out-line"><span class="k">ΑΟικ — Οικοπεδική Αξία</span><span class="v hi" id="outAOik">0,00 €</span></div>
+  </div>
+
+  <!-- Γ. ΑΞΙΑ ΔΥΝΑΤΟΤΗΤΑΣ -->
+  <div class="card">
+    <h2><span class="tag">Γ</span>Αξία Δυνατότητας Περαιτέρω Αξιοποίησης (ΑΔ) <span class="badge" style="margin-left:auto">έντυπο σελ. 4 — προαιρετικό</span></h2>
+    <div class="card-sub">Εφαρμόζεται μόνο αν η έκταση, ενώ είναι εκτός σχεδίου/οικισμού, έχει δυνατότητα δόμησης εκτός σχεδίου (π.χ. πρόσωπο σε Εθνική/Επαρχιακή ή απόσταση ≤800μ από θάλασσα, εφόσον πληρούνται και οι πολεοδομικές προϋποθέσεις αρτιότητας). Χρειάζεται η οικοπεδική τιμή ΤΟ'αρχ (διαφορετική από την ΑΒΑ/ΕΒΑ αγροτικής γης), επίσης από maps.gsis.gr/valuemaps.</div>
+    <div class="check-line"><input type="checkbox" id="calcAD" onchange="calc()"><label for="calcAD">Να υπολογιστεί η ΑΔ</label></div>
+    <div id="adFields" style="display:none;">
+      <div class="bullet">
+        <div class="num">401</div>
+        <div class="body">
+          <label>ΤΟ'αρχ — Αρχική Οικοπεδική Αξία (€/τ.μ.)</label>
+          <input type="number" id="toarx" min="0" step="0.01" oninput="calc()">
+        </div>
+      </div>
+      <div class="out-line"><span class="k">Συντελεστής θέσης (§403)</span><span class="v" id="outADpos">—</span></div>
+      <div class="out-line"><span class="k">Συντελεστής μεγέθους (§404)</span><span class="v" id="outADsize">—</span></div>
+      <div class="out-line"><span class="k">ΑΔ — Αξία Δυνατότητας</span><span class="v hi" id="outAD">0,00 €</span></div>
+      <div class="note" id="adNote"></div>
+    </div>
+  </div>
+
+  <!-- ΣΥΝΤΕΛΕΣΤΕΣ ΑΥΞΟΜΕΙΩΣΗΣ -->
+  <div class="card">
+    <h2>Συντελεστές Αυξομείωσης (ΣΑ) <span class="badge" style="margin-left:auto">έντυπο σελ. 1</span></h2>
+
+    <div class="check-line">
+      <div class="num tag">102</div>
+      <input type="checkbox" id="coOwn" onchange="calc()"><label for="coOwn">Υπάρχει συνιδιοκτησία στο πρόσωπο του υπόχρεου (0,90)</label>
+    </div>
+
+    <div class="row2">
+      <div class="bullet">
+        <div class="num">103/104</div>
+        <div class="body">
+          <label>Πρόσωπο σε οδό</label>
+          <select id="roadType" onchange="calc()">
+            <option value="ethniki" data-c="1.30">Εθνική ή Επαρχιακή οδός (1,30)</option>
+            <option value="dimotiki" data-c="1.10">Δημοτική οδός ή κοινόχρηστος χώρος αιγιαλού/παραλίας (1,10)</option>
+            <option value="agrotiki" data-c="1.00">Αγροτική οδός (1,00)</option>
+            <option value="idiotiki" data-c="1.00">Ιδιωτική οδός ή άλλος κοινόχρηστος χώρος (1,00)</option>
+            <option value="typhlo" data-c="0.90">Τυφλό — χωρίς πρόσωπο σε οδό (0,90)</option>
+          </select>
+          <div class="hint">Το έντυπο διακρίνει Εθνική/Επαρχιακή (1,30) από Δημοτική (1,10) — αν τα θεωρούσατε ενιαία κατηγορία, επιλέξτε εδώ την ακριβή περίπτωση.</div>
+        </div>
+      </div>
+      <div class="bullet">
+        <div class="num">105</div>
+        <div class="body">
+          <label>Απόσταση από τη θάλασσα</label>
+          <select id="distance" onchange="calc()">
+            <option value="100" data-c="1.80">Μέχρι 100 μέτρα (1,80)</option>
+            <option value="200" data-c="1.50">Από 100 έως 200 μέτρα (1,50)</option>
+            <option value="500" data-c="1.30">Από 200 έως 500 μέτρα (1,30)</option>
+            <option value="800" data-c="1.20">Από 500 έως 800 μέτρα (1,20)</option>
+            <option value="9999" data-c="1.00">Πάνω από 800 μέτρα (1,00)</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <div class="check-line">
+      <div class="num tag">106</div>
+      <input type="checkbox" id="expropriated" onchange="calc()"><label for="expropriated">Η εδαφική έκταση είναι απαλλοτριωτέα (0,50)</label>
+    </div>
+
+    <div class="formula" id="saFormula">ΣΑ = —</div>
+    <div class="out-line"><span class="k">ΣΑ — Συνολικός Συντελεστής Αυξομείωσης</span><span class="v hi" id="outSA">—</span></div>
+  </div>
+
+  <!-- ΣΥΝΟΛΟ -->
+  <div class="total-box">
+    <div class="lbl">Συνολική Αντικειμενική Αξία Γης &nbsp;=&nbsp; (ΒΑ + ΑΟικ + ΑΔ) × ΣΑ</div>
+    <div class="val" id="grandTotal">0,00 €</div>
+    <div class="sub" id="grandTotalPerStr"></div>
+    <div class="sub" id="grandTotalShare"></div>
+  </div>
+
+  <div class="actions">
+    <button class="ghost" onclick="resetForm()">Καθαρισμός</button>
+    <button class="act" onclick="window.print()">🖨️ Εκτύπωση / Αποθήκευση ως PDF</button>
+  </div>
+
+</div>
+
+<footer>
+  Τεχνικό Γραφείο Μελετών — Γεωργακόπουλος Χρήστος, Διπλωματούχος Πολιτικός Μηχανικός Ε.Μ.Π. · ΑΜ ΤΕΕ 101893 · Αμαλιάδα Ηλείας<br>
+  Βάσει Εντύπου ΑΑ-ΓΗΣ (Υ.Ε.Ε.Α.Δ. Υπουργείου Οικονομικών, Σεπτέμβριος 1999) — ενδεικτικός υπολογισμός, δεν υποκαθιστά επίσημη βεβαίωση.
+</footer>
+
+<script>
+function num(id){ var v = parseFloat(document.getElementById(id).value); return isNaN(v) ? 0 : v; }
+function selCoef(id){ var el = document.getElementById(id); return parseFloat(el.options[el.selectedIndex].dataset.c); }
+function fmtEUR(v){ return v.toLocaleString('el-GR', {minimumFractionDigits:2, maximumFractionDigits:2}) + ' €'; }
+function fmtNum(v, d){ return v.toLocaleString('el-GR', {minimumFractionDigits:d, maximumFractionDigits:d}); }
+
+function calc(){
+  var area = num('area');
+  document.getElementById('areaStremmata').textContent = area > 0 ? ('= ' + fmtNum(area/1000, 3) + ' στρέμματα') : '';
+
+  var usageSel = document.getElementById('usage');
+  var usageVal = usageSel.value;
+  var usageCoef = selCoef('usage');
+  var isAgricultural = (usageVal === 'monoetis' || usageVal === 'elies' || usageVal === 'dendro');
+  document.getElementById('irrigationWrap').style.opacity = isAgricultural ? '1' : '.35';
+  document.getElementById('irrigated').disabled = !isAgricultural;
+  var irrigationCoef = isAgricultural ? selCoef('irrigated') : 1;
+
+  var roadType = document.getElementById('roadType').value;
+  var roadCoef = selCoef('roadType');
+  var distanceVal = parseFloat(document.getElementById('distance').value);
+  var distanceCoef = selCoef('distance');
+  var within800 = distanceVal <= 800;
+  var isEthnikiEparxiaki = (roadType === 'ethniki');
+
+  var aba = num('aba'), eba = num('eba');
+  var qualifiesEBA = isEthnikiEparxiaki || within800;
+  var usedEBA = qualifiesEBA && eba > 0;
+  var appliedVal = usedEBA ? eba : aba;
+  var appliedLabel = usedEBA ? ('ΕΒΑ = ' + fmtNum(eba,2) + ' €/τ.μ.') : ('ΑΒΑ = ' + fmtNum(aba,2) + ' €/τ.μ.');
+  if (qualifiesEBA && eba <= 0 && aba > 0) appliedLabel += '  (η θέση δικαιούται ΕΒΑ αλλά δεν έχει συμπληρωθεί τιμή — χρησιμοποιήθηκε η ΑΒΑ)';
+  document.getElementById('outAppliedVal').textContent = appliedLabel;
+
+  var effUsageCoef = usageCoef * irrigationCoef;
+  var BA = area * appliedVal * effUsageCoef;
+
+  var formulaBA = 'ΒΑ = ' + fmtNum(area,2) + ' τ.μ. × ' + fmtNum(appliedVal,2) + ' €/τ.μ. × ' + fmtNum(usageCoef,2);
+  if (isAgricultural) formulaBA += ' × ' + fmtNum(irrigationCoef,2) + ' (άρδευση)';
+  formulaBA += ' = ' + fmtEUR(BA);
+  document.getElementById('baFormula').textContent = formulaBA;
+  document.getElementById('outBA').textContent = fmtEUR(BA);
+
+  // Β. ΑΟικ
+  var isUnbuilt = document.getElementById('isUnbuilt').value === '1';
+  var AOik = 0;
+  document.getElementById('unbuiltNote').textContent = isUnbuilt
+    ? 'Η Οικοπεδική Αξία δεν εφαρμόζεται (ΑΟικ = 0) — δεν υπάρχει κτίσμα.'
+    : '⚠ Υπάρχει κτίσμα: η Οικοπεδική Αξία (ΑΟικ) πρέπει να υπολογιστεί ξεχωριστά σύμφωνα με τη σελ.3 του εντύπου (μέγεθος οικοδομής, συντελεστής χρήσης κτίσματος, ειδικές συνθήκες) — δεν καλύπτεται από αυτό το εργαλείο.';
+  document.getElementById('outAOik').textContent = fmtEUR(AOik);
+
+  // Γ. ΑΔ (προαιρετική)
+  var calcAD = document.getElementById('calcAD').checked;
+  document.getElementById('adFields').style.display = calcAD ? 'block' : 'none';
+  var AD = 0;
+  if (calcAD) {
+    var toarx = num('toarx');
+    var posCoefAD;
+    if (isEthnikiEparxiaki && within800) posCoefAD = 0.10;
+    else if (isEthnikiEparxiaki) posCoefAD = 0.05;
+    else if (within800) posCoefAD = 0.10;
+    else posCoefAD = 0;
+
+    var stremmata = area / 1000;
+    var sizeCoefAD;
+    if (stremmata <= 4) sizeCoefAD = 1.00;
+    else if (stremmata <= 30) sizeCoefAD = Math.round((1.00 - 0.30 * ((stremmata - 4.0) / 26.0)) * 100) / 100;
+    else if (stremmata <= 300) sizeCoefAD = Math.round((0.70 - 0.50 * ((stremmata - 30.0) / 270.0)) * 100) / 100;
+    else sizeCoefAD = 0.20;
+
+    AD = toarx * area * posCoefAD * sizeCoefAD;
+    document.getElementById('outADpos').textContent = fmtNum(posCoefAD,2) + (posCoefAD === 0 ? '  (δεν πληρούνται προϋποθέσεις θέσης — δεν υπάρχει ΑΔ)' : '');
+    document.getElementById('outADsize').textContent = fmtNum(sizeCoefAD,2) + '  (' + fmtNum(stremmata,3) + ' στρέμματα)';
+    document.getElementById('outAD').textContent = fmtEUR(AD);
+    document.getElementById('adNote').innerHTML = '<b>ΑΔ</b> = ΤΟ\'αρχ × Επιφάνεια × Συντ. θέσης × Συντ. μεγέθους = ' +
+      fmtNum(toarx,2) + ' × ' + fmtNum(area,2) + ' × ' + fmtNum(posCoefAD,2) + ' × ' + fmtNum(sizeCoefAD,2) + ' = ' + fmtEUR(AD);
+  }
+
+  // ΣΑ
+  var coOwnCoef = document.getElementById('coOwn').checked ? 0.90 : 1.00;
+  var expropCoef = document.getElementById('expropriated').checked ? 0.50 : 1.00;
+  var SA = coOwnCoef * roadCoef * distanceCoef * expropCoef;
+
+  var formulaSA = 'ΣΑ = ' + fmtNum(coOwnCoef,2) + ' (συνιδιοκτησία) × ' + fmtNum(roadCoef,2) + ' (πρόσωπο) × ' +
+    fmtNum(distanceCoef,2) + ' (απόσταση) × ' + fmtNum(expropCoef,2) + ' (απαλλοτρίωση) = ' + fmtNum(SA,4);
+  document.getElementById('saFormula').textContent = formulaSA;
+  document.getElementById('outSA').textContent = fmtNum(SA,4);
+
+  // ΣΥΝΟΛΟ
+  var subtotal = BA + AOik + AD;
+  var total = subtotal * SA;
+  document.getElementById('grandTotal').textContent = fmtEUR(total);
+  document.getElementById('grandTotalPerStr').textContent = area > 0
+    ? ('≈ ' + fmtEUR(total / (area/1000)) + ' / στρέμμα')
+    : '';
+
+  var pct = num('ownerPct');
+  if (pct > 0 && pct < 100) {
+    document.getElementById('grandTotalShare').textContent =
+      'Αξία μεριδίου (' + fmtNum(pct,2) + '%): ' + fmtEUR(total * pct / 100);
+  } else {
+    document.getElementById('grandTotalShare').textContent = '';
+  }
+}
+
+function resetForm(){
+  document.querySelectorAll('input[type=text], input[type=number]').forEach(function(el){ el.value = ''; });
+  document.getElementById('ownerPct').value = 100;
+  document.querySelectorAll('input[type=checkbox]').forEach(function(el){ el.checked = false; });
+  document.querySelectorAll('select').forEach(function(el){ el.selectedIndex = 0; });
+  calc();
+}
+
+calc();
+</script>
+</body>
+</html>
