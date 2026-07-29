@@ -573,7 +573,7 @@ async function fillOfficialPdf(){
     put(p1, 450, 600, document.getElementById('ownerFather').value);
     put(p1, 450, 650, document.getElementById('ownerAfm').value);
     aaghsCover(p1, 448, 668, 785, 705);
-    put(p1, 460, 695, document.getElementById('ownerRight').value, 10);
+    put(p1, 490, 695, document.getElementById('ownerRight').value, 8);
     put(p1, 450, 750, fmtNum(c.pct, 2) + ' %');
     put(p1, 450, 800, fmtEUR(c.total));
     if (c.pct > 0 && c.pct < 100) put(p1, 450, 850, fmtEUR(c.total * c.pct / 100));
@@ -596,19 +596,19 @@ async function fillOfficialPdf(){
     put(p1, 1170, 1852, fmtNum(c.total, 2));                              // 110 — Συνολική Αντικειμενική Αξία Γης
 
     // ---- ΣΕΛΙΔΑ 2: Βασική Αξία ----
-    put(p2, 1200, 300, fmtNum(c.area, 2));
-    if (c.usedEBA) put(p2, 1200, 400, fmtNum(c.eba, 2));
-    else put(p2, 1200, 350, fmtNum(c.aba, 2));
+    put(p2, 1200, 300, fmtNum(c.area, 2), 9);
+    if (c.usedEBA) put(p2, 1200, 400, fmtNum(c.eba, 2), 9);
+    else put(p2, 1200, 350, fmtNum(c.aba, 2), 9);
 
     if (c.isAgricultural) {
-      put(p2, 1200, 605, fmtNum(c.usageCoef, 2));
-      put(p2, 1200, 718, fmtNum(c.irrigationCoef, 2));
-    } else if (c.usageVal === 'voskotopos') put(p2, 1200, 760, fmtNum(c.usageCoef, 2));
-    else if (c.usageVal === 'dasiki') put(p2, 1200, 845, fmtNum(c.usageCoef, 2));
-    else if (c.usageVal === 'metalleftiki') put(p2, 1200, 960, fmtNum(c.usageCoef, 2));
-    else if (c.usageVal === 'ypaithria') put(p2, 1200, 1200, fmtNum(c.usageCoef, 2));
+      put(p2, 1200, 605, fmtNum(c.usageCoef, 2), 9);
+      put(p2, 1200, 718, fmtNum(c.irrigationCoef, 2), 9);
+    } else if (c.usageVal === 'voskotopos') put(p2, 1200, 760, fmtNum(c.usageCoef, 2), 9);
+    else if (c.usageVal === 'dasiki') put(p2, 1200, 845, fmtNum(c.usageCoef, 2), 9);
+    else if (c.usageVal === 'metalleftiki') put(p2, 1200, 960, fmtNum(c.usageCoef, 2), 9);
+    else if (c.usageVal === 'ypaithria') put(p2, 1200, 1200, fmtNum(c.usageCoef, 2), 9);
 
-    put(p2, 900, 1260, fmtNum(c.BA, 2));
+    put(p2, 970, 1280, fmtNum(c.BA, 2), 9);
 
     // ---- ΣΕΛΙΔΑ 3: Οικοπεδική Αξία — δεν εφαρμόζεται (αδόμητο) ----
     p3.drawText('ΔΕΝ ΕΦΑΡΜΟΖΕΤΑΙ — ΑΔΟΜΗΤΟ ΓΕΩΤΕΜΑΧΙΟ', {
