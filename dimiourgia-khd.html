@@ -61,6 +61,25 @@
   fieldset{border:none; margin:0; padding:0;}
   fieldset[disabled]{opacity:.4; pointer-events:none;}
 
+  .mode-toggle{display:flex; gap:10px; margin-bottom:22px;}
+  .mode-btn{
+    flex:1; text-align:left; background:var(--g-900); border:1px solid var(--g-700); border-radius:8px;
+    padding:14px 16px; cursor:pointer; color:var(--ink-dim);
+  }
+  .mode-btn b{display:block; color:var(--ink); font-size:13.5px; margin-bottom:4px;}
+  .mode-btn span{font-size:11.5px;}
+  .mode-btn.active{border-color:var(--amber-dim); background:linear-gradient(180deg, rgba(220,159,78,.08), transparent);}
+  .mode-btn.active b{color:var(--amber);}
+  .mode-panel{display:none;}
+  .mode-panel.active{display:block;}
+
+  .user-toggle{display:flex; gap:10px; margin-bottom:4px;}
+  .user-btn{
+    flex:1; text-align:center; background:var(--g-800); border:1px solid var(--g-700); border-radius:6px;
+    padding:10px 12px; cursor:pointer; color:var(--ink-dim); font-size:13.5px; font-weight:600;
+  }
+  .user-btn.active{border-color:var(--teal); background:var(--teal-soft, rgba(79,168,159,.1)); color:var(--teal);}
+
   section{margin-bottom:22px;}
   .sec-title{font-size:11px; text-transform:uppercase; letter-spacing:.08em; color:var(--teal); margin-bottom:12px; display:flex; align-items:center; gap:8px;}
   .sec-title::after{content:""; flex:1; height:1px; background:var(--g-700);}
@@ -95,6 +114,8 @@
 
   #result{display:none; margin-top:22px;}
   #result.show{display:block;}
+  #resultClaude{display:none; margin-top:22px;}
+  #resultClaude.show{display:block;}
 
   .bookmark-box{
     background:var(--g-900); border:1px solid var(--teal-dim); border-radius:8px; padding:18px; text-align:center;
@@ -114,7 +135,7 @@
   .code-fallback{margin-top:14px;}
   .code-fallback summary{cursor:pointer; font-size:11.5px; color:var(--ink-dim);}
   .code-fallback summary:hover{color:var(--ink);}
-  textarea#codeOut{
+  textarea#codeOut, textarea#claudeMsgOut, textarea#diagCodeOut{
     width:100%; margin-top:8px; background:var(--g-800); border:1px solid var(--g-700); color:var(--ink-dim);
     font-family:var(--mono); font-size:10.5px; border-radius:6px; padding:10px; height:80px; resize:vertical;
   }
@@ -138,7 +159,7 @@
       <h1>Δημιουργία ΚΗΔ</h1>
       <div class="sub">Αυτόματη υποβολή διαγράμματος στο Κτηματολόγιο &amp; λήψη κωδικού ΚΗΔ</div>
     </div>
-    <div class="kid-badge">bookmarklet</div>
+    <div class="kid-badge">2 τρόποι</div>
   </header>
 
   <div class="gate locked" id="gateBox">
@@ -146,14 +167,36 @@
     <div class="txt" style="flex:1;">
       <b>Απαιτείται προηγούμενο login</b>
       Αυτό το εργαλείο <u>δεν</u> κάνει login. Πρέπει να έχεις ήδη συνδεθεί μία φορά στο
-      <code>sso.tee.gr</code> μέσα σε αυτόν τον browser (η σύνδεση διατηρείται). Το bookmarklet απλώς
-      συμπληρώνει και υποβάλλει τη φόρμα διαγράμματος στο ήδη συνδεδεμένο session σου.
+      <code>sso.tee.gr</code> — είτε σε αυτόν τον browser (για το bookmarklet), είτε σε
+      όποιον browser χρησιμοποιείς κανονικά (για την αυτοματοποίηση μέσω Claude).
       <label class="check">
         <input type="checkbox" id="loginConfirm">
-        Επιβεβαιώνω ότι έχω ήδη συνδεθεί στο sso.tee.gr / ktimatologio.gov.gr σε αυτόν τον browser
+        Επιβεβαιώνω ότι έχω ήδη συνδεθεί στο sso.tee.gr / ktimatologio.gov.gr
       </label>
     </div>
   </div>
+
+  <fieldset id="userGate" disabled>
+    <div class="sec-title">Ποιος μηχανικός συνδέθηκε;</div>
+    <div class="user-toggle">
+      <div class="user-btn active" data-user="Χρήστος Γεωργακόπουλος" id="userBtnXristos">Χρήστος Γεωργακόπουλος</div>
+      <div class="user-btn" data-user="Θανάσης Φουντάς" id="userBtnThanasis">Θανάσης Φουντάς</div>
+    </div>
+    <div class="defaults-note" style="margin-bottom:18px;">Χρησιμοποιείται μόνο ως ετικέτα στο μήνυμα/bookmarklet — δεν αλλάζει τη λειτουργία, βοηθά απλώς να ξέρουμε ποιανού λογαριασμού session χρησιμοποιείται κάθε φορά.</div>
+  </fieldset>
+
+  <fieldset id="modeGate" disabled>
+    <div class="mode-toggle">
+      <div class="mode-btn active" data-mode="bookmarklet" id="modeBtnBookmarklet">
+        <b>📌 Bookmarklet (χωρίς cookies)</b>
+        <span>Το πατάς εσύ, στον δικό σου browser. Δεν χρειάζεται να μου δώσεις τίποτα.</span>
+      </div>
+      <div class="mode-btn" data-mode="claude" id="modeBtnClaude">
+        <b>🤖 Πλήρης αυτοματοποίηση από Claude</b>
+        <span>Μου δίνεις cookies session· τα κάνω όλα εγώ σε ζωντανή συνεδρία.</span>
+      </div>
+    </div>
+  </fieldset>
 
   <fieldset id="formGate" disabled>
     <form id="intake" novalidate>
@@ -180,8 +223,11 @@
         <div class="defaults-note">Αυτές οι τιμές χρησιμοποιούνται πάντα ίδιες. Αν χρειάζεσαι διαφορετικό είδος/κλίμακα/δήμο, άλλαξέ τα χειροκίνητα στη φόρμα του gov.gr μετά την αυτόματη συμπλήρωση, πριν πατηθεί Αποθήκευση — ή πες μου να τα αλλάξω μόνιμα εδώ.</div>
       </section>
 
-      <div class="actions">
+      <div class="actions" id="actionsBookmarklet">
         <button type="submit" class="btn-primary" id="genBtn">📌 Δημιουργία Bookmarklet</button>
+      </div>
+      <div class="actions" id="actionsClaude" style="display:none;">
+        <button type="submit" class="btn-primary" id="genClaudeBtn">🤖 Δημιουργία μηνύματος για Claude</button>
       </div>
     </form>
   </fieldset>
@@ -217,6 +263,33 @@
       <li>Η φόρμα του gov.gr είναι κλασική (όχι single-page): μετά το Αποθήκευση η σελίδα συνήθως <b>φορτώνει εξ ολοκλήρου από την αρχή</b>, οπότε το πλαίσιο με τον ΚΗΔ πιθανότατα δεν θα προλάβει να εμφανιστεί στο πρώτο κλικ — αυτό είναι αναμενόμενο.</li>
       <li><b>Πάτησε το ίδιο bookmarklet ξανά</b> πάνω στη νέα σελίδα («Φόρτωση Αρχείων»). Αυτή τη φορά δεν θα βρει φόρμα να συμπληρώσει — θα διαβάσει κατευθείαν τον <b>νέο κωδικό ΚΗΔ</b> από τη σελίδα και θα τον δείξει/αντιγράψει στο clipboard.</li>
       <li>Αν κάποιο πεδίο δεν εντοπιστεί στο πρώτο βήμα, θα δεις ένα μήνυμα με το τι λείπει — συμπλήρωσέ το χειροκίνητα και πάτησε Αποθήκευση εσύ.</li>
+    </ol>
+  </div>
+
+  <div id="resultClaude">
+    <div class="sec-title">Μήνυμα έτοιμο για Claude</div>
+
+    <div class="bookmark-box">
+      <div class="drag-hint">1. Εξήγαγε πρώτα τα session cookies — <b>ενώ είσαι συνδεδεμένος ως <span id="claudeUserLabel1">…</span></b></div>
+      <ol class="steps" style="text-align:left; margin-top:2px;">
+        <li>Εγκατέστησε την επέκταση <b>Cookie-Editor</b> στο Chrome (δωρεάν, Chrome Web Store) — μία φορά.</li>
+        <li>Σε καρτέλα όπου είσαι ήδη συνδεδεμένος σε <code>ktimatologio.gov.gr</code>, πάτησε το εικονίδιο της επέκτασης.</li>
+        <li>Κάτω δεξιά: <b>Export</b> → <b>Export as JSON</b> (αντιγράφεται στο clipboard).</li>
+        <li>Αν έχεις χρόνο, επανέλαβε το ίδιο και σε καρτέλα με <code>sso.tee.gr</code> — καλύτερα να έχεις και τα δύο.</li>
+      </ol>
+    </div>
+
+    <div class="bookmark-box" style="margin-top:14px;">
+      <div class="drag-hint">2. Αντέγραψε το παρακάτω μήνυμα</div>
+      <textarea id="claudeMsgOut" readonly style="height:150px;"></textarea>
+      <button type="button" class="copyBtn" id="copyClaudeBtn">Αντιγραφή μηνύματος</button>
+    </div>
+
+    <ol class="steps" style="margin-top:22px;">
+      <li>Άνοιξε (ή συνέχισε) μια συνεδρία Claude Code / Cowork.</li>
+      <li>Επικόλλησε το μήνυμα, και αμέσως μετά επικόλλησε (ή επισύναψε) και το JSON με τα cookies που εξήγαγες.</li>
+      <li>Η Claude θα συνδεθεί με τα cookies σου, θα πατήσει «Εισαγωγή Διαγράμματος», θα συμπληρώσει τη φόρμα, θα πατήσει Αποθήκευση και θα σου δώσει τον νέο κωδικό ΚΗΔ.</li>
+      <li>Τα cookies είναι συνήθως έγκυρα για ώρες, όχι μόνιμα — αν έχει περάσει πολλή ώρα από το login, εξήγαγέ τα ξανά πριν τα στείλεις.</li>
     </ol>
   </div>
 
@@ -273,17 +346,55 @@ document.getElementById('dv-muni').textContent = DEFAULTS.municipality;
 var gateBox = document.getElementById('gateBox');
 var loginConfirm = document.getElementById('loginConfirm');
 var formGate = document.getElementById('formGate');
+var userGate = document.getElementById('userGate');
+var modeGate = document.getElementById('modeGate');
 
 loginConfirm.addEventListener('change', function(){
+  var gates = [formGate, userGate, modeGate];
   if (loginConfirm.checked){
     gateBox.className = 'gate ready';
     gateBox.querySelector('.icon').textContent = '✅';
-    formGate.disabled = false;
+    gates.forEach(function(g){ g.disabled = false; });
   } else {
     gateBox.className = 'gate locked';
     gateBox.querySelector('.icon').textContent = '🔒';
-    formGate.disabled = true;
+    gates.forEach(function(g){ g.disabled = true; });
   }
+});
+
+/* ---------------- Χρήστης selector ---------------- */
+var selectedUser = 'Χρήστος Γεωργακόπουλος';
+var userBtnXristos = document.getElementById('userBtnXristos');
+var userBtnThanasis = document.getElementById('userBtnThanasis');
+[userBtnXristos, userBtnThanasis].forEach(function(btn){
+  btn.addEventListener('click', function(){
+    userBtnXristos.classList.remove('active');
+    userBtnThanasis.classList.remove('active');
+    btn.classList.add('active');
+    selectedUser = btn.dataset.user;
+  });
+});
+
+/* ---------------- Τρόπος εκτέλεσης selector ---------------- */
+var selectedMode = 'bookmarklet';
+var modeBtnBookmarklet = document.getElementById('modeBtnBookmarklet');
+var modeBtnClaude = document.getElementById('modeBtnClaude');
+var actionsBookmarklet = document.getElementById('actionsBookmarklet');
+var actionsClaude = document.getElementById('actionsClaude');
+var resultEl = document.getElementById('result');
+var resultClaudeEl = document.getElementById('resultClaude');
+[modeBtnBookmarklet, modeBtnClaude].forEach(function(btn){
+  btn.addEventListener('click', function(){
+    modeBtnBookmarklet.classList.remove('active');
+    modeBtnClaude.classList.remove('active');
+    btn.classList.add('active');
+    selectedMode = btn.dataset.mode;
+    var isBookmarklet = selectedMode === 'bookmarklet';
+    actionsBookmarklet.style.display = isBookmarklet ? 'block' : 'none';
+    actionsClaude.style.display = isBookmarklet ? 'none' : 'block';
+    resultEl.classList.remove('show');
+    resultClaudeEl.classList.remove('show');
+  });
 });
 
 /* ---------------- Bookmarklet payload (readable template) ---------------- */
@@ -504,12 +615,33 @@ function buildBookmarklet(friendly){
   return 'javascript:' + encodeURIComponent(payload);
 }
 
+function buildClaudeMessage(friendly, user){
+  var today = new Date();
+  var dd = String(today.getDate()).padStart(2,'0');
+  var mm = String(today.getMonth()+1).padStart(2,'0');
+  var yyyy = today.getFullYear();
+  return 'Θέλω να δημιουργήσεις ΚΗΔ στο Κτηματολόγιο (ktimatologio.gov.gr) — πλήρης αυτοματοποίηση με τα cookies που επισυνάπτω.\n\n' +
+    'Μηχανικός/λογαριασμός: ' + user + '\n' +
+    'Φιλική Ονομασία διαγράμματος: ' + friendly + '\n\n' +
+    'Βήματα: μπες στο ktimatologio.gov.gr/Professionals/Diagrams/Main/Home με τα cookies μου, πάτησε ' +
+    '«Εισαγωγή Διαγράμματος», συμπλήρωσε τη φόρμα με τις παρακάτω τιμές, πάτησε Αποθήκευση, και δώσε μου τον νέο κωδικό ΚΗΔ.\n\n' +
+    'Τίτλος Διαγράμματος: Τοπογραφικό διάγραμμα — ' + friendly + '\n' +
+    'Είδος Διαγράμματος: ' + DEFAULTS.kind + '\n' +
+    'Ημ/νία Σύνταξης: ' + dd + '/' + mm + '/' + yyyy + '\n' +
+    '1: ' + DEFAULTS.ratio + '\n' +
+    'Μεθοδολογία Εξάρτησης: ' + DEFAULTS.methodology + '\n' +
+    'Δήμος: ' + DEFAULTS.municipality + '\n\n' +
+    'Το JSON με τα cookies το επικολλάω αμέσως μετά από αυτό το μήνυμα.';
+}
+
 var form = document.getElementById('intake');
 var result = document.getElementById('result');
 var bmLink = document.getElementById('bookmarkletLink');
 var bmLabel = document.getElementById('bmLabel');
 var bmLabel2 = document.getElementById('bmLabel2');
 var codeOut = document.getElementById('codeOut');
+var claudeMsgOut = document.getElementById('claudeMsgOut');
+var claudeUserLabel1 = document.getElementById('claudeUserLabel1');
 
 form.addEventListener('submit', function(e){
   e.preventDefault();
@@ -522,13 +654,31 @@ form.addEventListener('submit', function(e){
   }
   input.classList.remove('invalid');
 
+  if (selectedMode === 'claude'){
+    claudeMsgOut.value = buildClaudeMessage(friendly, selectedUser);
+    claudeUserLabel1.textContent = selectedUser;
+    resultClaudeEl.classList.add('show');
+    result.classList.remove('show');
+    resultClaudeEl.scrollIntoView({behavior:'smooth', block:'start'});
+    return;
+  }
+
   var uri = buildBookmarklet(friendly);
   bmLink.href = uri;
   bmLabel.textContent = friendly;
   bmLabel2.textContent = friendly;
   codeOut.value = uri;
   result.classList.add('show');
+  resultClaudeEl.classList.remove('show');
   result.scrollIntoView({behavior:'smooth', block:'start'});
+});
+
+document.getElementById('copyClaudeBtn').addEventListener('click', async function(){
+  try{
+    await navigator.clipboard.writeText(claudeMsgOut.value);
+    this.textContent = 'Αντιγράφηκε ✓';
+    setTimeout(() => { this.textContent = 'Αντιγραφή μηνύματος'; }, 1600);
+  }catch(err){ console.error(err); }
 });
 
 document.getElementById('copyCodeBtn').addEventListener('click', async function(){
