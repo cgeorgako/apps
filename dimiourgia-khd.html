@@ -213,10 +213,10 @@
 
     <ol class="steps" style="margin-top:22px;">
       <li>Πήγαινε στο <code>ktimatologio.gov.gr/Professionals/Diagrams/Main/Home</code>, ήδη συνδεδεμένος, και πάτησε <b>«Εισαγωγή Διαγράμματος»</b>.</li>
-      <li>Στη φόρμα που ανοίγει, <b>πάτησε το bookmarklet</b> από τη γραμμή σελιδοδεικτών. Θα συμπληρώσει τα πεδία, θα πατήσει Αποθήκευση και θα περιμένει τη νέα σελίδα.</li>
-      <li>Μέσα σε λίγα δευτερόλεπτα θα εμφανιστεί πάνω-δεξιά ένα πλαίσιο με τον <b>νέο κωδικό ΚΗΔ</b> (αντιγράφεται αυτόματα στο clipboard).</li>
-      <li>Αν κάτι δεν εντοπιστεί αυτόματα (πιθανό σε πρώτη χρήση, καθώς η ακριβής δομή της σελίδας του gov.gr δεν έχει ελεγχθεί εκ των προτέρων), θα δεις ένα μήνυμα με το τι λείπει — συμπλήρωσέ το χειροκίνητα και πάτησε Αποθήκευση εσύ.</li>
-      <li>Αν η σελίδα μετά την Αποθήκευση φορτώσει εξ ολοκλήρου από την αρχή (και όχι μέσα στην ίδια σελίδα), το πλαίσιο με τον ΚΗΔ μπορεί να μην προλάβει να εμφανιστεί — πάτησε ξανά το ίδιο bookmarklet πάνω στη νέα σελίδα και θα διαβάσει τον ΚΗΔ απευθείας.</li>
+      <li>Στη φόρμα που ανοίγει, <b>πάτησε το bookmarklet</b> από τη γραμμή σελιδοδεικτών. Θα συμπληρώσει τα πεδία και θα πατήσει Αποθήκευση.</li>
+      <li>Η φόρμα του gov.gr είναι κλασική (όχι single-page): μετά το Αποθήκευση η σελίδα συνήθως <b>φορτώνει εξ ολοκλήρου από την αρχή</b>, οπότε το πλαίσιο με τον ΚΗΔ πιθανότατα δεν θα προλάβει να εμφανιστεί στο πρώτο κλικ — αυτό είναι αναμενόμενο.</li>
+      <li><b>Πάτησε το ίδιο bookmarklet ξανά</b> πάνω στη νέα σελίδα («Φόρτωση Αρχείων»). Αυτή τη φορά δεν θα βρει φόρμα να συμπληρώσει — θα διαβάσει κατευθείαν τον <b>νέο κωδικό ΚΗΔ</b> από τη σελίδα και θα τον δείξει/αντιγράψει στο clipboard.</li>
+      <li>Αν κάποιο πεδίο δεν εντοπιστεί στο πρώτο βήμα, θα δεις ένα μήνυμα με το τι λείπει — συμπλήρωσέ το χειροκίνητα και πάτησε Αποθήκευση εσύ.</li>
     </ol>
   </div>
 
@@ -292,24 +292,35 @@ var BOOKMARKLET_TEMPLATE = String(function(){
   var LOG = [];
   function log(msg){ LOG.push(msg); try{ console.log('[ΚΗΔ] ' + msg); }catch(e){} }
   function norm(s){ return (s || '').replace(/\s+/g, ' ').trim(); }
+  function fold(s){ return norm(s).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase(); }
 
   function findLabelEl(text){
-    var all = document.querySelectorAll('label, mat-label, .mat-form-field-label, legend, span, div, p, dt');
+    var target = fold(text);
+    var all = document.querySelectorAll('*');
+    var best = null, bestLen = Infinity;
     for (var i = 0; i < all.length; i++){
       var el = all[i];
-      if (el.children.length > 2) continue;
+      if (el.children.length > 5) continue;
       var t = norm(el.textContent);
-      if (t === text || t.indexOf(text) === 0) return el;
+      if (!t) continue;
+      var tf = fold(t);
+      if (tf.indexOf(target) !== -1 && t.length < target.length + 30){
+        if (t.length < bestLen){ best = el; bestLen = t.length; }
+      }
     }
-    return null;
+    return best;
   }
 
   function findRatioLabel(){
-    var all = document.querySelectorAll('label, mat-label, span, div');
+    var all = document.querySelectorAll('*');
+    var best = null, bestLen = Infinity;
     for (var i = 0; i < all.length; i++){
-      if (/^1\s*:$/.test(norm(all[i].textContent))) return all[i];
+      var el = all[i];
+      if (el.children.length > 5) continue;
+      var t = norm(el.textContent);
+      if (/^1\s*:$/.test(t) && t.length < bestLen){ best = el; bestLen = t.length; }
     }
-    return null;
+    return best;
   }
 
   function fieldContainerFor(labelEl){
@@ -344,8 +355,9 @@ var BOOKMARKLET_TEMPLATE = String(function(){
 
   function fillNativeSelect(el, value, labelText){
     var opts = el.querySelectorAll('option');
+    var target = fold(value);
     for (var i = 0; i < opts.length; i++){
-      if (norm(opts[i].textContent).toUpperCase().indexOf(value.toUpperCase()) !== -1){
+      if (fold(opts[i].textContent).indexOf(target) !== -1){
         el.value = opts[i].value;
         el.dispatchEvent(new Event('change', {bubbles: true}));
         log('Επιλέχθηκε "' + labelText + '" = ' + value);
@@ -358,10 +370,11 @@ var BOOKMARKLET_TEMPLATE = String(function(){
 
   function fillMatSelect(el, value, labelText){
     el.click();
+    var target = fold(value);
     setTimeout(function(){
       var opts = document.querySelectorAll('mat-option, [role="option"], li');
       for (var i = 0; i < opts.length; i++){
-        if (norm(opts[i].textContent).toUpperCase().indexOf(value.toUpperCase()) !== -1){
+        if (fold(opts[i].textContent).indexOf(target) !== -1){
           opts[i].click();
           log('Επιλέχθηκε (dropdown) "' + labelText + '" = ' + value);
           return;
@@ -398,9 +411,11 @@ var BOOKMARKLET_TEMPLATE = String(function(){
   }
 
   function findButtonByText(text){
-    var btns = document.querySelectorAll('button, a.btn, input[type=submit]');
+    var btns = document.querySelectorAll('button, a.btn, input[type=submit], input[type=button]');
+    var target = fold(text);
     for (var i = 0; i < btns.length; i++){
-      if (norm(btns[i].textContent).toUpperCase().indexOf(text.toUpperCase()) !== -1) return btns[i];
+      var t = fold(btns[i].textContent || btns[i].value);
+      if (t && t.indexOf(target) !== -1) return btns[i];
     }
     return null;
   }
