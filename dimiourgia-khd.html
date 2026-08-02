@@ -232,6 +232,19 @@
     </ol>
   </details>
 
+  <details class="flow-ref" id="diagBox">
+    <summary>🔧 Διαγνωστικό DOM (μόνο για αντιμετώπιση προβλημάτων — δεν αλλάζει/υποβάλλει τίποτα)</summary>
+    <div style="font-size:12.5px; color:var(--ink-dim); margin-top:12px; line-height:1.6;">
+      Αν το κύριο bookmarklet δεν εντοπίζει κάποια πεδία στο gov.gr, δημιούργησε (με τον ίδιο τρόπο —
+      αντιγραφή κώδικα → χειροκίνητη προσθήκη σελιδοδείκτη) αυτό το δεύτερο, διαγνωστικό bookmarklet.
+      Είναι <b>μόνο ανάγνωση</b> — δεν συμπληρώνει και δεν υποβάλλει τίποτα. Τρέξ' το στη φόρμα του
+      gov.gr, θα αντιγράψει στο clipboard μια περιγραφή της δομής της σελίδας. <b>Έλεγξε πριν το
+      στείλεις</b> μήπως περιέχει προσωπικά στοιχεία (ΑΦΜ, ονόματα) και αφαίρεσέ τα.
+    </div>
+    <textarea id="diagCodeOut" readonly style="margin-top:10px;"></textarea>
+    <button type="button" class="copyBtn" id="copyDiagBtn">Αντιγραφή διαγνωστικού κώδικα</button>
+  </details>
+
 </div>
 
 <footer>Τεχνικό Γραφείο Μελετών — Γεωργακόπουλος Χρήστος · ΑΜ ΤΕΕ 101893 · Αμαλιάδα Ηλείας</footer>
@@ -508,6 +521,99 @@ document.getElementById('copyCodeBtn').addEventListener('click', async function(
     await navigator.clipboard.writeText(codeOut.value);
     this.textContent = 'Αντιγράφηκε ✓';
     setTimeout(() => { this.textContent = 'Αντιγραφή κώδικα'; }, 1600);
+  }catch(err){ console.error(err); }
+});
+
+/* ---------------- Read-only diagnostic bookmarklet ---------------- */
+var DIAG_TEMPLATE = String(function(){
+  function norm(s){ return (s || '').replace(/\s+/g, ' ').trim(); }
+  function shortHTML(el, maxLen){
+    if (!el) return '(none)';
+    var h = el.outerHTML || '';
+    return h.length > maxLen ? h.slice(0, maxLen) + '...' : h;
+  }
+  var out = [];
+
+  var tagCounts = {};
+  document.querySelectorAll('*').forEach(function(el){
+    var tn = el.tagName.toLowerCase();
+    if (tn.indexOf('-') !== -1) tagCounts[tn] = (tagCounts[tn] || 0) + 1;
+  });
+  var tagList = Object.keys(tagCounts).sort().map(function(t){ return t + ' x' + tagCounts[t]; });
+  out.push('=== CUSTOM TAGS (' + tagList.length + ') ===');
+  out.push(tagList.join(', ') || '(none found)');
+
+  out.push('');
+  out.push('=== TARGET FIELD DETAILS ===');
+  var targets = ['Φιλική Ονομασία', 'Τίτλος Διαγράμματος', 'Είδος Διαγράμματος', 'Ημ/νία Σύνταξης', '1 :', 'Μεθοδολογία Εξάρτησης', 'Δήμος'];
+  var allEls = document.querySelectorAll('*');
+  targets.forEach(function(target){
+    var found = 0;
+    for (var i = 0; i < allEls.length && found < 2; i++){
+      var el = allEls[i];
+      if (el.children.length > 5) continue;
+      var t = norm(el.textContent);
+      if (!t) continue;
+      if (t.toUpperCase().indexOf(target.toUpperCase()) !== -1 && t.length < target.length + 25){
+        found++;
+        var p1 = el.parentElement, p2 = p1 ? p1.parentElement : null;
+        out.push('MATCH "' + target + '" tag=' + el.tagName + ' class="' + (el.className || '') + '"');
+        out.push('  el: ' + shortHTML(el, 150));
+        out.push('  parent(' + (p1 ? p1.tagName : '') + '): ' + shortHTML(p1, 320));
+        out.push('  grandparent(' + (p2 ? p2.tagName : '') + '): ' + shortHTML(p2, 150));
+      }
+    }
+    if (found === 0) out.push('NOT FOUND: "' + target + '"');
+  });
+
+  out.push('');
+  out.push('=== BUTTONS ===');
+  var btnCount = 0;
+  document.querySelectorAll('button, a.btn, input[type=submit], input[type=button]').forEach(function(b){
+    if (btnCount++ > 40) return;
+    out.push(b.tagName + ' class="' + (b.className || '') + '": "' + norm(b.textContent || b.value) + '"');
+  });
+
+  out.push('');
+  out.push('=== ALL SHORT LABEL-LIKE TEXTS (unique, first 100) ===');
+  var seen = {}; var cnt = 0;
+  document.querySelectorAll('label, mat-label, legend, span, div, p, dt, td, th, strong, b, small').forEach(function(el){
+    if (cnt > 100) return;
+    var t = norm(el.textContent);
+    if (!t || t.length < 2 || t.length > 60) return;
+    if (el.children.length > 4) return;
+    var key = el.tagName + '|' + t;
+    if (seen[key]) return; seen[key] = true; cnt++;
+    out.push(el.tagName + ' [' + (el.className || '') + ']: "' + t + '"');
+  });
+
+  var text = out.join('\n');
+  try{ console.log(text); }catch(e){}
+
+  function fallbackShow(){
+    var ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.cssText = 'position:fixed;top:10px;left:10px;width:90vw;height:80vh;z-index:2147483647;background:#111;color:#0f0;font-family:monospace;font-size:11px;padding:10px';
+    document.body.appendChild(ta);
+    ta.focus(); ta.select();
+    alert('[ΚΗΔ-diag] Δεν έγινε αυτόματη αντιγραφή. Το κείμενο εμφανίστηκε σε πεδίο πάνω στη σελίδα — κάνε Ctrl/Cmd+C και επικόλλησέ το στο chat.');
+  }
+  if (navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(text).then(function(){
+      alert('[ΚΗΔ-diag] Αντιγράφηκε στο clipboard (' + text.length + ' χαρακτήρες).\nΕπικόλλησέ το στο chat.\n\nΑν δεις προσωπικά στοιχεία (ΑΦΜ, ονόματα) μέσα στο κείμενο, αφαίρεσέ τα πριν το στείλεις.');
+    }).catch(fallbackShow);
+  } else {
+    fallbackShow();
+  }
+}).replace(/^function\s*\(\)\s*\{/, '(function(){').replace(/\}$/, '})()');
+
+document.getElementById('diagCodeOut').value = 'javascript:' + encodeURIComponent(DIAG_TEMPLATE);
+
+document.getElementById('copyDiagBtn').addEventListener('click', async function(){
+  try{
+    await navigator.clipboard.writeText(document.getElementById('diagCodeOut').value);
+    this.textContent = 'Αντιγράφηκε ✓';
+    setTimeout(() => { this.textContent = 'Αντιγραφή διαγνωστικού κώδικα'; }, 1600);
   }catch(err){ console.error(err); }
 });
 </script>
