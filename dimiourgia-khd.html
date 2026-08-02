@@ -188,22 +188,36 @@
 
   <div id="result">
     <div class="sec-title">Bookmarklet έτοιμο</div>
+
     <div class="bookmark-box">
-      <div class="drag-hint">Σύρε το κουμπί στη γραμμή σελιδοδεικτών (bookmarks bar) του browser σου</div>
-      <a class="bookmarklet" id="bookmarkletLink" href="#">📌 ΚΗΔ · <span id="bmLabel">…</span></a>
-    </div>
-    <ol class="steps">
-      <li><b>Σύρε</b> το παραπάνω κουμπί στη γραμμή σελιδοδεικτών (αν δεν φαίνεται, ενεργοποίησέ τη με Ctrl/⌘+Shift+B).</li>
-      <li>Πήγαινε στο <code>ktimatologio.gov.gr</code>, ήδη συνδεδεμένος, και άνοιξε τη φόρμα <b>«Δημιουργία Διαγράμματος»</b>.</li>
-      <li><b>Πάτησε το bookmarklet.</b> Θα συμπληρώσει τη φόρμα, θα πατήσει Αποθήκευση και θα περιμένει τη νέα σελίδα.</li>
-      <li>Μέσα σε λίγα δευτερόλεπτα θα εμφανιστεί πάνω-δεξιά ένα πλαίσιο με τον <b>νέο κωδικό ΚΗΔ</b> (αντιγράφεται αυτόματα στο clipboard).</li>
-      <li>Αν κάτι δεν εντοπιστεί αυτόματα (πιθανό σε πρώτη χρήση, καθώς η ακριβής δομή της σελίδας του gov.gr δεν έχει ελεγχθεί εκ των προτέρων), θα δεις ένα μήνυμα με το τι λείπει — συμπλήρωσέ το χειροκίνητα και πάτησε Αποθήκευση εσύ.</li>
-    </ol>
-    <details class="code-fallback">
-      <summary>Εναλλακτικά: αντιγραφή κώδικα (αν το drag δεν δουλέψει)</summary>
+      <div class="drag-hint"><b>Πιο αξιόπιστος τρόπος</b> — δημιουργία μέσω μενού σελιδοδεικτών (όχι drag)</div>
+      <ol class="steps" style="text-align:left; margin-top:2px;">
+        <li>Αντέγραψε τον κώδικα από το πλαίσιο παρακάτω (κουμπί <b>«Αντιγραφή κώδικα»</b>).</li>
+        <li>Στο Chrome: <code>⋮</code> menu → <b>Σελιδοδείκτες</b> → <b>Διαχείριση σελιδοδεικτών</b> (ή <code>Ctrl/⌘+Shift+O</code>).</li>
+        <li>Δεξί κλικ στη γραμμή σελιδοδεικτών (ή μέσα στη λίστα) → <b>«Προσθήκη νέου σελιδοδείκτη»</b>.</li>
+        <li>Όνομα: <i>ΚΗΔ · <span id="bmLabel2">…</span></i> — Διεύθυνση URL: <b>επικόλλησε</b> τον κώδικα που αντέγραψες.</li>
+        <li>Αποθήκευση. Θα εμφανιστεί ως κουμπί στη γραμμή σελιδοδεικτών σου.</li>
+      </ol>
       <textarea id="codeOut" readonly></textarea>
       <button type="button" class="copyBtn" id="copyCodeBtn">Αντιγραφή κώδικα</button>
+    </div>
+
+    <details class="code-fallback" style="margin-top:16px;">
+      <summary>Εναλλακτικά: σύρσιμο (drag) — μπορεί να αποτύχει αν προσγειωθεί στη γραμμή διευθύνσεων</summary>
+      <div style="margin-top:10px; font-size:12.5px; color:var(--ink-dim);">
+        Αν σέρνοντας δεις σφάλμα Google «malformed request», σημαίνει ότι το bookmarklet έπεσε στη
+        γραμμή διευθύνσεων/αναζήτησης αντί στη γραμμή σελιδοδεικτών — χρησιμοποίησε τη μέθοδο αντιγραφής παραπάνω.
+      </div>
+      <div style="margin-top:10px;"><a class="bookmarklet" id="bookmarkletLink" href="#">📌 ΚΗΔ · <span id="bmLabel">…</span></a></div>
     </details>
+
+    <ol class="steps" style="margin-top:22px;">
+      <li>Πήγαινε στο <code>ktimatologio.gov.gr/Professionals/Diagrams/Main/Home</code>, ήδη συνδεδεμένος, και πάτησε <b>«Εισαγωγή Διαγράμματος»</b>.</li>
+      <li>Στη φόρμα που ανοίγει, <b>πάτησε το bookmarklet</b> από τη γραμμή σελιδοδεικτών. Θα συμπληρώσει τα πεδία, θα πατήσει Αποθήκευση και θα περιμένει τη νέα σελίδα.</li>
+      <li>Μέσα σε λίγα δευτερόλεπτα θα εμφανιστεί πάνω-δεξιά ένα πλαίσιο με τον <b>νέο κωδικό ΚΗΔ</b> (αντιγράφεται αυτόματα στο clipboard).</li>
+      <li>Αν κάτι δεν εντοπιστεί αυτόματα (πιθανό σε πρώτη χρήση, καθώς η ακριβής δομή της σελίδας του gov.gr δεν έχει ελεγχθεί εκ των προτέρων), θα δεις ένα μήνυμα με το τι λείπει — συμπλήρωσέ το χειροκίνητα και πάτησε Αποθήκευση εσύ.</li>
+      <li>Αν η σελίδα μετά την Αποθήκευση φορτώσει εξ ολοκλήρου από την αρχή (και όχι μέσα στην ίδια σελίδα), το πλαίσιο με τον ΚΗΔ μπορεί να μην προλάβει να εμφανιστεί — πάτησε ξανά το ίδιο bookmarklet πάνω στη νέα σελίδα και θα διαβάσει τον ΚΗΔ απευθείας.</li>
+    </ol>
   </div>
 
   <details class="flow-ref">
@@ -212,8 +226,8 @@
       <li>sso.tee.gr — login με κωδικούς χρήστη (χειροκίνητα, μία φορά)</li>
       <li>services.tee.gr/extauthws/sso/consent.jsp — συναίνεση (χειροκίνητα)</li>
       <li>ktimatologio.gov.gr/Professionals/Home/EngineerStart</li>
-      <li>ktimatologio.gov.gr/Professionals/Diagrams/Main/Home</li>
-      <li>ktimatologio.gov.gr/Professionals/Diagrams/Main/CreateEdit — εδώ πατιέται το bookmarklet</li>
+      <li>ktimatologio.gov.gr/Professionals/Diagrams/Main/Home — κουμπί <b>«Εισαγωγή Διαγράμματος»</b></li>
+      <li>Φόρμα «Στοιχεία Διαγράμματος» — εδώ πατιέται το bookmarklet</li>
       <li>Μετά την Αποθήκευση: σελίδα «Φόρτωση Αρχείων» με τον κωδικό ΚΗΔ επάνω αριστερά — το bookmarklet τον διαβάζει μόνο του</li>
     </ol>
   </details>
@@ -466,6 +480,7 @@ var form = document.getElementById('intake');
 var result = document.getElementById('result');
 var bmLink = document.getElementById('bookmarkletLink');
 var bmLabel = document.getElementById('bmLabel');
+var bmLabel2 = document.getElementById('bmLabel2');
 var codeOut = document.getElementById('codeOut');
 
 form.addEventListener('submit', function(e){
@@ -482,6 +497,7 @@ form.addEventListener('submit', function(e){
   var uri = buildBookmarklet(friendly);
   bmLink.href = uri;
   bmLabel.textContent = friendly;
+  bmLabel2.textContent = friendly;
   codeOut.value = uri;
   result.classList.add('show');
   result.scrollIntoView({behavior:'smooth', block:'start'});
