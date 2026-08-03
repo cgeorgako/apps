@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="el">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Αναλυτικός Προϋπολογισμός Ν.4495/17 - Γεωργακόπουλος & Φούντας</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght=300;400;500;600;700&display=swap');
+        body { font-family: 'Inter', sans-serif; }
+    </style>
+</head>
+<body class="bg-gray-5xl text-gray-8xl min-h-screen p-4 md:p-8">
+    <div class="max-w-6xl mx-auto bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden">
+        <div class="bg-slate-900 text-white p-6 flex flex-col md:flex-row justify-between items-center border-b border-slate-800">
+            <div class="text-center md:text-left mb-4 md:mb-0">
+                <h1 class="text-xl font-bold tracking-wide">ΜΕΛΕΤΗΤΙΚΟ ΤΕΧΝΙΚΟ ΓΡΑΦΕΙΟ ΠΟΛΙΤΙΚΩΝ ΜΗΧΑΝΙΚΩΝ</h1>
+                <p class="text-sm text-slate-400 mt-1">ΧΡΗΣΤΟΣ ΓΕΩΡΓΑΚΟΠΟΥΛΟΣ & ΑΘΑΝΑΣΙΟΣ ΦΟΥΝΤΑΣ</p>
+                <p class="text-xs text-slate-500">Εφαρμογή Υπολογισμού Αναλυτικού Προϋπολογισμού (Ν. 4495/2017)</p>
+            </div>
+            <div class="text-center md:text-right">
+                <span class="text-xs bg-amber-500/20 text-amber-400 font-semibold px-3 py-1 rounded-full border border-amber-500/30">Παράρτημα Β'</span>
+            </div>
+        </div>
+        <div class="p-6 grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <div class="lg:col-span-1 bg-gray-50 p-5 rounded-xl border border-gray-200/60 space-y-5">
+                <h2 class="text-lg font-semibold text-slate-800 flex items-center gap-2"><span>🛠️</span> Προσθήκη Εργασίας</h2>
+                <div>
+                    <label class="block text-xs font-medium text-gray-500 mb-1">ΕΠΙΛΟΓΗ ΚΑΤΗΓΟΡΙΑΣ/ΑΥΘΑΙΡΕΣΙΑΣ</label>
+                    <select id="itemSelect" class="w-full bg-white border border-gray-300 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-slate-500 focus:outline-none" onchange="updateDynamicFields()"></select>
+                </div>
+                <div id="dynamicFields" class="space-y-4 bg-white p-4 rounded-lg border border-gray-200"></div>
+                <button onclick="addItem()" class="w-full bg-slate-900 hover:bg-slate-800 text-white font-medium py-2.5 px-4 rounded-lg text-sm transition-colors duration-250 shadow-sm cursor-pointer">Προσθήκη στον Πίνακα →</button>
+            </div>
+            <div class="lg:col-span-2 space-y-6">
+                <div class="bg-white rounded-xl border border-gray-200 p-4 shadow-xs">
+                    <h2 class="text-lg font-semibold text-slate-800 mb-4 flex items-center justify-between">
+                        <span>📋 Τρέχουσες Εργασίες</span>
+                        <span id="totalBudgetBadge" class="text-sm bg-slate-100 text-slate-800 font-bold px-3 py-1 rounded-md">Σύνολο: 0,00 €</span>
+                    </h2>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left border-collapse text-sm">
+                            <thead>
+                                <tr class="border-b border-gray-200 bg-gray-50 text-gray-600 font-medium">
+                                    <th class="p-3">Κωδ.</th>
+                                    <th class="p-3">Περιγραφή Εργασίας</th>
+                                    <th class="p-3 text-right">Ποσότητα</th>
+                                    <th class="p-3 text-right">Τιμή (€)</th>
+                                    <th class="p-3 text-right">Σύνολο (€)</th>
+                                    <th class="p-3 text-center">Ενέργεια</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tableBody">
+                                <tr><td colspan="6" class="text-center p-6 text-gray-400 italic">Δεν έχουν προστεθεί εργασίες ακόμα.</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="border-b border-gray-200">
+                    <nav class="flex space-x-4">
+                        <button onclick="switchTab('tabText')" id="btnTabText" class="border-b-2 border-slate-900 text-slate-900 px-4 py-2 text-sm font-medium cursor-pointer">📄 Τεχνική Έκθεση / Επιμέτρηση</button>
+                        <button onclick="switchTab('tabTable')" id="btnTabTable" class="border-b-2 border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 px-4 py-2 text-sm font-medium cursor-pointer">📊 Έτοιμο Κείμενο Πίνακα</button>
+                    </nav>
+                </div>
+                <div id="tabText" class="bg-gray-50 p-4 rounded-xl border border-gray-200">
+                    <textarea id="outputDescription" class="w-full h-64 bg-transparent border-0 resize-none focus:outline-none text-sm leading-relaxed" readonly placeholder="Εδώ θα εμφανιστεί το τεχνικό κείμενο αναλυτικής επιμέτρησης..."></textarea>
+                </div>
+                <div id="tabTable" class="bg-gray-50 p-4 rounded-xl border border-gray-200 hidden">
+                    <textarea id="outputTableText" class="w-full h-64 bg-transparent border-0 resize-none focus:outline-none font-mono text-xs leading-relaxed" readonly placeholder="Εδώ θα εμφανιστεί ο πίνακας σε μορφή κειμένου..."></textarea>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script>
+        const budgetItems = {
+            1: { code: "19.01", desc: "Στέγαστρο με μεταλλικό σκελετό και επικάλυψη ξύλινη κεραμοσκεπή", unit: "τ.μ.", price: 20.00, type: "area" },
+            2: { code: "15.04", desc: "Στέγαστρο με μεταλλικό σκελετό και επικάλυψη μεταλλική στέγη λαμαρίνας", unit: "τ.μ.", price: 23.48, type: "area" },
+            3: { code: "15.07", desc: "Στέγαστρο με μεταλλικό σκελετό και επικάλυψη μεταλλική στέγη με πάνελ", unit: "τ.μ.", price: 30.00, type: "area" },
+            4: { code: "15.03", desc: "Ξύλινο στέγαστρο με ξύλινο σκελετό και επικάλυψη ξύλινη κεραμοσκεπή (αυτοφερόμενη)", unit: "τ.μ.", price: 70.44, type: "area" },
+            5: { code: "15.02", desc: "Ξύλινο στέγαστρο με ξύλινο σκελετό και επικάλυψη λαμαρίνας", unit: "τ.μ.", price: 41.08, type: "area" },
+            6: { code: "15.07", desc: "Ξύλινο στέγαστρο με ξύλινο σκελετό και επικάλυψη πάνελ αλουμινίου", unit: "τ.μ.", price: 30.00, type: "area" },
+            7: { code: "19.04", desc: "Ξύλινη πέργκολα (Από ξυλεία χωρίς λούστρο)", unit: "κ.μ.", price: 550.00, type: "volume_wood" },
+            8: { code: "19.01", desc: "Σιδερένια πέργκολα (Από μεταλλικό σκελετό)", unit: "τ.μ.", price: 20.00, type: "area" },
+            9: { code: "19.02", desc: "Πέργκολα Αλουμινίου", unit: "τ.μ.", price: 25.00, type: "area" },
+            10: { code: "3.02", desc: "Δάπεδα από ελαφρά οπλισμένο σκυρόδεμα (με πλέγμα)", unit: "κ.μ.", price: 105.64, type: "volume" },
+            11: { code: "1.04", desc: "Εκσκαφές θεμελίων γαιώδεις με μηχανικά μέσα", unit: "κ.μ.", price: 5.28, type: "volume" },
+            12: { code: "2.04", desc: "Καθαίρεση οπλισμένου σκυροδέματος (Αποξήλωση πλάκας Ω.Σ.)", unit: "κ.μ.", price: 64.56, type: "volume" },
+            13: { code: "2.01", desc: "Καθαίρεση τοιχοποιίας με συνήθη κονιάματα", unit: "κ.μ.", price: 11.74, type: "wall_demolition" },
+            14: { code: "2.08", desc: "Αποξήλωση ξύλινης κεραμοσκεπής", unit: "τ.μ.", price: 1.50, type: "roof_demolition" },
+            15: { code: "15.03", desc: "Νέα ξύλινη κεραμοσκεπή (Επιφάνεια κάτοψης x 1.2)", unit: "τ.μ.", price: 70.44, type: "new_roof" },
+            16: { code: "3.01", desc: "Νέα πλάκα Ω.Σ. από οπλισμένο σκυρόδεμα", unit: "κ.μ.", price: 146.74, type: "volume" },
+            17: { code: "15.04", desc: "Νέα μεταλλική στέγη με επικάλυψη λαμαρίνας", unit: "τ.μ.", price: 23.48, type: "area" },
+            18: { code: "4.03", desc: "Νέα τοιχοποιία δρομική", unit: "τ.μ.", price: 8.22, type: "wall_new" },
+            19: { code: "4.04", desc: "Νέα τοιχοποιία μπατική", unit: "τ.μ.", price: 15.26, type: "wall_new" },
+            20: { code: "7.07", desc: "Διάστρωση με κεραμικά πλακίδια ή πορσελάνης", unit: "τ.μ.", price: 35.22, type: "area" },
+            21: { code: "2.07", desc: "Αποξήλωση κουφωμάτων (ξύλινων ή σιδηρών)", unit: "τ.μ.", price: 8.80, type: "apoxilosi_kouf" },
+            22: { code: "8.17", desc: "Νέα κουφώματα αλουμινίου (ανοιγόμενα)", unit: "τ.μ.", price: 105.64, type: "new_kouf" },
+            23: { code: "MIXED", desc: "Περίφραξη με συρματόπλεγμα & σενάζ (Σύνθετος Υπολογισμός)", unit: "- ", price: 0, type: "fence_complex" }
+        };
+        const prices = { passaloi: 1.50, plegma: 7.50, senaz: 105.64 };
+        let addedItems = [];
+        function initSelect() {
+            const select = document.getElementById("itemSelect");
+            select.innerHTML = "";
+            for (let key in budgetItems) {
+                let opt = document.createElement("option");
+                opt.value = key;
+                opt.innerText = `${key}. ${budgetItems[key].desc}`;
+                select.appendChild(opt);
+            }
+            updateDynamicFields();
+        }
+        function updateDynamicFields() {
+            const id = document.getElementById("itemSelect").value;
+            const item = budgetItems[id];
+            const container = document.getElementById("dynamicFields");
+            container.innerHTML = "";
+            if (item.type === "area") {
+                container.innerHTML = `<div><label class="block text-xs text-gray-500 font-medium mb-1">ΕΠΙΦΑΝΕΙΑ (τ.μ.)</label><input type="number" id="field_area" class="w-full border rounded p-2 text-sm" step="0.01" value="20"></div>`;
+            } else if (item.type === "volume") {
+                container.innerHTML = `<div><label class="block text-xs text-gray-500 font-medium mb-1">ΕΠΙΦΑΝΕΙΑ (τ.μ.)</label><input type="number" id="field_area" class="w-full border rounded p-2 text-sm" step="0.01" value="20"></div><div><label class="block text-xs text-gray-500 font-medium mb-1">ΠΑΧΟΣ / ΥΨΟΣ (μ.)</label><input type="number" id="field_thickness" class="w-full border rounded p-2 text-sm" step="0.01" value="0.15"></div>`;
+            } else if (item.type === "volume_wood") {
+                container.innerHTML = `<div><label class="block text-xs text-gray-500 font-medium mb-1">ΕΠΙΦΑΝΕΙΑ ΚΑΤΟΨΗΣ (τ.μ.)</label><input type="number" id="field_area" class="w-full border rounded p-2 text-sm" step="0.01" value="20"></div><div><label class="block text-xs text-gray-500 font-medium mb-1">ΕΚΤΙΜΩΜΕΝΟΣ ΟΓΚΟΣ ΞΥΛΕΙΑΣ (κ.μ. ανά τ.μ.)</label><input type="number" id="field_factor" class="w-full border rounded p-2 text-sm" step="0.001" value="0.035"></div>`;
+            } else if (item.type === "wall_demolition") {
+                container.innerHTML = `<div><label class="block text-xs text-gray-500 font-medium mb-1">ΜΗΚΟΣ (μ.)</label><input type="number" id="field_length" class="w-full border rounded p-2 text-sm" step="0.01"></div><div><label class="block text-xs text-gray-500 font-medium mb-1">ΥΨΟΣ (μ.)</label><input type="number" id="field_height" class="w-full border rounded p-2 text-sm" step="0.01"></div><div><label class="block text-xs text-gray-500 font-medium mb-1">ΠΑΧΟΣ ΤΟΙΧΟΥ (μ.)</label><input type="number" id="field_thickness" class="w-full border rounded p-2 text-sm" step="0.01" value="0.10"></div>`;
+            } else if (item.type === "wall_new") {
+                container.innerHTML = `<div><label class="block text-xs text-gray-500 font-medium mb-1">ΜΗΚΟΣ (μ.)</label><input type="number" id="field_length" class="w-full border rounded p-2 text-sm" step="0.01"></div><div><label class="block text-xs text-gray-500 font-medium mb-1">ΥΨΟΣ (μ.)</label><input type="number" id="field_height" class="w-full border rounded p-2 text-sm" step="0.01"></div>`;
+            } else if (item.type === "roof_demolition") {
+                container.innerHTML = `<div><label class="block text-xs text-gray-500 font-medium mb-1">ΕΠΙΦΑΝΕΙΑ ΚΑΤΟΨΗΣ (τ.μ.)</label><input type="number" id="field_area" class="w-full border rounded p-2 text-sm" step="0.01"></div><div><label class="block text-xs text-gray-500 font-medium mb-1">ΤΥΠΟΣ ΣΤΕΓΗΣ (Συντελεστής)</label><select id="field_factor" class="w-full border rounded p-2 text-sm"><option value="1.1">Μονόριχτη / Δίριχτη (x1.1)</option><option value="1.2">Τετράριχτη / Πολύριχτη (x1.2)</option></select></div>`;
+            } else if (item.type === "new_roof") {
+                container.innerHTML = `<div><label class="block text-xs text-gray-500 font-medium mb-1">ΕΠΙΦΑΝΕΙΑ ΚΑΤΟΨΗΣ (τ.μ.)</label><input type="number" id="field_area" class="w-full border rounded p-2 text-sm" step="0.01"></div>`;
+            } else if (item.type === "apoxilosi_kouf" || item.type === "new_kouf") {
+                container.innerHTML = `<div><label class="block text-xs text-gray-500 font-medium mb-1">ΠΛΑΤΟΣ / ΜΗΚΟΣ (μ.)</label><input type="number" id="field_length" class="w-full border rounded p-2 text-sm" step="0.01"></div><div><label class="block text-xs text-gray-500 font-medium mb-1">ΥΨΟΣ (μ.)</label><input type="number" id="field_height" class="w-full border rounded p-2 text-sm" step="0.01"></div><div><label class="block text-xs text-gray-500 font-medium mb-1">ΤΕΜΑΧΙΑ</label><input type="number" id="field_pieces" class="w-full border rounded p-2 text-sm" step="1" value="1"></div>`;
+            } else if (item.type === "fence_complex") {
+                container.innerHTML = `<div><label class="block text-xs text-gray-500 font-medium mb-1">ΜΗΚΟΣ ΠΕΡΙΦΡΑΞΗΣ (μ.)</label><input type="number" id="fence_L" class="w-full border rounded p-2 text-sm" step="0.01"></div><div class="grid grid-cols-2 gap-2"><div><label class="block text-xs text-gray-500 font-medium mb-1">ΑΠΟΣΤΑΣΗ ΠΑΣΣΑΛΩΝ (μ.)</label><input type="number" id="fence_dist" class="w-full border rounded p-2 text-sm" step="0.01" value="2.50"></div><div><label class="block text-xs text-gray-500 font-medium mb-1">ΥΨΟΣ ΠΑΣΣΑΛΩΝ (μ.)</label><input type="number" id="fence_H_pass" class="w-full border rounded p-2 text-sm" step="0.01" value="2.00"></div></div><div><label class="block text-xs text-gray-500 font-medium mb-1">ΥΨΟΣ ΣΥΡΜΑΤΟΠΛΕΓΜΑΤΟΣ (μ.)</label><input type="number" id="fence_H_pleg" class="w-full border rounded p-2 text-sm" step="0.01" value="1.50"></div><div class="pt-2"><label class="inline-flex items-center text-xs font-medium text-gray-700"><input type="checkbox" id="fence_has_senaz" class="rounded border-gray-300 text-slate-900 focus:ring-slate-500 mr-2" checked onchange="toggleSenazFields()"> Κατασκευή Σενάζ Μπετόν</label></div><div id="senaz_dimensions" class="grid grid-cols-2 gap-2 bg-gray-100 p-2 rounded mt-2"><div><label class="block text-xs text-gray-400 font-medium mb-1">ΠΑΧΟΣ ΣΕΝΑΖ (μ.)</label><input type="number" id="fence_t_sen" class="w-full border rounded p-1.5 text-sm bg-white" step="0.01" value="0.15"></div><div><label class="block text-xs text-gray-400 font-medium mb-1">ΥΨΟΣ ΣΕΝΑΖ (μ.)</label><input type="number" id="fence_H_sen" class="w-full border rounded p-1.5 text-sm bg-white" step="0.01" value="0.30"></div></div>`;
+            }
+        }
+        function toggleSenazFields() {
+            const checked = document.getElementById("fence_has_senaz").checked;
+            document.getElementById("senaz_dimensions").style.display = checked ? "grid" : "none";
+        }
+        function addItem() {
+            const id = document.getElementById("itemSelect").value;
+            const item = budgetItems[id];
+            if (item.type === "fence_complex") {
+                let L = parseFloat(document.getElementById("fence_L").value) || 0;
+                let dist = parseFloat(document.getElementById("fence_dist").value) || 2.5;
+                let H_pass = parseFloat(document.getElementById("fence_H_pass").value) || 2;
+                let H_pleg = parseFloat(document.getElementById("fence_H_pleg").value) || 1.5;
+                let hasSenaz = document.getElementById("fence_has_senaz").checked;
+                if (L <= 0) { alert("Εισάγετε έγκυρο μήκος."); return; }
+                let numPassaloi = Math.ceil(L / dist) + 1;
+                let totalMetersPass = numPassaloi * H_pass;
+                addedItems.push({ code: "20.01", desc: "Πάσσαλοι σιδερένιοι (Περίφραξη)", unit: "μ.", price: prices.passaloi, qty: totalMetersPass, total: totalMetersPass * prices.passaloi, note: `Απόσταση: ${dist}μ., Πάσσαλοι: ${numPassaloi} τεμ. x ${H_pass}μ. ύψος` });
+                let areaPlegma = L * H_pleg;
+                addedItems.push({ code: "20.04", desc: "Συρματόπλεγμα τετραγ. Οπής (Περίφραξη)", unit: "τ.μ.", price: prices.plegma, qty: areaPlegma, total: areaPlegma * prices.plegma, note: `Μήκος: ${L}μ. x Ύψος: ${H_pleg}μ.` });
+                if (hasSenaz) {
+                    let t_sen = parseFloat(document.getElementById("fence_t_sen").value) || 0.15;
+                    let H_sen = parseFloat(document.getElementById("fence_H_sen").value) || 0.30;
+                    let volSenaz = L * t_sen * H_sen;
+                    addedItems.push({ code: "3.02", desc: "Ελαφρά οπλισμένο σκυρόδεμα (Σενάζ περίφραξης)", unit: "κ.μ.", price: prices.senaz, qty: volSenaz, total: volSenaz * prices.senaz, note: `Σενάζ: ${L}μ. x Διαστάσεις: ${t_sen*100}x${H_sen*100}εκ.` });
+                }
+            } else {
+                let qty = 0; let note = "";
+                if (item.type === "area") {
+                    qty = parseFloat(document.getElementById("field_area").value) || 0;
+                    note = `Επιφάνεια: ${qty.toFixed(2)} τ.μ.`;
+                } else if (item.type === "volume") {
+                    let area = parseFloat(document.getElementById("field_area").value) || 0;
+                    let thick = parseFloat(document.getElementById("field_thickness").value) || 0;
+                    qty = area * thick;
+                    note = `Επιφάνεια: ${area.toFixed(2)} τ.μ., Πάχος: ${thick.toFixed(2)} μ.`;
+                } else if (item.type === "volume_wood") {
+                    let area = parseFloat(document.getElementById("field_area").value) || 0;
+                    let factor = parseFloat(document.getElementById("field_factor").value) || 0;
+                    qty = area * factor;
+                    note = `Κάτοψη: ${area.toFixed(2)} τ.μ. (Ξυλεία: ${factor} κ.μ./τ.μ.)`;
+                } else if (item.type === "wall_demolition") {
+                    let L = parseFloat(document.getElementById("field_length").value) || 0;
+                    let H = parseFloat(document.getElementById("field_height").value) || 0;
+                    let t = parseFloat(document.getElementById("field_thickness").value) || 0;
+                    qty = L * H * t;
+                    note = `Τοίχος: ${L}x${H}μ., Πάχος: ${t}μ.`;
+                } else if (item.type === "wall_new") {
+                    let L = parseFloat(document.getElementById("field_length").value) || 0;
+                    let H = parseFloat(document.getElementById("field_height").value) || 0;
+                    qty = L * H;
+                    note = `Τοιχοποιία: ${L}μ. x ${H}μ.`;
+                } else if (item.type === "roof_demolition") {
+                    let area = parseFloat(document.getElementById("field_area").value) || 0;
+                    let f = parseFloat(document.getElementById("field_factor").value) || 1;
+                    qty = area * f;
+                    note = `Κάτοψη: ${area} τ.μ. με συντελεστή κλίσης ${f}`;
+                } else if (item.type === "new_roof") {
+                    let area = parseFloat(document.getElementById("field_area").value) || 0;
+                    qty = area * 1.2;
+                    note = `Κάτοψη: ${area} τ.μ. με προσαύξηση στέγης x1.2`;
+                } else if (item.type === "apoxilosi_kouf" || item.type === "new_kouf") {
+                    let L = parseFloat(document.getElementById("field_length").value) || 0;
+                    let H = parseFloat(document.getElementById("field_height").value) || 0;
+                    let pcs = parseInt(document.getElementById("field_pieces").value) || 1;
+                    qty = L * H * pcs;
+                    note = `${pcs} τεμ. διαστάσεων ${L.toFixed(2)}μ. x ${H.toFixed(2)}μ.`;
+                }
+                if (qty <= 0) { alert("Παρακαλώ εισάγετε έγκυρες τιμές."); return; }
+                addedItems.push({ code: item.code, desc: item.desc, unit: item.unit, price: item.price, qty: qty, total: qty * item.price, note: note });
+            }
+            renderTable();
+            generateOutputs();
+        }
+        function removeItem(index) {
+            addedItems.splice(index, 1);
+            renderTable();
+            generateOutputs();
+        }
+        function renderTable() {
+            const tbody = document.getElementById("tableBody");
+            const badge = document.getElementById("totalBudgetBadge");
+            if (addedItems.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="6" class="text-center p-6 text-gray-400 italic">Δεν έχουν προστεθεί εργασίες ακόμα.</td></tr>`;
+                badge.innerText = "Σύνολο: 0,00 €";
+                return;
+            }
+            tbody.innerHTML = "";
+            let grandTotal = 0;
+            addedItems.forEach((item, index) => {
+                grandTotal += item.total;
+                let tr = document.createElement("tr");
+                tr.className = "border-b border-gray-100 hover:bg-gray-50/50 transition-colors";
+                tr.innerHTML = `<td class="p-3 font-medium text-gray-500">${item.code}</td><td class="p-3"><div class="font-semibold text-slate-700">${item.desc}</div><div class="text-xs text-gray-400 mt-0.5">${item.note}</div></td><td class="p-3 text-right font-mono">${item.qty.toFixed(2)} ${item.unit}</td><td class="p-3 text-right font-mono">${item.price.toFixed(2)} €</td><td class="p-3 text-right font-bold text-slate-800 font-mono">${item.total.toFixed(2)} €</td><td class="p-3 text-center"><button onclick="removeItem(${index})" class="text-red-500 hover:text-red-700 font-medium px-2 py-1 text-xs cursor-pointer">❌</button></td>`;
+                tbody.appendChild(tr);
+            });
+            badge.innerText = `Σύνολο: ${grandTotal.toFixed(2)} €`;
+        }
+        function generateOutputs() {
+            const txtOut = document.getElementById("outputDescription");
+            const tblOut = document.getElementById("outputTableText");
+            if (addedItems.length === 0) { txtOut.value = ""; tblOut.value = ""; return; }
+            let textReport = "ΤΕΧΝΙΚΗ ΕΚΘΕΣΗ & ΑΝΑΛΥΤΙΚΗ ΕΠΙΜΕΤΡΗΣΗ ΕΡΓΑΣΙΩΝ\n--------------------------------------------------\nΜελέτη / Ιδιοκτησία: Αυθαίρετες Κατασκευές Ν.4495/17\nΜηχανικοί: Χρήστος Γεωργακόπουλος & Αθανάσιος Φούντας\n\nΚατά την αναλυτική επιμέτρηση των αυθαιρέτων κατασκευών υπολογίστηκαν οι κάτωθι επιμέρους εργασίες:\n\n";
+            let grandTotal = 0;
+            addedItems.forEach((item, i) => {
+                grandTotal += item.total;
+                textReport += `${i+1}. [Κωδικός Άρθρου: ${item.code}] ${item.desc}\n   - Γεωμετρικά Στοιχεία: ${item.note}\n   - Ποσότητα: ${item.qty.toFixed(2)} ${item.unit} | Τιμή: ${item.price.toFixed(2)}€ | Σύνολο: ${item.total.toFixed(2)} €\n\n`;
+            });
+            textReport += `--------------------------------------------------\nΓΕΝΙΚΟ ΣΥΝΟΛΟ ΑΝΑΛΥΤΙΚΟΥ ΠΡΟΫΠΟΛΟΓΙΣΜΟΥ: ${grandTotal.toFixed(2)} €\n`;
+            txtOut.value = textReport;
+            let tableReport = `ΚΩΔ. | ΠΕΡΙΓΡΑΦΗ ΕΡΓΑΣΙΑΣ | Μ.Μ. | ΤΙΜΗ ΜΟΝ. | ΠΟΣΟΤΗΤΑ | ΣΥΝΟΛΟ\n----------------------------------------------------------------------\n`;
+            addedItems.forEach(item => {
+                tableReport += `${item.code.padEnd(5)} | ${item.desc.substring(0, 30).padEnd(30)} | ${item.unit.padEnd(4)} | ${item.price.toFixed(2).padStart(9)} | ${item.qty.toFixed(2).padStart(8)} | ${item.total.toFixed(2).padStart(9)}\n`;
+            });
+            tableReport += `----------------------------------------------------------------------\nΣΥΝΟΛΙΚΟΣ ΠΡΟΫΠΟΛΟΓΙΣΜΟΣ: ${grandTotal.toFixed(2)} €`;
+            tblOut.value = tableReport;
+        }
+        function switchTab(tabId) {
+            document.getElementById("tabText").classList.add("hidden");
+            document.getElementById("tabTable").classList.add("hidden");
+            document.getElementById("btnTabText").className = "text-gray-500 hover:text-gray-700 px-4 py-2 text-sm font-medium cursor-pointer";
+            document.getElementById("btnTabTable").className = "text-gray-500 hover:text-gray-700 px-4 py-2 text-sm font-medium cursor-pointer";
+            document.getElementById(tabId).classList.remove("hidden");
+            if (tabId === 'tabText') {
+                document.getElementById("btnTabText").className = "border-b-2 border-slate-900 text-slate-900 px-4 py-2 text-sm font-medium cursor-pointer";
+            } else {
+                document.getElementById("btnTabTable").className = "border-b-2 border-slate-900 text-slate-900 px-4 py-2 text-sm font-medium cursor-pointer";
+            }
+        }
+        window.onload = initSelect;
+    </script>
+</body>
+</html>
