@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="el">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Μητρώο ΤΟΤΕΕ — Τεχνικό Γραφείο Γεωργακόπουλος &amp; Φουντάς</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --ink:#10131a; --panel:#171b24; --panel-2:#1d222d; --line:#272e3b;
+  --fg:#dee4ee; --fg-dim:#8d97a8; --fg-faint:#5d6676;
+  --amber:#e8a33d; --teal:#45b3a6; --rust:#b8635a; --slate:#6d7a91;
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{
+  margin:0; background:var(--ink); color:var(--fg);
+  font-family:"IBM Plex Sans","Segoe UI",system-ui,sans-serif;
+  font-size:15px; line-height:1.55; letter-spacing:.005em;
+}
+.wrap{max-width:1120px;margin:0 auto;padding:0 24px 96px}
+a{color:var(--teal);text-decoration:none;border-bottom:1px solid rgba(69,179,166,.28)}
+a:hover{border-bottom-color:var(--teal)}
+a:focus-visible,button:focus-visible,input:focus-visible{outline:2px solid var(--amber);outline-offset:2px}
+
+/* ---- header ---- */
+header{padding:56px 0 34px;border-bottom:1px solid var(--line)}
+h1{font-size:30px;font-weight:600;letter-spacing:-.015em;margin:0 0 10px;line-height:1.2}
+.lede{max-width:64ch;color:var(--fg-dim);margin:0 0 26px}
+.meta{font-family:"IBM Plex Mono",monospace;font-size:12.5px;color:var(--fg-faint)}
+
+/* ---- ledger bar ---- */
+.ledger{display:flex;gap:2px;margin:26px 0 14px;height:9px;border-radius:2px;overflow:hidden}
+.ledger span{display:block}
+.key{display:flex;flex-wrap:wrap;gap:6px 20px;font-size:12.5px;color:var(--fg-dim)}
+.key i{display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:7px;vertical-align:baseline}
+.key b{color:var(--fg);font-weight:500;font-family:"IBM Plex Mono",monospace}
+
+/* ---- controls ---- */
+.controls{position:sticky;top:0;z-index:5;background:var(--ink);
+  padding:18px 0 14px;border-bottom:1px solid var(--line);margin-bottom:4px}
+.searchrow{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+input[type=search]{
+  flex:1 1 280px;min-width:0;background:var(--panel);border:1px solid var(--line);
+  color:var(--fg);padding:9px 12px;border-radius:3px;font:inherit;font-size:14px}
+input[type=search]::placeholder{color:var(--fg-faint)}
+.chips{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}
+.chip{background:transparent;border:1px solid var(--line);color:var(--fg-dim);
+  padding:5px 11px;border-radius:3px;font:inherit;font-size:12.5px;cursor:pointer}
+.chip:hover{border-color:var(--slate);color:var(--fg)}
+.chip[aria-pressed=true]{background:var(--panel-2);border-color:var(--amber);color:var(--fg)}
+.tally{font-family:"IBM Plex Mono",monospace;font-size:12.5px;color:var(--fg-faint);padding-top:10px}
+
+/* ---- sections ---- */
+section{margin-top:46px}
+h2{font-size:17px;font-weight:600;margin:0 0 4px;letter-spacing:-.005em}
+.sectnote{color:var(--fg-dim);font-size:13.5px;max-width:70ch;margin:0 0 18px}
+
+/* ---- rows ---- */
+.row{border-left:3px solid var(--slate);background:var(--panel);
+  padding:15px 18px;margin-bottom:7px;border-radius:0 3px 3px 0}
+.row.s-ypoxreotiki{border-left-color:var(--amber)}
+.row.s-systasi{border-left-color:var(--teal)}
+.row.s-anatheorisi{border-left-color:var(--amber);background:
+  linear-gradient(90deg,rgba(232,163,61,.055),transparent 40%),var(--panel)}
+.row.s-katargimeni{border-left-color:var(--rust)}
+.row.s-katargimeni .code,.row.s-katargimeni .title{color:var(--fg-dim)}
+.row.s-ekponisi,.row.s-istoriko{border-left-color:var(--slate);background:transparent;
+  border-top:1px solid var(--line);border-right:1px solid var(--line);border-bottom:1px solid var(--line)}
+.rowtop{display:flex;gap:14px;align-items:baseline;flex-wrap:wrap;margin-bottom:5px}
+.code{font-family:"IBM Plex Mono",monospace;font-size:13.5px;font-weight:500;color:var(--amber)}
+.row.s-systasi .code,.row.s-ekponisi .code,.row.s-istoriko .code{color:var(--fg-dim)}
+.badge{font-size:11.5px;font-family:"IBM Plex Mono",monospace;color:var(--fg-faint);
+  border:1px solid var(--line);padding:1px 7px;border-radius:2px}
+.title{font-size:14.5px;margin:0 0 8px;max-width:78ch}
+.facts{display:flex;gap:8px 22px;flex-wrap:wrap;font-size:12.5px;
+  font-family:"IBM Plex Mono",monospace;color:var(--fg-dim)}
+.note{font-size:12.5px;color:var(--fg-faint);margin-top:9px;max-width:80ch;line-height:1.5}
+.empty{color:var(--fg-faint);padding:28px 0;font-size:14px}
+footer{margin-top:64px;padding-top:22px;border-top:1px solid var(--line);
+  font-size:12.5px;color:var(--fg-faint);max-width:76ch}
+@media (max-width:640px){
+  .wrap{padding:0 16px 64px} header{padding:36px 0 26px} h1{font-size:24px}
+  .row{padding:13px 14px}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+@media print{
+  body{background:#fff;color:#000} .controls{display:none}
+  .row{border:1px solid #ccc;border-left-width:3px;background:#fff;break-inside:avoid}
+  a{color:#000}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <h1>Μητρώο Τεχνικών Οδηγιών ΤΕΕ</h1>
+  <p class="lede">Όλες οι ΤΟΤΕΕ που έχει εκδώσει το Τεχνικό Επιμελητήριο Ελλάδας, με το καθεστώς ισχύος καθεμιάς. Από τις 28 εγγραφές, 15 φέρουν εγκριτική απόφαση σε ΦΕΚ και δεσμεύουν· οι υπόλοιπες λειτουργούν ως κανόνες τέχνης και επιστήμης ή δεν έχουν εκδοθεί.</p>
+  <div class="ledger"><span style="flex:13;background:var(--amber)" title="Υποχρεωτική: 13"></span><span style="flex:2;background:var(--amber)" title="Υπό αναθεώρηση: 2"></span><span style="flex:4;background:var(--teal)" title="Σύσταση: 4"></span><span style="flex:1;background:var(--rust)" title="Καταργημένη: 1"></span><span style="flex:6;background:var(--slate)" title="Δεν έχει εκδοθεί: 6"></span><span style="flex:2;background:var(--slate)" title="Ιστορική: 2"></span></div>
+  <div class="key"><span><i style="background:var(--amber)"></i>Υποχρεωτική <b>13</b></span><span><i style="background:var(--amber)"></i>Υπό αναθεώρηση <b>2</b></span><span><i style="background:var(--teal)"></i>Σύσταση <b>4</b></span><span><i style="background:var(--rust)"></i>Καταργημένη <b>1</b></span><span><i style="background:var(--slate)"></i>Δεν έχει εκδοθεί <b>6</b></span><span><i style="background:var(--slate)"></i>Ιστορική <b>2</b></span></div>
+  <p class="meta" style="margin-top:20px">Πηγή: Τμήμα Επιστημονικού &amp; Αναπτυξιακού Έργου ΤΕΕ · ενημέρωση καταλόγου 01.12.2025</p>
+</header>
+
+<div class="controls">
+  <div class="searchrow">
+    <input type="search" id="q" placeholder="Αναζήτηση σε αριθμό, τίτλο, ΦΕΚ ή σημείωση" aria-label="Αναζήτηση στο μητρώο">
+  </div>
+  <div class="chips"><button class="chip" data-status="all" aria-pressed="true">Όλες</button><button class="chip" data-status="ypoxreotiki" aria-pressed="false">Υποχρεωτική</button><button class="chip" data-status="anatheorisi" aria-pressed="false">Υπό αναθεώρηση</button><button class="chip" data-status="systasi" aria-pressed="false">Σύσταση</button><button class="chip" data-status="katargimeni" aria-pressed="false">Καταργημένη</button><button class="chip" data-status="ekponisi" aria-pressed="false">Δεν έχει εκδοθεί</button><button class="chip" data-status="istoriko" aria-pressed="false">Ιστορική</button></div>
+  <div class="tally" id="tally"></div>
+</div>
+
+<section id="egk">
+  <h2>Εγκαταστάσεις σε κτίρια</h2>
+  <p class="sectnote">Η πρώτη σειρά ΤΟΤΕΕ (σύμβαση ΥΠΕΧΩΔΕ–ΤΕΕ 24.07.1985) που αντικατέστησε τον κανονισμό «Περί Υδραυλικών Εγκαταστάσεων» του 1936.</p>
+  <article class="row s-ypoxreotiki" data-status="ypoxreotiki" data-search="τοτεε 2411/1986 εγκαταστάσεις σε κτίρια και οικόπεδα. διανομή κρύου – ζεστού νερού φεκ 843/β/16-11-1988  1986 υποχρεωτική">
+    <div class="rowtop"><span class="code">ΤΟΤΕΕ 2411/1986</span><span class="badge">Υποχρεωτική</span></div>
+    <p class="title">Εγκαταστάσεις σε κτίρια και οικόπεδα. Διανομή κρύου – ζεστού νερού</p>
+    <div class="facts"><span>Έτος 1986</span><span>Δ΄ έκδοση</span><span><a href="https://search.et.gr/fek/?fekId=710908" target="_blank" rel="noopener">ΦΕΚ 843/Β/16-11-1988</a></span><span><a href="https://web.tee.gr/wp-content/uploads/totee_2411_86.pdf" target="_blank" rel="noopener">Κείμενο ΤΕΕ (PDF)</a></span></div>
+    
+  </article>
+  <article class="row s-ypoxreotiki" data-status="ypoxreotiki" data-search="τοτεε 2412/1986 εγκαταστάσεις σε κτίρια και οικόπεδα. αποχετεύσεις φεκ 177/β/31-3-1988  1986 υποχρεωτική">
+    <div class="rowtop"><span class="code">ΤΟΤΕΕ 2412/1986</span><span class="badge">Υποχρεωτική</span></div>
+    <p class="title">Εγκαταστάσεις σε κτίρια και οικόπεδα. Αποχετεύσεις</p>
+    <div class="facts"><span>Έτος 1986</span><span>Ε΄ έκδοση</span><span><a href="https://search.et.gr/fek/?fekId=719285" target="_blank" rel="noopener">ΦΕΚ 177/Β/31-3-1988</a></span><span><a href="https://web.tee.gr/wp-content/uploads/totee_2412_86.pdf" target="_blank" rel="noopener">Κείμενο ΤΕΕ (PDF)</a></span></div>
+    
+  </article>
+  <article class="row s-ypoxreotiki" data-status="ypoxreotiki" data-search="τοτεε 2421/1986 — μέρος 1 εγκαταστάσεις σε κτίρια. δίκτυα διανομής ζεστού νερού για θέρμανση κτιριακών έργων φεκ 67/β/4-2-1988  1986 υποχρεωτική">
+    <div class="rowtop"><span class="code">ΤΟΤΕΕ 2421/1986 — Μέρος 1</span><span class="badge">Υποχρεωτική</span></div>
+    <p class="title">Εγκαταστάσεις σε κτίρια. Δίκτυα διανομής ζεστού νερού για θέρμανση κτιριακών έργων</p>
+    <div class="facts"><span>Έτος 1986</span><span>Δ΄ έκδοση</span><span><a href="https://search.et.gr/fek/?fekId=719175" target="_blank" rel="noopener">ΦΕΚ 67/Β/4-2-1988</a></span><span><a href="https://web.tee.gr/wp-content/uploads/totee_2421_1_86.pdf" target="_blank" rel="noopener">Κείμενο ΤΕΕ (PDF)</a></span></div>
+    
+  </article>
+  <article class="row s-ypoxreotiki" data-status="ypoxreotiki" data-search="τοτεε 2421/1986 — μέρος 2 εγκαταστάσεις σε κτίρια. λεβητοστάσια παραγωγής ζεστού νερού για θέρμανση κτιριακών έργων φεκ 148/β/17-3-1988  1986 υποχρεωτική">
+    <div class="rowtop"><span class="code">ΤΟΤΕΕ 2421/1986 — Μέρος 2</span><span class="badge">Υποχρεωτική</span></div>
+    <p class="title">Εγκαταστάσεις σε κτίρια. Λεβητοστάσια παραγωγής ζεστού νερού για θέρμανση κτιριακών έργων</p>
+    <div class="facts"><span>Έτος 1986</span><span>Δ΄ έκδοση</span><span><a href="https://search.et.gr/fek/?fekId=719256" target="_blank" rel="noopener">ΦΕΚ 148/Β/17-3-1988</a></span><span><a href="https://web.tee.gr/wp-content/uploads/totee_2421_2_86.pdf" target="_blank" rel="noopener">Κείμενο ΤΕΕ (PDF)</a></span></div>
+    
+  </article>
+  <article class="row s-ypoxreotiki" data-status="ypoxreotiki" data-search="τοτεε 2423/1986 εγκαταστάσεις σε κτίρια. κλιματισμός κτιριακών χώρων φεκ 177/β/31-3-1988  1986 υποχρεωτική">
+    <div class="rowtop"><span class="code">ΤΟΤΕΕ 2423/1986</span><span class="badge">Υποχρεωτική</span></div>
+    <p class="title">Εγκαταστάσεις σε κτίρια. Κλιματισμός κτιριακών χώρων</p>
+    <div class="facts"><span>Έτος 1986</span><span>Γ΄ έκδοση</span><span><a href="https://search.et.gr/fek/?fekId=719285" target="_blank" rel="noopener">ΦΕΚ 177/Β/31-3-1988</a></span><span><a href="https://web.tee.gr/wp-content/uploads/totee_2423_86.pdf" target="_blank" rel="noopener">Κείμενο ΤΕΕ (PDF)</a></span></div>
+    
+  </article>
+  <article class="row s-systasi" data-status="systasi" data-search="τοτεε 2425/1986 εγκαταστάσεις σε κτίρια. στοιχεία υπολογισμού φορτίων κλιματισμού κτιριακών χώρων  δεν φέρει εγκριτική απόφαση — ισχύει ως κανόνας τέχνης και επιστήμης, όχι ως υποχρεωτική διάταξη. 1986 σύσταση">
+    <div class="rowtop"><span class="code">ΤΟΤΕΕ 2425/1986</span><span class="badge">Σύσταση</span></div>
+    <p class="title">Εγκαταστάσεις σε κτίρια. Στοιχεία υπολογισμού φορτίων κλιματισμού κτιριακών χώρων</p>
+    <div class="facts"><span>Έτος 1986</span><span>Ε΄ έκδοση</span><span>Χωρίς εγκριτικό ΦΕΚ</span><span><a href="https://web.tee.gr/wp-content/uploads/totee_2425_86.pdf" target="_blank" rel="noopener">Κείμενο ΤΕΕ (PDF)</a></span></div>
+    <p class="note">Δεν φέρει εγκριτική απόφαση — ισχύει ως κανόνας τέχνης και επιστήμης, όχι ως υποχρεωτική διάταξη.</p>
+  </article>
+  <article class="row s-anatheorisi" data-status="anatheorisi" data-search="τοτεε 2427/1983 κατανομή δαπανών κεντρικής θέρμανσης κτηρίων φεκ 631/δ/7-11-1985 (π.δ. 27) δημοσιεύθηκε αρχικά στο ενημερωτικό δελτίο τεε αρ. 1294/23.01.1984. η ομάδα εργασίας αναθεώρησης έχει παραδώσει τελικό κείμενο, το οποίο δεν έχει ακόμη θεσμοθετηθεί. 1983 υπό αναθεώρηση">
+    <div class="rowtop"><span class="code">ΤΟΤΕΕ 2427/1983</span><span class="badge">Υπό αναθεώρηση</span></div>
+    <p class="title">Κατανομή δαπανών κεντρικής θέρμανσης κτηρίων</p>
+    <div class="facts"><span>Έτος 1983</span><span><a href="https://search.et.gr/el/fek/?fekId=709009" target="_blank" rel="noopener">ΦΕΚ 631/Δ/7-11-1985 (Π.Δ. 27)</a></span><span><a href="https://web.tee.gr/wp-content/uploads/202427-83fek_631d_1985.pdf" target="_blank" rel="noopener">Κείμενο ΤΕΕ (PDF)</a></span></div>
+    <p class="note">Δημοσιεύθηκε αρχικά στο Ενημερωτικό Δελτίο ΤΕΕ αρ. 1294/23.01.1984. Η ομάδα εργασίας αναθεώρησης έχει παραδώσει τελικό κείμενο, το οποίο δεν έχει ακόμη θεσμοθετηθεί.</p>
+  </article>
+  <article class="row s-anatheorisi" data-status="anatheorisi" data-search="τοτεε 2451/1986 εγκαταστάσεις σε κτίρια. μόνιμα πυροσβεστικά συστήματα με νερό φεκ 632/β/26-11-1987 εν ισχύι. έχει συσταθεί ομάδα εργασίας τεε για την αναθεώρησή της. 1986 υπό αναθεώρηση">
+    <div class="rowtop"><span class="code">ΤΟΤΕΕ 2451/1986</span><span class="badge">Υπό αναθεώρηση</span></div>
+    <p class="title">Εγκαταστάσεις σε κτίρια. Μόνιμα πυροσβεστικά συστήματα με νερό</p>
+    <div class="facts"><span>Έτος 1986</span><span>Ε΄ έκδοση</span><span><a href="https://search.et.gr/fek/?fekId=713801" target="_blank" rel="noopener">ΦΕΚ 632/Β/26-11-1987</a></span><span><a href="https://web.tee.gr/wp-content/uploads/totee_2451_86.pdf" target="_blank" rel="noopener">Κείμενο ΤΕΕ (PDF)</a></span></div>
+    <p class="note">Εν ισχύι. Έχει συσταθεί ομάδα εργασίας ΤΕΕ για την αναθεώρησή της.</p>
+  </article>
+  <article class="row s-katargimeni" data-status="katargimeni" data-search="τοτεε 2471/1986 εγκαταστάσεις σε κτίρια. διανομή καυσίμων αερίων φεκ 366/β/16-7-1987 · π.δ. 420/87 (φεκ 187/α) έπαυσε να ισχύει με τον «κανονισμό εσωτερικών εγκαταστάσεων φυσικού αερίου με πίεση λειτουργίας έως και 1 bar» — κυα δ3/α/11346, φεκ 963/β/15-7-2003. συμπληρωματικά μέτρα: κυα δ3/α/22560, φεκ 1730/β/9-12-2005. 1986 καταργημένη">
+    <div class="rowtop"><span class="code">ΤΟΤΕΕ 2471/1986</span><span class="badge">Καταργημένη</span></div>
+    <p class="title">Εγκαταστάσεις σε κτίρια. Διανομή καυσίμων αερίων</p>
+    <div class="facts"><span>Έτος 1986</span><span>Δ΄ έκδοση</span><span><a href="https://search.et.gr/fek/?fekId=713535" target="_blank" rel="noopener">ΦΕΚ 366/Β/16-7-1987 · Π.Δ. 420/87 (ΦΕΚ 187/Α)</a></span><span><a href="https://web.tee.gr/wp-content/uploads/totee_2471_86.pdf" target="_blank" rel="noopener">Κείμενο ΤΕΕ (PDF)</a></span></div>
+    <p class="note">Έπαυσε να ισχύει με τον «Κανονισμό Εσωτερικών Εγκαταστάσεων Φυσικού Αερίου με πίεση λειτουργίας έως και 1 bar» — ΚΥΑ Δ3/Α/11346, ΦΕΚ 963/Β/15-7-2003. Συμπληρωματικά μέτρα: ΚΥΑ Δ3/Α/22560, ΦΕΚ 1730/Β/9-12-2005.</p>
+  </article>
+  <article class="row s-ypoxreotiki" data-status="ypoxreotiki" data-search="τοτεε 2481/1986 εγκαταστάσεις σε κτίρια. διανομή ατμού μέχρι pn16-300°c φεκ 334/β/24-6-1987  1986 υποχρεωτική">
+    <div class="rowtop"><span class="code">ΤΟΤΕΕ 2481/1986</span><span class="badge">Υποχρεωτική</span></div>
+    <p class="title">Εγκαταστάσεις σε κτίρια. Διανομή ατμού μέχρι PN16-300°C</p>
+    <div class="facts"><span>Έτος 1986</span><span>Δ΄ έκδοση</span><span><a href="https://search.et.gr/fek/?fekId=713503" target="_blank" rel="noopener">ΦΕΚ 334/Β/24-6-1987</a></span><span><a href="https://web.tee.gr/wp-content/uploads/totee_2481_86.pdf" target="_blank" rel="noopener">Κείμενο ΤΕΕ (PDF)</a></span></div>
+    
+  </article>
+  <article class="row s-ypoxreotiki" data-status="ypoxreotiki" data-search="τοτεε 2491/1986 εγκαταστάσεις σε κτίρια. αποθήκευση και διανομή αερίων για ιατρική χρήση φεκ 665/β/9-9-1988  1986 υποχρεωτική">
+    <div class="rowtop"><span class="code">ΤΟΤΕΕ 2491/1986</span><span class="badge">Υποχρεωτική</span></div>
+    <p class="title">Εγκαταστάσεις σε κτίρια. Αποθήκευση και διανομή αερίων για ιατρική χρήση</p>
+    <div class="facts"><span>Έτος 1986</span><span>Γ΄ έκδοση</span><span><a href="https://search.et.gr/fek/?fekId=724384" target="_blank" rel="noopener">ΦΕΚ 665/Β/9-9-1988</a></span><span><a href="https://web.tee.gr/wp-content/uploads/totee_2491_86.pdf" target="_blank" rel="noopener">Κείμενο ΤΕΕ (PDF)</a></span></div>
+    
+  </article>
+</section>
+
+<section id="en">
+  <h2>Ενεργειακή σειρά 20701 — ΚΕΝΑΚ</h2>
+  <p class="sectnote">Το μεθοδολογικό υπόβαθρο κάθε ενεργειακής μελέτης και ΠΕΑ που εκδίδει το γραφείο.</p>
+  <article class="row s-ypoxreotiki" data-status="ypoxreotiki" data-search="τοτεε 20701-1/2017 αναλυτικές εθνικές προδιαγραφές παραμέτρων για τον υπολογισμό της ενεργειακής απόδοσης κτιρίων και την έκδοση του πιστοποιητικού ενεργειακής απόδοσης φεκ 4003/β/17-11-2017 παράρτημα 1 της απόφασης δεπεα/οικ. 182365/17.10.2017. 2017 υποχρεωτική">
+    <div class="rowtop"><span class="code">ΤΟΤΕΕ 20701-1/2017</span><span class="badge">Υποχρεωτική</span></div>
+    <p class="title">Αναλυτικές εθνικές προδιαγραφές παραμέτρων για τον υπολογισμό της ενεργειακής απόδοσης κτιρίων και την έκδοση του πιστοποιητικού ενεργειακής απόδοσης</p>
+    <div class="facts"><span>Έτος 2017</span><span>Α΄ έκδοση</span><span><a href="https://search.et.gr/fek/?fekId=542227" target="_blank" rel="noopener">ΦΕΚ 4003/Β/17-11-2017</a></span><span><a href="https://web.tee.gr/wp-content/uploads/%CE%95%CE%93%CE%9A%CE%A1%CE%99%CE%A3%CE%97-TOTEE-1.pdf" target="_blank" rel="noopener">Κείμενο ΤΕΕ (PDF)</a></span></div>
+    <p class="note">Παράρτημα 1 της απόφασης ΔΕΠΕΑ/οικ. 182365/17.10.2017.</p>
+  </article>
+  <article class="row s-ypoxreotiki" data-status="ypoxreotiki" data-search="τοτεε 20701-2/2017 θερμοφυσικές ιδιότητες δομικών υλικών και έλεγχος της θερμομονωτικής επάρκειας των κτηρίων φεκ 4003/β/17-11-2017 παράρτημα 2 της απόφασης δεπεα/οικ. 182365/17.10.2017. 2017 υποχρεωτική">
+    <div class="rowtop"><span class="code">ΤΟΤΕΕ 20701-2/2017</span><span class="badge">Υποχρεωτική</span></div>
+    <p class="title">Θερμοφυσικές ιδιότητες δομικών υλικών και έλεγχος της θερμομονωτικής επάρκειας των κτηρίων</p>
+    <div class="facts"><span>Έτος 2017</span><span>Α΄ έκδοση</span><span><a href="https://search.et.gr/fek/?fekId=542227" target="_blank" rel="noopener">ΦΕΚ 4003/Β/17-11-2017</a></span><span><a href="https://web.tee.gr/wp-content/uploads/%CE%95%CE%93%CE%9A%CE%A1%CE%99%CE%A3%CE%97-TOTEE-2.pdf" target="_blank" rel="noopener">Κείμενο ΤΕΕ (PDF)</a></span></div>
+    <p class="note">Παράρτημα 2 της απόφασης ΔΕΠΕΑ/οικ. 182365/17.10.2017.</p>
+  </article>
+  <article class="row s-ypoxreotiki" data-status="ypoxreotiki" data-search="τοτεε 20701-3/2010 κλιματικά δεδομένα ελληνικών περιοχών φεκ 2945/β/2014 δεν αναθεωρήθηκε το 2017. παραμένει σε ισχύ η γ΄ έκδοση, παράρτημα 3 της απόφασης οικ. 2618/2014. 2014 υποχρεωτική">
+    <div class="rowtop"><span class="code">ΤΟΤΕΕ 20701-3/2010</span><span class="badge">Υποχρεωτική</span></div>
+    <p class="title">Κλιματικά δεδομένα ελληνικών περιοχών</p>
+    <div class="facts"><span>Έτος 2014</span><span>Γ΄ έκδοση</span><span><a href="https://search.et.gr/fek/?fekId=498690" target="_blank" rel="noopener">ΦΕΚ 2945/Β/2014</a></span><span><a href="https://web.tee.gr/wp-content/uploads/%CE%95%CE%93%CE%9A%CE%A1%CE%99%CE%A3%CE%97-TOTEE-3.pdf" target="_blank" rel="noopener">Κείμενο ΤΕΕ (PDF)</a></span></div>
+    <p class="note">Δεν αναθεωρήθηκε το 2017. Παραμένει σε ισχύ η Γ΄ έκδοση, Παράρτημα 3 της απόφασης οικ. 2618/2014.</p>
+  </article>
+  <article class="row s-ypoxreotiki" data-status="ypoxreotiki" data-search="τοτεε 20701-4/2017 οδηγίες και έντυπα ενεργειακών επιθεωρήσεων κτηρίων, λεβήτων και εγκαταστάσεων θέρμανσης και εγκαταστάσεων κλιματισμού φεκ 4003/β/17-11-2017 παράρτημα 3 της απόφασης δεπεα/οικ. 182365/17.10.2017. 2017 υποχρεωτική">
+    <div class="rowtop"><span class="code">ΤΟΤΕΕ 20701-4/2017</span><span class="badge">Υποχρεωτική</span></div>
+    <p class="title">Οδηγίες και έντυπα ενεργειακών επιθεωρήσεων κτηρίων, λεβήτων και εγκαταστάσεων θέρμανσης και εγκαταστάσεων κλιματισμού</p>
+    <div class="facts"><span>Έτος 2017</span><span>Α΄ έκδοση</span><span><a href="https://search.et.gr/fek/?fekId=542227" target="_blank" rel="noopener">ΦΕΚ 4003/Β/17-11-2017</a></span><span><a href="https://web.tee.gr/wp-content/uploads/%CE%95%CE%93%CE%9A%CE%A1%CE%99%CE%A3%CE%97-TOTEE-4.pdf" target="_blank" rel="noopener">Κείμενο ΤΕΕ (PDF)</a></span></div>
+    <p class="note">Παράρτημα 3 της απόφασης ΔΕΠΕΑ/οικ. 182365/17.10.2017.</p>
+  </article>
+  <article class="row s-ypoxreotiki" data-status="ypoxreotiki" data-search="τοτεε 20701-5/2017 συμπαραγωγή ηλεκτρισμού, θερμότητας και ψύξης: εγκαταστάσεις σε κτήρια φεκ 4003/β/17-11-2017 παράρτημα 4 της απόφασης δεπεα/οικ. 182365/17.10.2017. 2017 υποχρεωτική">
+    <div class="rowtop"><span class="code">ΤΟΤΕΕ 20701-5/2017</span><span class="badge">Υποχρεωτική</span></div>
+    <p class="title">Συμπαραγωγή ηλεκτρισμού, θερμότητας και ψύξης: εγκαταστάσεις σε κτήρια</p>
+    <div class="facts"><span>Έτος 2017</span><span>Α΄ έκδοση</span><span><a href="https://search.et.gr/fek/?fekId=542227" target="_blank" rel="noopener">ΦΕΚ 4003/Β/17-11-2017</a></span><span><a href="https://web.tee.gr/wp-content/uploads/%CE%95%CE%93%CE%9A%CE%A1%CE%99%CE%A3%CE%97-TOTEE-5.pdf" target="_blank" rel="noopener">Κείμενο ΤΕΕ (PDF)</a></span></div>
+    <p class="note">Παράρτημα 4 της απόφασης ΔΕΠΕΑ/οικ. 182365/17.10.2017.</p>
+  </article>
+  <article class="row s-ypoxreotiki" data-status="ypoxreotiki" data-search="διόρθωση σφαλμάτων διορθώσεις σφαλμάτων στην απόφαση δεπεα/οικ. 182365/17.10.2017 «έγκριση και εφαρμογή των τεχνικών οδηγιών τεε για την ενεργειακή απόδοση κτιρίων» φεκ 4108/β/2017 ελέγχεται υποχρεωτικά μαζί με το φεκ 4003/β/2017. 2017 υποχρεωτική">
+    <div class="rowtop"><span class="code">Διόρθωση σφαλμάτων</span><span class="badge">Υποχρεωτική</span></div>
+    <p class="title">Διορθώσεις σφαλμάτων στην απόφαση ΔΕΠΕΑ/οικ. 182365/17.10.2017 «Έγκριση και εφαρμογή των Τεχνικών Οδηγιών ΤΕΕ για την Ενεργειακή Απόδοση Κτιρίων»</p>
+    <div class="facts"><span>Έτος 2017</span><span><a href="https://search.et.gr/fek/?fekId=542200" target="_blank" rel="noopener">ΦΕΚ 4108/Β/2017</a></span><span><a href="https://web.tee.gr/wp-content/uploads/4108.pdf" target="_blank" rel="noopener">Κείμενο ΤΕΕ (PDF)</a></span></div>
+    <p class="note">Ελέγχεται υποχρεωτικά μαζί με το ΦΕΚ 4003/Β/2017.</p>
+  </article>
+</section>
+
+<section id="auto">
+  <h2>Αυτοτελείς οδηγίες</h2>
+  <p class="sectnote">Εκδόσεις ΤΕΕ χωρίς αρίθμηση σειράς και χωρίς εγκριτική υπουργική απόφαση.</p>
+  <article class="row s-systasi" data-status="systasi" data-search="τοτεε (χωρίς αρίθμηση) σχεδιασμός και έλεγχος εγκαταστάσεων οδοφωτισμού  έκδοση τεε χωρίς εγκριτική υπουργική απόφαση. 2018 σύσταση">
+    <div class="rowtop"><span class="code">ΤΟΤΕΕ (χωρίς αρίθμηση)</span><span class="badge">Σύσταση</span></div>
+    <p class="title">Σχεδιασμός και έλεγχος εγκαταστάσεων οδοφωτισμού</p>
+    <div class="facts"><span>Έτος 2018</span><span>Χωρίς εγκριτικό ΦΕΚ</span><span><a href="https://web.tee.gr/wp-content/uploads/totee_odofotismou_Layout-1.pdf" target="_blank" rel="noopener">Κείμενο ΤΕΕ (PDF)</a></span></div>
+    <p class="note">Έκδοση ΤΕΕ χωρίς εγκριτική υπουργική απόφαση.</p>
+  </article>
+  <article class="row s-systasi" data-status="systasi" data-search="τοτεε (χωρίς αρίθμηση) υαλοπίνακες ασφαλείας  εξαιρούνται εφαρμογές υαλοπινάκων με κύριο κριτήριο επιλογής τη θερμομόνωση ή/και την ηχομείωση. ελεύθερη πρόσβαση μόνο για ανάγνωση. 2022 σύσταση">
+    <div class="rowtop"><span class="code">ΤΟΤΕΕ (χωρίς αρίθμηση)</span><span class="badge">Σύσταση</span></div>
+    <p class="title">Υαλοπίνακες ασφαλείας</p>
+    <div class="facts"><span>Έτος 2022</span><span>Χωρίς εγκριτικό ΦΕΚ</span><span><a href="https://web.tee.gr/wp-content/uploads/ISBN_2_11_2022__all_totee_yalopinakes_parartima_I_II.pdf" target="_blank" rel="noopener">Κείμενο ΤΕΕ (PDF)</a></span></div>
+    <p class="note">Εξαιρούνται εφαρμογές υαλοπινάκων με κύριο κριτήριο επιλογής τη θερμομόνωση ή/και την ηχομείωση. Ελεύθερη πρόσβαση μόνο για ανάγνωση.</p>
+  </article>
+  <article class="row s-systasi" data-status="systasi" data-search="τοτεε 0 κατευθυντήριες οδηγίες για τη σύνταξη και αναθεώρηση των τοτεε που θα αναπτυχθούν στο πλαίσιο της εθνικής συμμαχίας αειφόρου δόμησης  μεθοδολογικό πλαίσιο της νέας γενιάς «τοτεε αειφόρου δόμησης». προδιαγράφει πάνω από 130 μελλοντικές οδηγίες. 2025 σύσταση">
+    <div class="rowtop"><span class="code">ΤΟΤΕΕ 0</span><span class="badge">Σύσταση</span></div>
+    <p class="title">Κατευθυντήριες οδηγίες για τη σύνταξη και αναθεώρηση των ΤΟΤΕΕ που θα αναπτυχθούν στο πλαίσιο της Εθνικής Συμμαχίας Αειφόρου Δόμησης</p>
+    <div class="facts"><span>Έτος 2025</span><span>Χωρίς εγκριτικό ΦΕΚ</span><span><a href="https://web.tee.gr/wp-content/uploads/%CE%A4%CE%9F%CE%A4%CE%95%CE%95-2025-Nov.pdf" target="_blank" rel="noopener">Κείμενο ΤΕΕ (PDF)</a></span></div>
+    <p class="note">Μεθοδολογικό πλαίσιο της νέας γενιάς «ΤΟΤΕΕ Αειφόρου Δόμησης». Προδιαγράφει πάνω από 130 μελλοντικές οδηγίες.</p>
+  </article>
+</section>
+
+<section id="ekp">
+  <h2>Υπό εκπόνηση ή διαβούλευση</h2>
+  <p class="sectnote">Ανακοινωμένες αλλά μη εκδοθείσες. Καμία δεν παράγει υποχρέωση σήμερα.</p>
+  <article class="row s-ekponisi" data-status="ekponisi" data-search="τοτεε 20701-6 βιοκλιματικός σχεδιασμός στον ελλαδικό χώρο  ανακοινωμένη νέα τοτεε της ενεργειακής σειράς. δεν έχει εκδοθεί. — δεν έχει εκδοθεί">
+    <div class="rowtop"><span class="code">ΤΟΤΕΕ 20701-6</span><span class="badge">Δεν έχει εκδοθεί</span></div>
+    <p class="title">Βιοκλιματικός σχεδιασμός στον ελλαδικό χώρο</p>
+    <div class="facts"><span>Χωρίς εγκριτικό ΦΕΚ</span></div>
+    <p class="note">Ανακοινωμένη νέα ΤΟΤΕΕ της ενεργειακής σειράς. Δεν έχει εκδοθεί.</p>
+  </article>
+  <article class="row s-ekponisi" data-status="ekponisi" data-search="τοτεε 20701-7 τεχνητός και φυσικός φωτισμός κτιρίων  ανακοινωμένη νέα τοτεε της ενεργειακής σειράς. δεν έχει εκδοθεί. — δεν έχει εκδοθεί">
+    <div class="rowtop"><span class="code">ΤΟΤΕΕ 20701-7</span><span class="badge">Δεν έχει εκδοθεί</span></div>
+    <p class="title">Τεχνητός και φυσικός φωτισμός κτιρίων</p>
+    <div class="facts"><span>Χωρίς εγκριτικό ΦΕΚ</span></div>
+    <p class="note">Ανακοινωμένη νέα ΤΟΤΕΕ της ενεργειακής σειράς. Δεν έχει εκδοθεί.</p>
+  </article>
+  <article class="row s-ekponisi" data-status="ekponisi" data-search="τοτεε 20701-8 εγκαταστάσεις αξιοποίησης ανανεώσιμων πηγών ενέργειας σε κτίρια  ανακοινωμένη νέα τοτεε της ενεργειακής σειράς. δεν έχει εκδοθεί. — δεν έχει εκδοθεί">
+    <div class="rowtop"><span class="code">ΤΟΤΕΕ 20701-8</span><span class="badge">Δεν έχει εκδοθεί</span></div>
+    <p class="title">Εγκαταστάσεις αξιοποίησης ανανεώσιμων πηγών ενέργειας σε κτίρια</p>
+    <div class="facts"><span>Χωρίς εγκριτικό ΦΕΚ</span></div>
+    <p class="note">Ανακοινωμένη νέα ΤΟΤΕΕ της ενεργειακής σειράς. Δεν έχει εκδοθεί.</p>
+  </article>
+  <article class="row s-ekponisi" data-status="ekponisi" data-search="τοτεε 20701-9 οικονομική αξιολόγηση ενεργειακών επενδύσεων  ανακοινωμένη νέα τοτεε της ενεργειακής σειράς. δεν έχει εκδοθεί. — δεν έχει εκδοθεί">
+    <div class="rowtop"><span class="code">ΤΟΤΕΕ 20701-9</span><span class="badge">Δεν έχει εκδοθεί</span></div>
+    <p class="title">Οικονομική αξιολόγηση ενεργειακών επενδύσεων</p>
+    <div class="facts"><span>Χωρίς εγκριτικό ΦΕΚ</span></div>
+    <p class="note">Ανακοινωμένη νέα ΤΟΤΕΕ της ενεργειακής σειράς. Δεν έχει εκδοθεί.</p>
+  </article>
+  <article class="row s-ekponisi" data-status="ekponisi" data-search="τοτεε 20701-10 στοιχεία υπολογισμού εγκαταστάσεων θέρμανσης – ψύξης – αερισμού (κλιματισμού) και ζεστού νερού χρήσης κτιριακών χώρων  ανακοινωμένη νέα τοτεε της ενεργειακής σειράς. δεν έχει εκδοθεί. — δεν έχει εκδοθεί">
+    <div class="rowtop"><span class="code">ΤΟΤΕΕ 20701-10</span><span class="badge">Δεν έχει εκδοθεί</span></div>
+    <p class="title">Στοιχεία υπολογισμού εγκαταστάσεων θέρμανσης – ψύξης – αερισμού (κλιματισμού) και ζεστού νερού χρήσης κτιριακών χώρων</p>
+    <div class="facts"><span>Χωρίς εγκριτικό ΦΕΚ</span></div>
+    <p class="note">Ανακοινωμένη νέα ΤΟΤΕΕ της ενεργειακής σειράς. Δεν έχει εκδοθεί.</p>
+  </article>
+  <article class="row s-ekponisi" data-status="ekponisi" data-search="τοτεε αειφόρου δόμησης αειφόρος κατασκευή, αποκατάσταση και συντήρηση λιθόστρωτων επιστρώσεων στην ορεινή και νησιωτική ελλάδα  πρώτη εξειδικευμένη τοτεε της σειράς αειφόρου δόμησης. δημόσια διαβούλευση έως 20.09.2026. 2026 δεν έχει εκδοθεί">
+    <div class="rowtop"><span class="code">ΤΟΤΕΕ Αειφόρου Δόμησης</span><span class="badge">Δεν έχει εκδοθεί</span></div>
+    <p class="title">Αειφόρος κατασκευή, αποκατάσταση και συντήρηση λιθόστρωτων επιστρώσεων στην ορεινή και νησιωτική Ελλάδα</p>
+    <div class="facts"><span>Έτος 2026</span><span>Χωρίς εγκριτικό ΦΕΚ</span></div>
+    <p class="note">Πρώτη εξειδικευμένη ΤΟΤΕΕ της σειράς Αειφόρου Δόμησης. Δημόσια διαβούλευση έως 20.09.2026.</p>
+  </article>
+</section>
+
+<section id="ist">
+  <h2>Ιστορικές εκδόσεις</h2>
+  <p class="sectnote">Αντικαταστάθηκαν, αλλά χρειάζονται για τον έλεγχο παλαιότερων φακέλων.</p>
+  <article class="row s-istoriko" data-status="istoriko" data-search="τοτεε 20701-1,2,3,4/2010 αρχική έκδοση της ενεργειακής σειράς κατά τον πρώτο κενακ φεκ 1387/β/2010 αντικαταστάθηκε από τις εκδόσεις 2014 και 2017. χρήσιμη για έλεγχο παλαιότερων πεα και ενεργειακών μελετών. 2010 ιστορική">
+    <div class="rowtop"><span class="code">ΤΟΤΕΕ 20701-1,2,3,4/2010</span><span class="badge">Ιστορική</span></div>
+    <p class="title">Αρχική έκδοση της ενεργειακής σειράς κατά τον πρώτο ΚΕΝΑΚ</p>
+    <div class="facts"><span>Έτος 2010</span><span>Α΄ έκδοση</span><span>ΦΕΚ 1387/Β/2010</span><span><a href="https://web.tee.gr/wp-content/uploads/1387-b.pdf" target="_blank" rel="noopener">Κείμενο ΤΕΕ (PDF)</a></span></div>
+    <p class="note">Αντικαταστάθηκε από τις εκδόσεις 2014 και 2017. Χρήσιμη για έλεγχο παλαιότερων ΠΕΑ και ενεργειακών μελετών.</p>
+  </article>
+  <article class="row s-istoriko" data-status="istoriko" data-search="τοτεε 20701-1/-2/-4 (αναθ. 2014) ενδιάμεση αναθεώρηση: γ΄ έκδοση 20701-1, β΄ έκδοση 20701-2, γ΄ έκδοση 20701-4 φεκ 2945/β/2014 (οικ. 2618) αντικαταστάθηκαν από τις α΄ εκδόσεις 2017. από την απόφαση αυτή παραμένει σε ισχύ μόνο η 20701-3/2010 (γ΄ έκδοση). 2014 ιστορική">
+    <div class="rowtop"><span class="code">ΤΟΤΕΕ 20701-1/-2/-4 (αναθ. 2014)</span><span class="badge">Ιστορική</span></div>
+    <p class="title">Ενδιάμεση αναθεώρηση: Γ΄ έκδοση 20701-1, Β΄ έκδοση 20701-2, Γ΄ έκδοση 20701-4</p>
+    <div class="facts"><span>Έτος 2014</span><span><a href="https://search.et.gr/fek/?fekId=498690" target="_blank" rel="noopener">ΦΕΚ 2945/Β/2014 (οικ. 2618)</a></span></div>
+    <p class="note">Αντικαταστάθηκαν από τις Α΄ εκδόσεις 2017. Από την απόφαση αυτή παραμένει σε ισχύ μόνο η 20701-3/2010 (Γ΄ έκδοση).</p>
+  </article>
+</section>
+
+<p class="empty" id="empty" hidden>Καμία εγγραφή δεν ταιριάζει. Καθαρίστε την αναζήτηση ή επιλέξτε «Όλες».</p>
+
+<footer>
+  <p>Τα κείμενα των ΤΟΤΕΕ διατίθενται από το ΤΕΕ. Οι σύνδεσμοι ΦΕΚ οδηγούν στην Εθνικό Τυπογραφείο (search.et.gr). Πριν από κάθε χρήση σε φάκελο μελέτης, επιβεβαιώστε το καθεστώς ισχύος στη <a href="https://web.tee.gr/d-e-k-a-d/tmima-epistimonikoy-kai-anaptyxiakoy-ergoy/totee/" target="_blank" rel="noopener">σελίδα Τεχνικών Οδηγιών του ΤΕΕ</a>, καθώς η ενεργειακή σειρά 20701 τελεί υπό συνολική αναθεώρηση.</p>
+  <p style="margin-bottom:0">Τεχνικό Γραφείο Μελετών — Γεωργακόπουλος Χρήστος &amp; Φουντάς Αθανάσιος, Αμαλιάδα Ηλείας.</p>
+</footer>
+
+</div>
+<script>
+(function(){
+  var q=document.getElementById('q'), rows=[].slice.call(document.querySelectorAll('.row')),
+      chips=[].slice.call(document.querySelectorAll('.chip')), tally=document.getElementById('tally'),
+      active='all';
+  function apply(){
+    var t=(q.value||'').trim().toLowerCase(), n=0;
+    rows.forEach(function(r){
+      var okS = active==='all' || r.dataset.status===active;
+      var okQ = !t || r.dataset.search.indexOf(t)>-1;
+      var show = okS && okQ;
+      r.hidden = !show; if(show) n++;
+    });
+    document.querySelectorAll('section').forEach(function(s){
+      s.hidden = !s.querySelector('.row:not([hidden])');
+    });
+    tally.textContent = n + ' από ' + rows.length + ' εγγραφές';
+    var em=document.getElementById('empty'); if(em) em.hidden = n>0;
+  }
+  q.addEventListener('input',apply);
+  chips.forEach(function(c){
+    c.addEventListener('click',function(){
+      active = c.dataset.status;
+      chips.forEach(function(x){x.setAttribute('aria-pressed', String(x===c));});
+      apply();
+    });
+  });
+  apply();
+})();
+</script>
+</body>
+</html>

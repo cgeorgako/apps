@@ -1,0 +1,429 @@
+{
+  "lists": {
+    "totee": {
+      "titlos": "Μητρώο ΤΟΤΕΕ",
+      "perigrafi": "Τεχνικές Οδηγίες ΤΕΕ — πλήρης κατάλογος με καθεστώς ισχύος",
+      "pigi": "https://web.tee.gr/d-e-k-a-d/tmima-epistimonikoy-kai-anaptyxiakoy-ergoy/totee/",
+      "enimerosi": "01.12.2025",
+      "kategories": [
+        {
+          "id": "egk",
+          "titlos": "Εγκαταστάσεις σε κτίρια",
+          "perigrafi": "Η πρώτη σειρά ΤΟΤΕΕ (σύμβαση ΥΠΕΧΩΔΕ–ΤΕΕ 24.07.1985) που αντικατέστησε τον κανονισμό «Περί Υδραυλικών Εγκαταστάσεων» του 1936."
+        },
+        {
+          "id": "en",
+          "titlos": "Ενεργειακή σειρά 20701 — ΚΕΝΑΚ",
+          "perigrafi": "Το μεθοδολογικό υπόβαθρο κάθε ενεργειακής μελέτης και ΠΕΑ που εκδίδει το γραφείο."
+        },
+        {
+          "id": "auto",
+          "titlos": "Αυτοτελείς οδηγίες",
+          "perigrafi": "Εκδόσεις ΤΕΕ χωρίς αρίθμηση σειράς και χωρίς εγκριτική υπουργική απόφαση."
+        },
+        {
+          "id": "ekp",
+          "titlos": "Υπό εκπόνηση ή διαβούλευση",
+          "perigrafi": "Ανακοινωμένες αλλά μη εκδοθείσες. Καμία δεν παράγει υποχρέωση σήμερα."
+        },
+        {
+          "id": "ist",
+          "titlos": "Ιστορικές εκδόσεις",
+          "perigrafi": "Αντικαταστάθηκαν, αλλά χρειάζονται για τον έλεγχο παλαιότερων φακέλων."
+        }
+      ],
+      "katastaseis": {
+        "ypoxreotiki": {
+          "etiketa": "Υποχρεωτική",
+          "perigrafi": "Εν ισχύι με εγκριτική απόφαση σε ΦΕΚ"
+        },
+        "systasi": {
+          "etiketa": "Σύσταση",
+          "perigrafi": "Εν ισχύι χωρίς εγκριτικό ΦΕΚ — κανόνας τέχνης και επιστήμης"
+        },
+        "anatheorisi": {
+          "etiketa": "Υπό αναθεώρηση",
+          "perigrafi": "Εν ισχύι, με ενεργή ομάδα εργασίας αναθεώρησης"
+        },
+        "katargimeni": {
+          "etiketa": "Καταργημένη",
+          "perigrafi": "Έπαυσε να ισχύει"
+        },
+        "ekponisi": {
+          "etiketa": "Δεν έχει εκδοθεί",
+          "perigrafi": "Ανακοινωμένη ή σε διαβούλευση"
+        },
+        "istoriko": {
+          "etiketa": "Ιστορική",
+          "perigrafi": "Αντικαταστάθηκε από νεότερη έκδοση"
+        }
+      },
+      "eggrafes": [
+        {
+          "id": "2411",
+          "kodikos": "ΤΟΤΕΕ 2411/1986",
+          "titlos": "Εγκαταστάσεις σε κτίρια και οικόπεδα. Διανομή κρύου – ζεστού νερού",
+          "etos": "1986",
+          "kategoria": "egk",
+          "ekdosi": "Δ΄ έκδοση",
+          "fek": "ΦΕΚ 843/Β/16-11-1988",
+          "fekUrl": "https://search.et.gr/fek/?fekId=710908",
+          "pdfUrl": "https://web.tee.gr/wp-content/uploads/totee_2411_86.pdf",
+          "status": "ypoxreotiki",
+          "simeiosi": ""
+        },
+        {
+          "id": "2412",
+          "kodikos": "ΤΟΤΕΕ 2412/1986",
+          "titlos": "Εγκαταστάσεις σε κτίρια και οικόπεδα. Αποχετεύσεις",
+          "etos": "1986",
+          "kategoria": "egk",
+          "ekdosi": "Ε΄ έκδοση",
+          "fek": "ΦΕΚ 177/Β/31-3-1988",
+          "fekUrl": "https://search.et.gr/fek/?fekId=719285",
+          "pdfUrl": "https://web.tee.gr/wp-content/uploads/totee_2412_86.pdf",
+          "status": "ypoxreotiki",
+          "simeiosi": ""
+        },
+        {
+          "id": "2421-1",
+          "kodikos": "ΤΟΤΕΕ 2421/1986 — Μέρος 1",
+          "titlos": "Εγκαταστάσεις σε κτίρια. Δίκτυα διανομής ζεστού νερού για θέρμανση κτιριακών έργων",
+          "etos": "1986",
+          "kategoria": "egk",
+          "ekdosi": "Δ΄ έκδοση",
+          "fek": "ΦΕΚ 67/Β/4-2-1988",
+          "fekUrl": "https://search.et.gr/fek/?fekId=719175",
+          "pdfUrl": "https://web.tee.gr/wp-content/uploads/totee_2421_1_86.pdf",
+          "status": "ypoxreotiki",
+          "simeiosi": ""
+        },
+        {
+          "id": "2421-2",
+          "kodikos": "ΤΟΤΕΕ 2421/1986 — Μέρος 2",
+          "titlos": "Εγκαταστάσεις σε κτίρια. Λεβητοστάσια παραγωγής ζεστού νερού για θέρμανση κτιριακών έργων",
+          "etos": "1986",
+          "kategoria": "egk",
+          "ekdosi": "Δ΄ έκδοση",
+          "fek": "ΦΕΚ 148/Β/17-3-1988",
+          "fekUrl": "https://search.et.gr/fek/?fekId=719256",
+          "pdfUrl": "https://web.tee.gr/wp-content/uploads/totee_2421_2_86.pdf",
+          "status": "ypoxreotiki",
+          "simeiosi": ""
+        },
+        {
+          "id": "2423",
+          "kodikos": "ΤΟΤΕΕ 2423/1986",
+          "titlos": "Εγκαταστάσεις σε κτίρια. Κλιματισμός κτιριακών χώρων",
+          "etos": "1986",
+          "kategoria": "egk",
+          "ekdosi": "Γ΄ έκδοση",
+          "fek": "ΦΕΚ 177/Β/31-3-1988",
+          "fekUrl": "https://search.et.gr/fek/?fekId=719285",
+          "pdfUrl": "https://web.tee.gr/wp-content/uploads/totee_2423_86.pdf",
+          "status": "ypoxreotiki",
+          "simeiosi": ""
+        },
+        {
+          "id": "2425",
+          "kodikos": "ΤΟΤΕΕ 2425/1986",
+          "titlos": "Εγκαταστάσεις σε κτίρια. Στοιχεία υπολογισμού φορτίων κλιματισμού κτιριακών χώρων",
+          "etos": "1986",
+          "kategoria": "egk",
+          "ekdosi": "Ε΄ έκδοση",
+          "fek": "",
+          "fekUrl": "",
+          "pdfUrl": "https://web.tee.gr/wp-content/uploads/totee_2425_86.pdf",
+          "status": "systasi",
+          "simeiosi": "Δεν φέρει εγκριτική απόφαση — ισχύει ως κανόνας τέχνης και επιστήμης, όχι ως υποχρεωτική διάταξη."
+        },
+        {
+          "id": "2427",
+          "kodikos": "ΤΟΤΕΕ 2427/1983",
+          "titlos": "Κατανομή δαπανών κεντρικής θέρμανσης κτηρίων",
+          "etos": "1983",
+          "kategoria": "egk",
+          "ekdosi": "",
+          "fek": "ΦΕΚ 631/Δ/7-11-1985 (Π.Δ. 27)",
+          "fekUrl": "https://search.et.gr/el/fek/?fekId=709009",
+          "pdfUrl": "https://web.tee.gr/wp-content/uploads/202427-83fek_631d_1985.pdf",
+          "status": "anatheorisi",
+          "simeiosi": "Δημοσιεύθηκε αρχικά στο Ενημερωτικό Δελτίο ΤΕΕ αρ. 1294/23.01.1984. Η ομάδα εργασίας αναθεώρησης έχει παραδώσει τελικό κείμενο, το οποίο δεν έχει ακόμη θεσμοθετηθεί."
+        },
+        {
+          "id": "2451",
+          "kodikos": "ΤΟΤΕΕ 2451/1986",
+          "titlos": "Εγκαταστάσεις σε κτίρια. Μόνιμα πυροσβεστικά συστήματα με νερό",
+          "etos": "1986",
+          "kategoria": "egk",
+          "ekdosi": "Ε΄ έκδοση",
+          "fek": "ΦΕΚ 632/Β/26-11-1987",
+          "fekUrl": "https://search.et.gr/fek/?fekId=713801",
+          "pdfUrl": "https://web.tee.gr/wp-content/uploads/totee_2451_86.pdf",
+          "status": "anatheorisi",
+          "simeiosi": "Εν ισχύι. Έχει συσταθεί ομάδα εργασίας ΤΕΕ για την αναθεώρησή της."
+        },
+        {
+          "id": "2471",
+          "kodikos": "ΤΟΤΕΕ 2471/1986",
+          "titlos": "Εγκαταστάσεις σε κτίρια. Διανομή καυσίμων αερίων",
+          "etos": "1986",
+          "kategoria": "egk",
+          "ekdosi": "Δ΄ έκδοση",
+          "fek": "ΦΕΚ 366/Β/16-7-1987 · Π.Δ. 420/87 (ΦΕΚ 187/Α)",
+          "fekUrl": "https://search.et.gr/fek/?fekId=713535",
+          "pdfUrl": "https://web.tee.gr/wp-content/uploads/totee_2471_86.pdf",
+          "status": "katargimeni",
+          "simeiosi": "Έπαυσε να ισχύει με τον «Κανονισμό Εσωτερικών Εγκαταστάσεων Φυσικού Αερίου με πίεση λειτουργίας έως και 1 bar» — ΚΥΑ Δ3/Α/11346, ΦΕΚ 963/Β/15-7-2003. Συμπληρωματικά μέτρα: ΚΥΑ Δ3/Α/22560, ΦΕΚ 1730/Β/9-12-2005."
+        },
+        {
+          "id": "2481",
+          "kodikos": "ΤΟΤΕΕ 2481/1986",
+          "titlos": "Εγκαταστάσεις σε κτίρια. Διανομή ατμού μέχρι PN16-300°C",
+          "etos": "1986",
+          "kategoria": "egk",
+          "ekdosi": "Δ΄ έκδοση",
+          "fek": "ΦΕΚ 334/Β/24-6-1987",
+          "fekUrl": "https://search.et.gr/fek/?fekId=713503",
+          "pdfUrl": "https://web.tee.gr/wp-content/uploads/totee_2481_86.pdf",
+          "status": "ypoxreotiki",
+          "simeiosi": ""
+        },
+        {
+          "id": "2491",
+          "kodikos": "ΤΟΤΕΕ 2491/1986",
+          "titlos": "Εγκαταστάσεις σε κτίρια. Αποθήκευση και διανομή αερίων για ιατρική χρήση",
+          "etos": "1986",
+          "kategoria": "egk",
+          "ekdosi": "Γ΄ έκδοση",
+          "fek": "ΦΕΚ 665/Β/9-9-1988",
+          "fekUrl": "https://search.et.gr/fek/?fekId=724384",
+          "pdfUrl": "https://web.tee.gr/wp-content/uploads/totee_2491_86.pdf",
+          "status": "ypoxreotiki",
+          "simeiosi": ""
+        },
+        {
+          "id": "20701-1",
+          "kodikos": "ΤΟΤΕΕ 20701-1/2017",
+          "titlos": "Αναλυτικές εθνικές προδιαγραφές παραμέτρων για τον υπολογισμό της ενεργειακής απόδοσης κτιρίων και την έκδοση του πιστοποιητικού ενεργειακής απόδοσης",
+          "etos": "2017",
+          "kategoria": "en",
+          "ekdosi": "Α΄ έκδοση",
+          "fek": "ΦΕΚ 4003/Β/17-11-2017",
+          "fekUrl": "https://search.et.gr/fek/?fekId=542227",
+          "pdfUrl": "https://web.tee.gr/wp-content/uploads/%CE%95%CE%93%CE%9A%CE%A1%CE%99%CE%A3%CE%97-TOTEE-1.pdf",
+          "status": "ypoxreotiki",
+          "simeiosi": "Παράρτημα 1 της απόφασης ΔΕΠΕΑ/οικ. 182365/17.10.2017."
+        },
+        {
+          "id": "20701-2",
+          "kodikos": "ΤΟΤΕΕ 20701-2/2017",
+          "titlos": "Θερμοφυσικές ιδιότητες δομικών υλικών και έλεγχος της θερμομονωτικής επάρκειας των κτηρίων",
+          "etos": "2017",
+          "kategoria": "en",
+          "ekdosi": "Α΄ έκδοση",
+          "fek": "ΦΕΚ 4003/Β/17-11-2017",
+          "fekUrl": "https://search.et.gr/fek/?fekId=542227",
+          "pdfUrl": "https://web.tee.gr/wp-content/uploads/%CE%95%CE%93%CE%9A%CE%A1%CE%99%CE%A3%CE%97-TOTEE-2.pdf",
+          "status": "ypoxreotiki",
+          "simeiosi": "Παράρτημα 2 της απόφασης ΔΕΠΕΑ/οικ. 182365/17.10.2017."
+        },
+        {
+          "id": "20701-3",
+          "kodikos": "ΤΟΤΕΕ 20701-3/2010",
+          "titlos": "Κλιματικά δεδομένα ελληνικών περιοχών",
+          "etos": "2014",
+          "kategoria": "en",
+          "ekdosi": "Γ΄ έκδοση",
+          "fek": "ΦΕΚ 2945/Β/2014",
+          "fekUrl": "https://search.et.gr/fek/?fekId=498690",
+          "pdfUrl": "https://web.tee.gr/wp-content/uploads/%CE%95%CE%93%CE%9A%CE%A1%CE%99%CE%A3%CE%97-TOTEE-3.pdf",
+          "status": "ypoxreotiki",
+          "simeiosi": "Δεν αναθεωρήθηκε το 2017. Παραμένει σε ισχύ η Γ΄ έκδοση, Παράρτημα 3 της απόφασης οικ. 2618/2014."
+        },
+        {
+          "id": "20701-4",
+          "kodikos": "ΤΟΤΕΕ 20701-4/2017",
+          "titlos": "Οδηγίες και έντυπα ενεργειακών επιθεωρήσεων κτηρίων, λεβήτων και εγκαταστάσεων θέρμανσης και εγκαταστάσεων κλιματισμού",
+          "etos": "2017",
+          "kategoria": "en",
+          "ekdosi": "Α΄ έκδοση",
+          "fek": "ΦΕΚ 4003/Β/17-11-2017",
+          "fekUrl": "https://search.et.gr/fek/?fekId=542227",
+          "pdfUrl": "https://web.tee.gr/wp-content/uploads/%CE%95%CE%93%CE%9A%CE%A1%CE%99%CE%A3%CE%97-TOTEE-4.pdf",
+          "status": "ypoxreotiki",
+          "simeiosi": "Παράρτημα 3 της απόφασης ΔΕΠΕΑ/οικ. 182365/17.10.2017."
+        },
+        {
+          "id": "20701-5",
+          "kodikos": "ΤΟΤΕΕ 20701-5/2017",
+          "titlos": "Συμπαραγωγή ηλεκτρισμού, θερμότητας και ψύξης: εγκαταστάσεις σε κτήρια",
+          "etos": "2017",
+          "kategoria": "en",
+          "ekdosi": "Α΄ έκδοση",
+          "fek": "ΦΕΚ 4003/Β/17-11-2017",
+          "fekUrl": "https://search.et.gr/fek/?fekId=542227",
+          "pdfUrl": "https://web.tee.gr/wp-content/uploads/%CE%95%CE%93%CE%9A%CE%A1%CE%99%CE%A3%CE%97-TOTEE-5.pdf",
+          "status": "ypoxreotiki",
+          "simeiosi": "Παράρτημα 4 της απόφασης ΔΕΠΕΑ/οικ. 182365/17.10.2017."
+        },
+        {
+          "id": "diorthosi-4108",
+          "kodikos": "Διόρθωση σφαλμάτων",
+          "titlos": "Διορθώσεις σφαλμάτων στην απόφαση ΔΕΠΕΑ/οικ. 182365/17.10.2017 «Έγκριση και εφαρμογή των Τεχνικών Οδηγιών ΤΕΕ για την Ενεργειακή Απόδοση Κτιρίων»",
+          "etos": "2017",
+          "kategoria": "en",
+          "ekdosi": "",
+          "fek": "ΦΕΚ 4108/Β/2017",
+          "fekUrl": "https://search.et.gr/fek/?fekId=542200",
+          "pdfUrl": "https://web.tee.gr/wp-content/uploads/4108.pdf",
+          "status": "ypoxreotiki",
+          "simeiosi": "Ελέγχεται υποχρεωτικά μαζί με το ΦΕΚ 4003/Β/2017."
+        },
+        {
+          "id": "odofotismos",
+          "kodikos": "ΤΟΤΕΕ (χωρίς αρίθμηση)",
+          "titlos": "Σχεδιασμός και έλεγχος εγκαταστάσεων οδοφωτισμού",
+          "etos": "2018",
+          "kategoria": "auto",
+          "ekdosi": "",
+          "fek": "",
+          "fekUrl": "",
+          "pdfUrl": "https://web.tee.gr/wp-content/uploads/totee_odofotismou_Layout-1.pdf",
+          "status": "systasi",
+          "simeiosi": "Έκδοση ΤΕΕ χωρίς εγκριτική υπουργική απόφαση."
+        },
+        {
+          "id": "yalopinakes",
+          "kodikos": "ΤΟΤΕΕ (χωρίς αρίθμηση)",
+          "titlos": "Υαλοπίνακες ασφαλείας",
+          "etos": "2022",
+          "kategoria": "auto",
+          "ekdosi": "",
+          "fek": "",
+          "fekUrl": "",
+          "pdfUrl": "https://web.tee.gr/wp-content/uploads/ISBN_2_11_2022__all_totee_yalopinakes_parartima_I_II.pdf",
+          "status": "systasi",
+          "simeiosi": "Εξαιρούνται εφαρμογές υαλοπινάκων με κύριο κριτήριο επιλογής τη θερμομόνωση ή/και την ηχομείωση. Ελεύθερη πρόσβαση μόνο για ανάγνωση."
+        },
+        {
+          "id": "totee-0",
+          "kodikos": "ΤΟΤΕΕ 0",
+          "titlos": "Κατευθυντήριες οδηγίες για τη σύνταξη και αναθεώρηση των ΤΟΤΕΕ που θα αναπτυχθούν στο πλαίσιο της Εθνικής Συμμαχίας Αειφόρου Δόμησης",
+          "etos": "2025",
+          "kategoria": "auto",
+          "ekdosi": "",
+          "fek": "",
+          "fekUrl": "",
+          "pdfUrl": "https://web.tee.gr/wp-content/uploads/%CE%A4%CE%9F%CE%A4%CE%95%CE%95-2025-Nov.pdf",
+          "status": "systasi",
+          "simeiosi": "Μεθοδολογικό πλαίσιο της νέας γενιάς «ΤΟΤΕΕ Αειφόρου Δόμησης». Προδιαγράφει πάνω από 130 μελλοντικές οδηγίες."
+        },
+        {
+          "id": "20701-6",
+          "kodikos": "ΤΟΤΕΕ 20701-6",
+          "titlos": "Βιοκλιματικός σχεδιασμός στον ελλαδικό χώρο",
+          "etos": "—",
+          "kategoria": "ekp",
+          "ekdosi": "",
+          "fek": "",
+          "fekUrl": "",
+          "pdfUrl": "",
+          "status": "ekponisi",
+          "simeiosi": "Ανακοινωμένη νέα ΤΟΤΕΕ της ενεργειακής σειράς. Δεν έχει εκδοθεί."
+        },
+        {
+          "id": "20701-7",
+          "kodikos": "ΤΟΤΕΕ 20701-7",
+          "titlos": "Τεχνητός και φυσικός φωτισμός κτιρίων",
+          "etos": "—",
+          "kategoria": "ekp",
+          "ekdosi": "",
+          "fek": "",
+          "fekUrl": "",
+          "pdfUrl": "",
+          "status": "ekponisi",
+          "simeiosi": "Ανακοινωμένη νέα ΤΟΤΕΕ της ενεργειακής σειράς. Δεν έχει εκδοθεί."
+        },
+        {
+          "id": "20701-8",
+          "kodikos": "ΤΟΤΕΕ 20701-8",
+          "titlos": "Εγκαταστάσεις αξιοποίησης ανανεώσιμων πηγών ενέργειας σε κτίρια",
+          "etos": "—",
+          "kategoria": "ekp",
+          "ekdosi": "",
+          "fek": "",
+          "fekUrl": "",
+          "pdfUrl": "",
+          "status": "ekponisi",
+          "simeiosi": "Ανακοινωμένη νέα ΤΟΤΕΕ της ενεργειακής σειράς. Δεν έχει εκδοθεί."
+        },
+        {
+          "id": "20701-9",
+          "kodikos": "ΤΟΤΕΕ 20701-9",
+          "titlos": "Οικονομική αξιολόγηση ενεργειακών επενδύσεων",
+          "etos": "—",
+          "kategoria": "ekp",
+          "ekdosi": "",
+          "fek": "",
+          "fekUrl": "",
+          "pdfUrl": "",
+          "status": "ekponisi",
+          "simeiosi": "Ανακοινωμένη νέα ΤΟΤΕΕ της ενεργειακής σειράς. Δεν έχει εκδοθεί."
+        },
+        {
+          "id": "20701-10",
+          "kodikos": "ΤΟΤΕΕ 20701-10",
+          "titlos": "Στοιχεία υπολογισμού εγκαταστάσεων θέρμανσης – ψύξης – αερισμού (κλιματισμού) και ζεστού νερού χρήσης κτιριακών χώρων",
+          "etos": "—",
+          "kategoria": "ekp",
+          "ekdosi": "",
+          "fek": "",
+          "fekUrl": "",
+          "pdfUrl": "",
+          "status": "ekponisi",
+          "simeiosi": "Ανακοινωμένη νέα ΤΟΤΕΕ της ενεργειακής σειράς. Δεν έχει εκδοθεί."
+        },
+        {
+          "id": "lithostrota",
+          "kodikos": "ΤΟΤΕΕ Αειφόρου Δόμησης",
+          "titlos": "Αειφόρος κατασκευή, αποκατάσταση και συντήρηση λιθόστρωτων επιστρώσεων στην ορεινή και νησιωτική Ελλάδα",
+          "etos": "2026",
+          "kategoria": "ekp",
+          "ekdosi": "",
+          "fek": "",
+          "fekUrl": "",
+          "pdfUrl": "",
+          "status": "ekponisi",
+          "simeiosi": "Πρώτη εξειδικευμένη ΤΟΤΕΕ της σειράς Αειφόρου Δόμησης. Δημόσια διαβούλευση έως 20.09.2026."
+        },
+        {
+          "id": "hist-2010",
+          "kodikos": "ΤΟΤΕΕ 20701-1,2,3,4/2010",
+          "titlos": "Αρχική έκδοση της ενεργειακής σειράς κατά τον πρώτο ΚΕΝΑΚ",
+          "etos": "2010",
+          "kategoria": "ist",
+          "ekdosi": "Α΄ έκδοση",
+          "fek": "ΦΕΚ 1387/Β/2010",
+          "fekUrl": "",
+          "pdfUrl": "https://web.tee.gr/wp-content/uploads/1387-b.pdf",
+          "status": "istoriko",
+          "simeiosi": "Αντικαταστάθηκε από τις εκδόσεις 2014 και 2017. Χρήσιμη για έλεγχο παλαιότερων ΠΕΑ και ενεργειακών μελετών."
+        },
+        {
+          "id": "hist-2014",
+          "kodikos": "ΤΟΤΕΕ 20701-1/-2/-4 (αναθ. 2014)",
+          "titlos": "Ενδιάμεση αναθεώρηση: Γ΄ έκδοση 20701-1, Β΄ έκδοση 20701-2, Γ΄ έκδοση 20701-4",
+          "etos": "2014",
+          "kategoria": "ist",
+          "ekdosi": "",
+          "fek": "ΦΕΚ 2945/Β/2014 (οικ. 2618)",
+          "fekUrl": "https://search.et.gr/fek/?fekId=498690",
+          "pdfUrl": "",
+          "status": "istoriko",
+          "simeiosi": "Αντικαταστάθηκαν από τις Α΄ εκδόσεις 2017. Από την απόφαση αυτή παραμένει σε ισχύ μόνο η 20701-3/2010 (Γ΄ έκδοση)."
+        }
+      ]
+    }
+  }
+}
