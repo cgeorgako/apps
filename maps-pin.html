@@ -222,8 +222,13 @@
     border-radius:50%;
     animation:spin 0.7s linear infinite;
     display:inline-block;
+    vertical-align:middle;
   }
+  .spinner-dim{border:2px solid rgba(201,162,39,0.25);border-top-color:var(--gold);}
   @keyframes spin{to{transform:rotate(360deg);}}
+
+  .kaek-box{margin-top:1rem;padding-top:1rem;border-top:1px dashed var(--border);}
+  .kaek-box .coords{font-size:1.1rem;font-weight:600;}
 
   /* ── Ιστορικό ── */
   .history-head{
@@ -325,7 +330,7 @@
       <input id="xyNote" type="text" placeholder="π.χ. Στάση Α1">
     </div>
     <div class="actions">
-      <button id="xyConvertBtn" class="act btn-primary">Μετατροπή σε WGS84</button>
+      <button id="xyConvertBtn" class="act btn-primary">Εντοπισμός σημείου &amp; ΚΑΕΚ</button>
     </div>
     <div id="xyResult" class="result">
       <div class="rlabel">Σημείο (WGS84)</div>
@@ -336,6 +341,14 @@
         <div class="btn-mini-row">
           <button id="xyGeoBtn" class="act btn-secondary">Εφαρμογή Χάρτες</button>
           <button id="xyCopyBtn" class="act btn-secondary">Αντιγραφή</button>
+        </div>
+      </div>
+      <div class="kaek-box">
+        <div class="rlabel">ΚΑΕΚ στο σημείο</div>
+        <div id="xyKaekVal" class="coords">—</div>
+        <div id="xyKaekActions" class="btn-mini-row" style="margin-top:0.6rem;display:none;">
+          <button id="xyKaekCopyBtn" class="act btn-secondary">Αντιγραφή ΚΑΕΚ</button>
+          <button id="xyKaekOpenBtn" class="act btn-secondary">Δες γεωτεμάχιο →</button>
         </div>
       </div>
     </div>
@@ -368,6 +381,8 @@ const $ = id => document.getElementById(id);
 const STORAGE_KEY = 'maps_pin_history_v1';
 const MAX_HISTORY = 25;
 const ARCGIS_URL = "https://services-eu1.arcgis.com/40tFGWzosjaLJpmn/arcgis/rest/services/GEOTEMAXIA_LEITOURGOUN_ON_gdb/FeatureServer/0/query";
+const KTIMA_VIEW_URL = 'https://ktimatologio.gov.gr/Professionals/Inquiry/Main/viewResults/';
+const KTIMA_SUFFIX = '-0-0?p=1';
 
 let toastTimer;
 function showToast(msg){
@@ -583,6 +598,39 @@ $('kaekCopyBtn').addEventListener('click', () => { if(kaekPoint) copyCoords(kaek
 /* ═══════════════ Χ,Υ (ΕΓΣΑ87) ═══════════════ */
 const xInput = $('xInput'), yInput = $('yInput');
 let xyPoint = null;
+let xyKaek = null;
+
+/* Χωρικό ερώτημα: ποιο γεωτεμάχιο (ΚΑΕΚ) περιέχει το σημείο Χ,Υ (ΕΓΣΑ87).
+   Το σημείο στέλνεται απευθείας σε ΕΓΣΑ87 (inSR=2100) — point-in-polygon. */
+async function findKaekAtPoint(X, Y){
+  const box = $('xyKaekVal');
+  const actions = $('xyKaekActions');
+  xyKaek = null;
+  actions.style.display = 'none';
+  box.innerHTML = '<span class="spinner spinner-dim"></span> Αναζήτηση ΚΑΕΚ…';
+  try{
+    const geom = encodeURIComponent(X + ',' + Y);
+    const url = `${ARCGIS_URL}?f=json&geometry=${geom}&geometryType=esriGeometryPoint&inSR=2100`
+              + `&spatialRel=esriSpatialRelIntersects&outFields=KAEK&returnGeometry=false`;
+    const res = await fetch(url);
+    if(!res.ok) throw new Error('server ' + res.status);
+    const data = await res.json();
+    if(data.error) throw new Error(data.error.message || 'arcgis error');
+    if(!data.features || data.features.length === 0){
+      box.textContent = 'Το σημείο δεν εμπίπτει σε καταχωρημένο γεωτεμάχιο.';
+      return;
+    }
+    const kaek = String(data.features[0].attributes.KAEK || '').trim();
+    if(!kaek){ box.textContent = 'Βρέθηκε γεωτεμάχιο χωρίς ΚΑΕΚ.'; return; }
+    xyKaek = kaek;
+    const more = data.features.length > 1 ? ` (+${data.features.length - 1} ακόμη)` : '';
+    box.textContent = kaek + more;
+    actions.style.display = 'flex';
+  }catch(err){
+    console.error(err);
+    box.textContent = 'Αποτυχία αναζήτησης ΚΑΕΚ — έλεγξε το internet.';
+  }
+}
 
 function parseCoord(s){
   // Δέχεται 267540 / 267540,25 / 267.540,25 / 267540.25
@@ -631,6 +679,24 @@ $('xyConvertBtn').addEventListener('click', () => {
   $('xyMeta').textContent = 'ΕΓΣΑ87  Χ=' + X.toFixed(2) + '  Υ=' + Y.toFixed(2);
   $('xyResult').classList.add('show');
   addToHistory({ type:'xy', label:'Χ,Υ ' + Math.round(X) + ',' + Math.round(Y), note:$('xyNote').value.trim(), lat, lon });
+  findKaekAtPoint(X, Y);
+});
+
+$('xyKaekCopyBtn').addEventListener('click', async () => {
+  if(!xyKaek) return;
+  try{ await navigator.clipboard.writeText(xyKaek); showToast('Αντιγράφηκε ΚΑΕΚ: ' + xyKaek); }
+  catch(e){ showToast('Αποτυχία αντιγραφής'); }
+});
+$('xyKaekOpenBtn').addEventListener('click', () => {
+  if(!xyKaek) return;
+  const digits = xyKaek.replace(/\D/g,'').slice(0,12);
+  if(digits.length !== 12){ showToast('Μη έγκυρος ΚΑΕΚ για προβολή'); return; }
+  // Μετάβαση στην καρτέλα ΚΑΕΚ, προσυμπλήρωση και αυτόματη εύρεση γεωτεμαχίου
+  $('tabKaek').click();
+  kaekInput.value = digits;
+  validateKaek();
+  if(!kaekFindBtn.disabled) kaekFindBtn.click();
+  window.scrollTo({ top:0, behavior:'smooth' });
 });
 
 $('xyMapsBtn').addEventListener('click', () => { if(xyPoint) openGoogleMaps(xyPoint.lat, xyPoint.lon); });
