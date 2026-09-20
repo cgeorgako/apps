@@ -1,0 +1,778 @@
+<!DOCTYPE html>
+<html lang="el">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1">
+<title>ΚΑΕΚ / Χ,Υ → Google Maps</title>
+<meta name="description" content="Άνοιγμα Google Maps με πινέζα από ΚΑΕΚ Κτηματολογίου ή συντεταγμένες Χ,Υ (ΕΓΣΑ87).">
+<meta name="theme-color" content="#0f1115">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Πινέζα Χάρτη">
+<link rel="manifest" href="maps-pin.webmanifest">
+<link rel="apple-touch-icon" href="maps-pin-icon.svg">
+<link rel="icon" href="maps-pin-icon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0f1115;
+    --surface:#191c22;
+    --surface-2:#20242c;
+    --border:#2b2f38;
+    --text:#e9e7e1;
+    --text-muted:#8b8d97;
+    --gold:#c9a227;
+    --gold-dim:#8a701e;
+    --green:#3f8a63;
+    --red:#c1554a;
+    --blue:#4285F4;
+    --radius:14px;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--bg);
+    color:var(--text);
+    font-family:'IBM Plex Sans',system-ui,-apple-system,'Segoe UI',sans-serif;
+    min-height:100vh;
+    min-height:100dvh;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    padding:1.75rem 1rem calc(2.5rem + env(safe-area-inset-bottom));
+    padding-top:calc(1.75rem + env(safe-area-inset-top));
+    -webkit-text-size-adjust:100%;
+  }
+  .wrap{width:100%;max-width:460px;}
+
+  header{text-align:center;margin-bottom:1.5rem;}
+  header .eyebrow{
+    font-family:'IBM Plex Mono',monospace;
+    font-size:0.72rem;
+    letter-spacing:0.14em;
+    text-transform:uppercase;
+    color:var(--gold);
+    margin-bottom:0.4rem;
+  }
+  header h1{font-size:1.35rem;font-weight:700;margin:0;letter-spacing:-0.01em;}
+  header p{color:var(--text-muted);font-size:0.85rem;margin:0.4rem 0 0;}
+
+  .card{
+    background:var(--surface);
+    border:1px solid var(--border);
+    border-radius:var(--radius);
+    padding:1.4rem;
+    margin-bottom:1.1rem;
+  }
+
+  /* ── Tabs ── */
+  .tabs{
+    display:flex;
+    gap:0.4rem;
+    background:var(--surface-2);
+    border:1px solid var(--border);
+    border-radius:12px;
+    padding:0.3rem;
+    margin-bottom:1.1rem;
+  }
+  .tab{
+    flex:1;
+    text-align:center;
+    padding:0.6rem 0.4rem;
+    border-radius:9px;
+    font-size:0.85rem;
+    font-weight:600;
+    color:var(--text-muted);
+    cursor:pointer;
+    border:none;
+    background:transparent;
+    font-family:inherit;
+    transition:background 0.15s ease, color 0.15s ease;
+  }
+  .tab.active{background:var(--gold);color:#1a1305;}
+
+  label{
+    display:block;
+    font-size:0.78rem;
+    font-weight:600;
+    color:var(--text-muted);
+    margin-bottom:0.45rem;
+  }
+
+  .field{margin-bottom:1rem;}
+  .field:last-child{margin-bottom:0;}
+
+  input[type=text]{
+    width:100%;
+    background:var(--surface-2);
+    border:1.5px solid var(--border);
+    border-radius:10px;
+    color:var(--text);
+    font-family:'IBM Plex Mono',monospace;
+    font-size:1.15rem;
+    font-weight:500;
+    letter-spacing:0.04em;
+    padding:0.7rem 0.85rem;
+    text-align:center;
+    transition:border-color 0.15s ease;
+  }
+  input[type=text]:focus{outline:none;border-color:var(--gold);}
+  input.valid{border-color:var(--green);}
+  input.invalid{border-color:var(--red);}
+
+  .xy-row{display:flex;gap:0.7rem;}
+  .xy-row .field{flex:1;margin-bottom:0;}
+
+  .breakdown{
+    display:flex;
+    justify-content:center;
+    gap:0.35rem;
+    margin-top:0.6rem;
+    font-family:'IBM Plex Mono',monospace;
+    font-size:0.68rem;
+    color:var(--text-muted);
+    flex-wrap:wrap;
+  }
+  .breakdown span{
+    background:var(--surface-2);
+    border:1px solid var(--border);
+    border-radius:6px;
+    padding:0.15rem 0.4rem;
+  }
+  .breakdown span b{color:var(--gold);font-weight:600;}
+
+  .hint{font-size:0.76rem;color:var(--text-muted);margin-top:0.5rem;min-height:1.1em;line-height:1.4;}
+  .hint.err{color:var(--red);}
+  .hint.ok{color:var(--green);}
+
+  .swap-btn{
+    background:none;
+    border:1px solid var(--border);
+    color:var(--text-muted);
+    border-radius:8px;
+    font-size:0.74rem;
+    padding:0.4rem 0.6rem;
+    cursor:pointer;
+    margin-top:0.6rem;
+    font-family:inherit;
+  }
+  .swap-btn:hover{border-color:var(--gold-dim);color:var(--text);}
+
+  .note-field{margin-top:1rem;}
+  .note-field input{
+    font-family:'IBM Plex Sans',sans-serif;
+    font-size:0.92rem;
+    letter-spacing:normal;
+    text-align:left;
+  }
+
+  .actions{display:flex;gap:0.6rem;margin-top:1.2rem;flex-direction:column;}
+  button.act{
+    font-family:'IBM Plex Sans',sans-serif;
+    font-weight:600;
+    font-size:0.95rem;
+    border:none;
+    border-radius:11px;
+    padding:0.85rem 1rem;
+    cursor:pointer;
+    transition:transform 0.08s ease, opacity 0.15s ease, background 0.15s ease;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    gap:0.5rem;
+  }
+  button.act:active{transform:scale(0.98);}
+  button.act:disabled{opacity:0.4;cursor:not-allowed;}
+  .btn-primary{background:var(--gold);color:#1a1305;}
+  .btn-primary:hover:not(:disabled){background:#ddb434;}
+  .btn-maps{background:var(--blue);color:#fff;}
+  .btn-maps:hover:not(:disabled){background:#5a95f5;}
+  .btn-secondary{
+    background:var(--surface-2);
+    color:var(--text);
+    border:1px solid var(--border);
+  }
+  .btn-secondary:hover{border-color:var(--gold-dim);}
+  .btn-mini-row{display:flex;gap:0.6rem;}
+  .btn-mini-row .act{flex:1;font-size:0.85rem;padding:0.65rem;}
+
+  .result{
+    margin-top:1.1rem;
+    padding-top:1.1rem;
+    border-top:1px dashed var(--border);
+    display:none;
+  }
+  .result.show{display:block;}
+  .result .rlabel{font-size:0.72rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:0.35rem;}
+  .result .coords{
+    font-family:'IBM Plex Mono',monospace;
+    font-size:1rem;
+    color:var(--gold);
+    word-break:break-all;
+  }
+  .result .meta{font-size:0.78rem;color:var(--text-muted);margin-top:0.4rem;}
+
+  .spinner{
+    width:16px;height:16px;
+    border:2px solid rgba(0,0,0,0.25);
+    border-top-color:#1a1305;
+    border-radius:50%;
+    animation:spin 0.7s linear infinite;
+    display:inline-block;
+    vertical-align:middle;
+  }
+  .spinner-dim{border:2px solid rgba(201,162,39,0.25);border-top-color:var(--gold);}
+  @keyframes spin{to{transform:rotate(360deg);}}
+
+  .kaek-box{margin-top:1rem;padding-top:1rem;border-top:1px dashed var(--border);}
+  .kaek-box .coords{font-size:1.1rem;font-weight:600;}
+
+  /* ── Ιστορικό ── */
+  .history-head{
+    display:flex;justify-content:space-between;align-items:center;margin-bottom:0.75rem;
+  }
+  .history-head h2{font-size:0.82rem;font-weight:600;margin:0;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.04em;}
+  .clear-link{background:none;border:none;color:var(--text-muted);font-size:0.75rem;padding:0.2rem;text-decoration:underline;cursor:pointer;font-family:inherit;}
+  .clear-link:hover{color:var(--red);}
+  .history-list{display:flex;flex-direction:column;gap:0.5rem;}
+  .history-item{
+    background:var(--surface);border:1px solid var(--border);border-radius:10px;
+    padding:0.65rem 0.8rem;display:flex;align-items:center;gap:0.6rem;cursor:pointer;
+  }
+  .history-item:hover{border-color:var(--gold-dim);}
+  .history-info{flex:1;min-width:0;}
+  .history-title{font-family:'IBM Plex Mono',monospace;font-size:0.85rem;letter-spacing:0.02em;}
+  .history-sub{font-size:0.74rem;color:var(--text-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .history-del{background:none;border:none;color:var(--text-muted);font-size:1rem;padding:0.2rem 0.4rem;line-height:1;cursor:pointer;}
+  .history-del:hover{color:var(--red);}
+  .empty{text-align:center;color:var(--text-muted);font-size:0.82rem;padding:1.2rem 0.5rem;border:1px dashed var(--border);border-radius:10px;}
+
+  .install-hint{
+    font-size:0.74rem;color:var(--text-muted);line-height:1.5;
+    margin-top:0.9rem;padding-top:0.9rem;border-top:1px dashed var(--border);
+  }
+  .install-hint b{color:var(--gold);}
+
+  #installBtn{display:none;width:100%;margin-top:0.9rem;}
+
+  .toast{
+    position:fixed;bottom:1.2rem;left:50%;
+    transform:translateX(-50%) translateY(160%);
+    background:var(--surface-2);border:1px solid var(--border);color:var(--text);
+    padding:0.65rem 1rem;border-radius:10px;font-size:0.82rem;
+    transition:transform 0.25s ease;z-index:50;max-width:90vw;text-align:center;line-height:1.4;
+  }
+  .toast.show{transform:translateX(-50%) translateY(0);}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header>
+    <div class="eyebrow">Τεχνικό Γραφείο Γεωργακόπουλος</div>
+    <h1>Πινέζα στο Google Maps</h1>
+    <p>Από ΚΑΕΚ Κτηματολογίου ή συντεταγμένες Χ,Υ (ΕΓΣΑ87)</p>
+  </header>
+
+  <div class="tabs">
+    <button class="tab active" data-tab="kaek" id="tabKaek">ΚΑΕΚ</button>
+    <button class="tab" data-tab="xy" id="tabXy">Συντεταγμένες Χ,Υ</button>
+  </div>
+
+  <!-- ── Καρτέλα ΚΑΕΚ ── -->
+  <div class="card" id="panelKaek">
+    <div class="field">
+      <label for="kaekInput">Αριθμός ΚΑΕΚ (12 ψηφία)</label>
+      <input id="kaekInput" type="text" inputmode="numeric" autocomplete="off" placeholder="150192801004" maxlength="14">
+      <div id="kaekBreakdown" class="breakdown"></div>
+      <div id="kaekHint" class="hint"></div>
+    </div>
+    <div class="note-field field">
+      <label for="kaekNote">Σημείωση (προαιρετικό)</label>
+      <input id="kaekNote" type="text" placeholder="π.χ. Οικόπεδο Παπαδόπουλου">
+    </div>
+    <div class="actions">
+      <button id="kaekFindBtn" class="act btn-primary" disabled>Εύρεση σημείου</button>
+    </div>
+    <div id="kaekResult" class="result">
+      <div class="rlabel">Κέντρο γεωτεμαχίου (WGS84)</div>
+      <div id="kaekCoords" class="coords"></div>
+      <div id="kaekMeta" class="meta"></div>
+      <div class="actions">
+        <button id="kaekMapsBtn" class="act btn-maps">📍 Άνοιγμα στο Google Maps</button>
+        <div class="btn-mini-row">
+          <button id="kaekGeoBtn" class="act btn-secondary">Εφαρμογή Χάρτες</button>
+          <button id="kaekCopyBtn" class="act btn-secondary">Αντιγραφή</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Καρτέλα Χ,Υ ── -->
+  <div class="card" id="panelXy" style="display:none;">
+    <div class="xy-row">
+      <div class="field">
+        <label for="xInput">Χ (Easting)</label>
+        <input id="xInput" type="text" inputmode="decimal" autocomplete="off" placeholder="π.χ. 267540">
+      </div>
+      <div class="field">
+        <label for="yInput">Υ (Northing)</label>
+        <input id="yInput" type="text" inputmode="decimal" autocomplete="off" placeholder="π.χ. 4189320">
+      </div>
+    </div>
+    <button id="swapBtn" class="swap-btn" type="button">⇄ Εναλλαγή Χ ↔ Υ</button>
+    <div id="xyHint" class="hint"></div>
+    <div class="note-field field">
+      <label for="xyNote">Σημείωση (προαιρετικό)</label>
+      <input id="xyNote" type="text" placeholder="π.χ. Στάση Α1">
+    </div>
+    <div class="actions">
+      <button id="xyConvertBtn" class="act btn-primary">Εντοπισμός σημείου &amp; ΚΑΕΚ</button>
+    </div>
+    <div id="xyResult" class="result">
+      <div class="rlabel">Σημείο (WGS84)</div>
+      <div id="xyCoords" class="coords"></div>
+      <div id="xyMeta" class="meta"></div>
+      <div class="actions">
+        <button id="xyMapsBtn" class="act btn-maps">📍 Άνοιγμα στο Google Maps</button>
+        <div class="btn-mini-row">
+          <button id="xyGeoBtn" class="act btn-secondary">Εφαρμογή Χάρτες</button>
+          <button id="xyCopyBtn" class="act btn-secondary">Αντιγραφή</button>
+        </div>
+      </div>
+      <div class="kaek-box">
+        <div class="rlabel">ΚΑΕΚ στο σημείο</div>
+        <div id="xyKaekVal" class="coords">—</div>
+        <div id="xyKaekActions" class="btn-mini-row" style="margin-top:0.6rem;display:none;">
+          <button id="xyKaekCopyBtn" class="act btn-secondary">Αντιγραφή ΚΑΕΚ</button>
+          <button id="xyKaekOpenBtn" class="act btn-secondary">Δες γεωτεμάχιο →</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <button id="installBtn" class="act btn-secondary">⬇️ Εγκατάσταση εφαρμογής</button>
+
+  <div class="card" style="margin-top:1.1rem;">
+    <div class="history-head">
+      <h2>Πρόσφατα</h2>
+      <button id="clearHistoryBtn" class="clear-link">Καθαρισμός</button>
+    </div>
+    <div id="historyList" class="history-list"></div>
+    <div class="install-hint">
+      <b>Εγκατάσταση στο Android:</b> άνοιξε αυτή τη σελίδα στο Chrome →
+      μενού (⋮) → <b>«Προσθήκη στην αρχική οθόνη»</b> / «Εγκατάσταση εφαρμογής».
+      Θα εμφανιστεί εικονίδιο σαν κανονική εφαρμογή και θα δουλεύει και χωρίς σύνδεση
+      (η μετατροπή Χ,Υ γίνεται τοπικά· η αναζήτηση ΚΑΕΚ χρειάζεται internet).
+    </div>
+  </div>
+</div>
+
+<div id="toast" class="toast"></div>
+
+<script>
+"use strict";
+
+/* ═══════════════ Βοηθητικά ═══════════════ */
+const $ = id => document.getElementById(id);
+const STORAGE_KEY = 'maps_pin_history_v1';
+const MAX_HISTORY = 25;
+const ARCGIS_URL = "https://services-eu1.arcgis.com/40tFGWzosjaLJpmn/arcgis/rest/services/GEOTEMAXIA_LEITOURGOUN_ON_gdb/FeatureServer/0/query";
+const KTIMA_VIEW_URL = 'https://ktimatologio.gov.gr/Professionals/Inquiry/Main/viewResults/';
+const KTIMA_SUFFIX = '-0-0?p=1';
+
+let toastTimer;
+function showToast(msg){
+  const t = $('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show'), 2600);
+}
+
+/* ═══════════════ Μετατροπή ΕΓΣΑ87 (EPSG:2100) → WGS84 ═══════════════
+   Αντίστροφη Εγκάρσια Μερκατορική (Snyder) σε GRS80,
+   + μετάθεση δεδομένου GGRS87→WGS84 (−199.87, 74.79, 246.62).
+   Ακρίβεια ~1 m — υπεραρκετή για πινέζα. Τρέχει 100% τοπικά.        */
+function egsa87ToWgs84(E, N){
+  const a = 6378137.0, f = 1/298.257222101;      // GRS80
+  const e2 = f*(2-f);
+  const k0 = 0.9996, lon0 = 24*Math.PI/180, FE = 500000, FN = 0;
+
+  const M  = (N - FN)/k0;
+  const e1 = (1 - Math.sqrt(1-e2))/(1 + Math.sqrt(1-e2));
+  const mu = M/(a*(1 - e2/4 - 3*e2*e2/64 - 5*e2*e2*e2/256));
+  const phi1 = mu
+    + (3*e1/2 - 27*Math.pow(e1,3)/32)*Math.sin(2*mu)
+    + (21*e1*e1/16 - 55*Math.pow(e1,4)/32)*Math.sin(4*mu)
+    + (151*Math.pow(e1,3)/96)*Math.sin(6*mu)
+    + (1097*Math.pow(e1,4)/512)*Math.sin(8*mu);
+
+  const ep2 = e2/(1-e2);
+  const s1  = Math.sin(phi1), c1 = Math.cos(phi1), t1 = Math.tan(phi1);
+  const C1  = ep2*c1*c1;
+  const T1  = t1*t1;
+  const N1  = a/Math.sqrt(1 - e2*s1*s1);
+  const R1  = a*(1-e2)/Math.pow(1 - e2*s1*s1, 1.5);
+  const D   = (E - FE)/(N1*k0);
+
+  const lat = phi1 - (N1*t1/R1)*(
+      D*D/2
+    - (5 + 3*T1 + 10*C1 - 4*C1*C1 - 9*ep2)*Math.pow(D,4)/24
+    + (61 + 90*T1 + 298*C1 + 45*T1*T1 - 252*ep2 - 3*C1*C1)*Math.pow(D,6)/720);
+  const lon = lon0 + (
+      D
+    - (1 + 2*T1 + C1)*Math.pow(D,3)/6
+    + (5 - 2*C1 + 28*T1 - 3*C1*C1 + 8*ep2 + 24*T1*T1)*Math.pow(D,5)/120)/c1;
+
+  /* GGRS87/GRS80 γεωδαιτικές → γεωκεντρικές XYZ */
+  const sinLat = Math.sin(lat), cosLat = Math.cos(lat);
+  const sinLon = Math.sin(lon), cosLon = Math.cos(lon);
+  const Ncur = a/Math.sqrt(1 - e2*sinLat*sinLat);
+  let X = Ncur*cosLat*cosLon;
+  let Y = Ncur*cosLat*sinLon;
+  let Z = Ncur*(1-e2)*sinLat;
+
+  /* Μετάθεση δεδομένου → WGS84 */
+  X += -199.87; Y += 74.79; Z += 246.62;
+
+  /* Γεωκεντρικές → γεωδαιτικές σε WGS84 (επαναληπτικά) */
+  const aw = 6378137.0, fw = 1/298.257223563, e2w = fw*(2-fw);
+  const p = Math.hypot(X, Y);
+  let latW = Math.atan2(Z, p*(1 - e2w));
+  for(let i=0;i<8;i++){
+    const s = Math.sin(latW);
+    const Nw = aw/Math.sqrt(1 - e2w*s*s);
+    const hw = p/Math.cos(latW) - Nw;
+    latW = Math.atan2(Z, p*(1 - e2w*Nw/(Nw + hw)));
+  }
+  const lonW = Math.atan2(Y, X);
+  return { lat: latW*180/Math.PI, lon: lonW*180/Math.PI };
+}
+
+/* ═══════════════ Άνοιγμα Google Maps με πινέζα ═══════════════ */
+function fmtCoord(v){ return Number(v).toFixed(6); }
+
+function openGoogleMaps(lat, lon){
+  const q = fmtCoord(lat) + ',' + fmtCoord(lon);
+  // Universal link — ανοίγει την εφαρμογή Google Maps στο Android, ή τον browser αλλού
+  const url = 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(q);
+  window.open(url, '_blank', 'noopener');
+}
+
+function openGeoApp(lat, lon, label){
+  const q = fmtCoord(lat) + ',' + fmtCoord(lon);
+  const lbl = label ? '(' + label + ')' : '';
+  // geo: intent → ανοίγει τη native εφαρμογή Χαρτών του Android με πινέζα
+  window.location.href = 'geo:' + q + '?q=' + q + encodeURIComponent(lbl);
+}
+
+async function copyCoords(lat, lon){
+  const txt = fmtCoord(lat) + ', ' + fmtCoord(lon);
+  try{
+    await navigator.clipboard.writeText(txt);
+    showToast('Αντιγράφηκε: ' + txt);
+  }catch(e){
+    const ta = document.createElement('textarea');
+    ta.value = txt; ta.style.cssText = 'position:fixed;opacity:0';
+    document.body.appendChild(ta); ta.select();
+    try{ document.execCommand('copy'); showToast('Αντιγράφηκε: ' + txt); }
+    catch(err){ showToast('Αποτυχία αντιγραφής'); }
+    document.body.removeChild(ta);
+  }
+}
+
+/* ═══════════════ Καρτέλες (tabs) ═══════════════ */
+document.querySelectorAll('.tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    tab.classList.add('active');
+    const isKaek = tab.dataset.tab === 'kaek';
+    $('panelKaek').style.display = isKaek ? '' : 'none';
+    $('panelXy').style.display   = isKaek ? 'none' : '';
+  });
+});
+
+/* ═══════════════ ΚΑΕΚ ═══════════════ */
+const kaekInput = $('kaekInput');
+const kaekFindBtn = $('kaekFindBtn');
+let kaekPoint = null;   // {lat, lon}
+
+function cleanDigits(raw){ return raw.replace(/\D/g,'').slice(0,12); }
+
+function renderKaekBreakdown(digits){
+  const el = $('kaekBreakdown');
+  if(digits.length === 0){ el.innerHTML = ''; return; }
+  const parts = [
+    {label:'Νομός', len:2},{label:'ΟΤΑ', len:3},
+    {label:'Τομέας', len:2},{label:'Ενότητα', len:2},{label:'Αύξων', len:3},
+  ];
+  let i = 0, html = '';
+  for(const p of parts){
+    const chunk = digits.slice(i, i+p.len);
+    if(chunk.length === 0) break;
+    html += `<span><b>${chunk}</b> ${p.label}</span>`;
+    i += p.len;
+  }
+  el.innerHTML = html;
+}
+
+function validateKaek(){
+  const digits = cleanDigits(kaekInput.value);
+  kaekInput.value = digits;
+  renderKaekBreakdown(digits);
+  kaekInput.classList.remove('valid','invalid');
+  const hint = $('kaekHint');
+  if(digits.length === 0){ hint.textContent=''; hint.className='hint'; kaekFindBtn.disabled=true; return; }
+  if(digits.length < 12){
+    hint.textContent = `${digits.length}/12 ψηφία`; hint.className='hint';
+    kaekInput.classList.add('invalid'); kaekFindBtn.disabled=true; return;
+  }
+  hint.textContent = 'Έγκυρος αριθμός ψηφίων ✓'; hint.className='hint ok';
+  kaekInput.classList.add('valid'); kaekFindBtn.disabled=false;
+}
+
+kaekInput.addEventListener('input', validateKaek);
+kaekInput.addEventListener('keydown', e => { if(e.key==='Enter' && !kaekFindBtn.disabled) kaekFindBtn.click(); });
+
+/* Κεντροειδές δακτυλίου σε lon/lat (σταθμισμένο κατά εμβαδό) */
+function ringCentroid(ring){
+  let A=0, Cx=0, Cy=0;
+  for(let i=0;i<ring.length-1;i++){
+    const x0=ring[i][0], y0=ring[i][1], x1=ring[i+1][0], y1=ring[i+1][1];
+    const cr = x0*y1 - x1*y0;
+    A += cr; Cx += (x0+x1)*cr; Cy += (y0+y1)*cr;
+  }
+  A *= 0.5;
+  if(Math.abs(A) < 1e-12){
+    let sx=0, sy=0, n=0;
+    for(let i=0;i<ring.length-1;i++){ sx+=ring[i][0]; sy+=ring[i][1]; n++; }
+    return n ? [sx/n, sy/n] : [ring[0][0], ring[0][1]];
+  }
+  return [Cx/(6*A), Cy/(6*A)];
+}
+
+kaekFindBtn.addEventListener('click', async () => {
+  const kaek = cleanDigits(kaekInput.value);
+  if(kaek.length !== 12) return;
+  kaekFindBtn.disabled = true;
+  const orig = kaekFindBtn.innerHTML;
+  kaekFindBtn.innerHTML = '<span class="spinner"></span> Αναζήτηση…';
+  $('kaekResult').classList.remove('show');
+  try{
+    const url = `${ARCGIS_URL}?f=json&where=KAEK='${kaek}'&outFields=AREA,PERIMETER&returnGeometry=true&outSR=4326`;
+    const res = await fetch(url);
+    if(!res.ok) throw new Error('server ' + res.status);
+    const data = await res.json();
+    if(!data.features || data.features.length === 0){
+      showToast('Το ΚΑΕΚ δεν βρέθηκε στη βάση του Κτηματολογίου');
+      return;
+    }
+    const feat = data.features[0];
+    const rings = feat.geometry && feat.geometry.rings;
+    if(!rings || !rings.length){ showToast('Δεν βρέθηκε γεωμετρία γεωτεμαχίου'); return; }
+    const [lon, lat] = ringCentroid(rings[0]);
+    kaekPoint = { lat, lon };
+
+    const area = feat.attributes && feat.attributes.AREA;
+    $('kaekCoords').textContent = fmtCoord(lat) + ', ' + fmtCoord(lon);
+    $('kaekMeta').textContent = 'ΚΑΕΚ ' + kaek + (area ? ' · Εμβαδόν ~' + Math.round(area).toLocaleString('el-GR') + ' m²' : '');
+    $('kaekResult').classList.add('show');
+    addToHistory({ type:'kaek', label:'ΚΑΕΚ ' + kaek, note:$('kaekNote').value.trim(), lat, lon });
+  }catch(err){
+    console.error(err);
+    showToast('Αποτυχία σύνδεσης με το Κτηματολόγιο — έλεγξε το internet');
+  }finally{
+    kaekFindBtn.innerHTML = orig;
+    kaekFindBtn.disabled = false;
+  }
+});
+
+$('kaekMapsBtn').addEventListener('click', () => { if(kaekPoint) openGoogleMaps(kaekPoint.lat, kaekPoint.lon); });
+$('kaekGeoBtn').addEventListener('click',  () => { if(kaekPoint) openGeoApp(kaekPoint.lat, kaekPoint.lon, $('kaekNote').value.trim() || cleanDigits(kaekInput.value)); });
+$('kaekCopyBtn').addEventListener('click', () => { if(kaekPoint) copyCoords(kaekPoint.lat, kaekPoint.lon); });
+
+/* ═══════════════ Χ,Υ (ΕΓΣΑ87) ═══════════════ */
+const xInput = $('xInput'), yInput = $('yInput');
+let xyPoint = null;
+let xyKaek = null;
+
+/* Χωρικό ερώτημα: ποιο γεωτεμάχιο (ΚΑΕΚ) περιέχει το σημείο Χ,Υ (ΕΓΣΑ87).
+   Το σημείο στέλνεται απευθείας σε ΕΓΣΑ87 (inSR=2100) — point-in-polygon. */
+async function findKaekAtPoint(X, Y){
+  const box = $('xyKaekVal');
+  const actions = $('xyKaekActions');
+  xyKaek = null;
+  actions.style.display = 'none';
+  box.innerHTML = '<span class="spinner spinner-dim"></span> Αναζήτηση ΚΑΕΚ…';
+  try{
+    const geom = encodeURIComponent(X + ',' + Y);
+    const url = `${ARCGIS_URL}?f=json&geometry=${geom}&geometryType=esriGeometryPoint&inSR=2100`
+              + `&spatialRel=esriSpatialRelIntersects&outFields=KAEK&returnGeometry=false`;
+    const res = await fetch(url);
+    if(!res.ok) throw new Error('server ' + res.status);
+    const data = await res.json();
+    if(data.error) throw new Error(data.error.message || 'arcgis error');
+    if(!data.features || data.features.length === 0){
+      box.textContent = 'Το σημείο δεν εμπίπτει σε καταχωρημένο γεωτεμάχιο.';
+      return;
+    }
+    const kaek = String(data.features[0].attributes.KAEK || '').trim();
+    if(!kaek){ box.textContent = 'Βρέθηκε γεωτεμάχιο χωρίς ΚΑΕΚ.'; return; }
+    xyKaek = kaek;
+    const more = data.features.length > 1 ? ` (+${data.features.length - 1} ακόμη)` : '';
+    box.textContent = kaek + more;
+    actions.style.display = 'flex';
+  }catch(err){
+    console.error(err);
+    box.textContent = 'Αποτυχία αναζήτησης ΚΑΕΚ — έλεγξε το internet.';
+  }
+}
+
+function parseCoord(s){
+  // Δέχεται 267540 / 267540,25 / 267.540,25 / 267540.25
+  let t = String(s).trim();
+  if(t === '') return NaN;
+  // αν έχει και . και , : το τελευταίο είναι δεκαδικό
+  if(t.indexOf(',') > -1 && t.indexOf('.') > -1){
+    if(t.lastIndexOf(',') > t.lastIndexOf('.')) t = t.replace(/\./g,'').replace(',', '.');
+    else t = t.replace(/,/g,'');
+  }else{
+    t = t.replace(',', '.');
+  }
+  return parseFloat(t);
+}
+
+$('swapBtn').addEventListener('click', () => {
+  const tmp = xInput.value; xInput.value = yInput.value; yInput.value = tmp;
+  $('xyResult').classList.remove('show');
+  $('xyHint').textContent = '';
+});
+
+[xInput, yInput].forEach(inp => inp.addEventListener('keydown', e => { if(e.key==='Enter') $('xyConvertBtn').click(); }));
+
+$('xyConvertBtn').addEventListener('click', () => {
+  let X = parseCoord(xInput.value);
+  let Y = parseCoord(yInput.value);
+  const hint = $('xyHint');
+  if(isNaN(X) || isNaN(Y)){
+    hint.textContent = 'Συμπλήρωσε έγκυρες τιμές Χ και Υ.'; hint.className='hint err';
+    return;
+  }
+  // Αυτόματος εντοπισμός αναστροφής: στο ΕΓΣΑ87 το Northing (Υ) είναι εκατομμύρια (~3.9–4.6M)
+  let swapped = false;
+  if(X > 1000000 && Y < 1000000){ const t=X; X=Y; Y=t; swapped=true; }
+
+  if(X < 90000 || X > 900000 || Y < 3800000 || Y > 4700000){
+    hint.textContent = 'Προσοχή: οι τιμές δεν μοιάζουν με ΕΓΣΑ87 εντός Ελλάδας — έλεγξέ τες.';
+    hint.className = 'hint err';
+  }else{
+    hint.textContent = swapped ? 'Έγινε αυτόματη εναλλαγή Χ↔Υ.' : ''; hint.className='hint';
+  }
+
+  const { lat, lon } = egsa87ToWgs84(X, Y);
+  xyPoint = { lat, lon };
+  $('xyCoords').textContent = fmtCoord(lat) + ', ' + fmtCoord(lon);
+  $('xyMeta').textContent = 'ΕΓΣΑ87  Χ=' + X.toFixed(2) + '  Υ=' + Y.toFixed(2);
+  $('xyResult').classList.add('show');
+  addToHistory({ type:'xy', label:'Χ,Υ ' + Math.round(X) + ',' + Math.round(Y), note:$('xyNote').value.trim(), lat, lon });
+  findKaekAtPoint(X, Y);
+});
+
+$('xyKaekCopyBtn').addEventListener('click', async () => {
+  if(!xyKaek) return;
+  try{ await navigator.clipboard.writeText(xyKaek); showToast('Αντιγράφηκε ΚΑΕΚ: ' + xyKaek); }
+  catch(e){ showToast('Αποτυχία αντιγραφής'); }
+});
+$('xyKaekOpenBtn').addEventListener('click', () => {
+  if(!xyKaek) return;
+  const digits = xyKaek.replace(/\D/g,'').slice(0,12);
+  if(digits.length !== 12){ showToast('Μη έγκυρος ΚΑΕΚ για προβολή'); return; }
+  // Μετάβαση στην καρτέλα ΚΑΕΚ, προσυμπλήρωση και αυτόματη εύρεση γεωτεμαχίου
+  $('tabKaek').click();
+  kaekInput.value = digits;
+  validateKaek();
+  if(!kaekFindBtn.disabled) kaekFindBtn.click();
+  window.scrollTo({ top:0, behavior:'smooth' });
+});
+
+$('xyMapsBtn').addEventListener('click', () => { if(xyPoint) openGoogleMaps(xyPoint.lat, xyPoint.lon); });
+$('xyGeoBtn').addEventListener('click',  () => { if(xyPoint) openGeoApp(xyPoint.lat, xyPoint.lon, $('xyNote').value.trim()); });
+$('xyCopyBtn').addEventListener('click', () => { if(xyPoint) copyCoords(xyPoint.lat, xyPoint.lon); });
+
+/* ═══════════════ Ιστορικό (localStorage) ═══════════════ */
+function loadHistory(){ try{ return JSON.parse(localStorage.getItem(STORAGE_KEY)) || []; }catch(e){ return []; } }
+function saveHistory(list){ try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(list)); }catch(e){} }
+function addToHistory(item){
+  let list = loadHistory();
+  list = list.filter(x => !(x.type===item.type && x.label===item.label));
+  list.unshift({ ...item, ts: Date.now() });
+  if(list.length > MAX_HISTORY) list = list.slice(0, MAX_HISTORY);
+  saveHistory(list); renderHistory();
+}
+function removeFromHistory(ts){ saveHistory(loadHistory().filter(x => x.ts !== ts)); renderHistory(); }
+function fmtDate(ts){
+  const d = new Date(ts);
+  return d.toLocaleDateString('el-GR',{day:'2-digit',month:'2-digit',year:'2-digit'}) + ' ' +
+         d.toLocaleTimeString('el-GR',{hour:'2-digit',minute:'2-digit'});
+}
+function renderHistory(){
+  const list = loadHistory();
+  const el = $('historyList');
+  if(list.length === 0){ el.innerHTML = '<div class="empty">Δεν υπάρχουν πρόσφατα σημεία</div>'; return; }
+  el.innerHTML = list.map(x => `
+    <div class="history-item" data-ts="${x.ts}">
+      <div class="history-info">
+        <div class="history-title">${x.label}</div>
+        <div class="history-sub">${x.note ? x.note + ' · ' : ''}${fmtCoord(x.lat)}, ${fmtCoord(x.lon)} · ${fmtDate(x.ts)}</div>
+      </div>
+      <button class="history-del" data-del="${x.ts}" title="Διαγραφή">✕</button>
+    </div>`).join('');
+}
+$('historyList').addEventListener('click', e => {
+  const del = e.target.closest('[data-del]');
+  if(del){ removeFromHistory(Number(del.dataset.del)); return; }
+  const item = e.target.closest('.history-item');
+  if(item){
+    const rec = loadHistory().find(x => x.ts === Number(item.dataset.ts));
+    if(rec) openGoogleMaps(rec.lat, rec.lon);
+  }
+});
+$('clearHistoryBtn').addEventListener('click', () => {
+  if(loadHistory().length === 0) return;
+  if(confirm('Διαγραφή όλου του ιστορικού;')){ saveHistory([]); renderHistory(); }
+});
+
+/* ═══════════════ PWA: εγκατάσταση & service worker ═══════════════ */
+let deferredPrompt = null;
+const installBtn = $('installBtn');
+window.addEventListener('beforeinstallprompt', e => {
+  e.preventDefault();
+  deferredPrompt = e;
+  installBtn.style.display = 'flex';
+});
+installBtn.addEventListener('click', async () => {
+  if(!deferredPrompt) return;
+  deferredPrompt.prompt();
+  await deferredPrompt.userChoice;
+  deferredPrompt = null;
+  installBtn.style.display = 'none';
+});
+window.addEventListener('appinstalled', () => { installBtn.style.display = 'none'; });
+
+if('serviceWorker' in navigator){
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('maps-pin-sw.js').catch(()=>{});
+  });
+}
+
+/* ═══════════════ Αρχικοποίηση ═══════════════ */
+renderHistory();
+kaekInput.focus();
+</script>
+
+</body>
+</html>

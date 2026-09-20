@@ -1,0 +1,22 @@
+{
+  "name": "ΚΑΕΚ / Χ,Υ → Google Maps",
+  "short_name": "Πινέζα Χάρτη",
+  "description": "Άνοιγμα Google Maps με πινέζα από ΚΑΕΚ Κτηματολογίου ή συντεταγμένες Χ,Υ (ΕΓΣΑ87).",
+  "lang": "el",
+  "dir": "ltr",
+  "start_url": "./maps-pin.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "theme_color": "#0f1115",
+  "background_color": "#0f1115",
+  "categories": ["utilities", "productivity", "navigation"],
+  "icons": [
+    {
+      "src": "maps-pin-icon.svg",
+      "sizes": "192x192 512x512 any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
