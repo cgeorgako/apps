@@ -192,13 +192,13 @@
         <div class="mt">🗺️ Έγχρωμη κάτοψη (κάτοψη από ψηλά)</div>
         <div class="md">Διατηρεί τη μορφή κάτοψης (top-view), με ρεαλιστική επίπλωση, υλικά δαπέδων, χρώματα και σκιές — ιδανικό για παρουσίαση διαρρύθμισης.</div>
       </div>
-      <div class="mode-opt" data-mode="3d">
-        <div class="mt">🧊 Ρεαλιστικό 3D (dollhouse)</div>
-        <div class="md">Ισομετρική/προοπτική 3D απόδοση του επιπλωμένου χώρου σε τομή (cutaway), με βάθος, όγκους και φωτορεαλισμό.</div>
+      <div class="mode-opt" data-mode="exterior">
+        <div class="mt">🏡 Εξωτερική 3D άποψη κτιρίου</div>
+        <div class="md">Φωτορεαλιστική εξωτερική απόδοση του κτιρίου και του περιβάλλοντος χώρου (κήπος, φύτευση, διαδρομές) με βάση το περίγραμμα/όγκο της κάτοψης και το επιλεγμένο αρχιτεκτονικό ύφος.</div>
       </div>
     </div>
     <div class="row">
-      <div>
+      <div id="roomTypeField">
         <label for="roomType">Χρήση χώρου (προαιρετικό)</label>
         <select id="roomType">
           <option value="">Αυτόματο (ολόκληρη κατοικία)</option>
@@ -271,22 +271,28 @@
 const STYLES = [
   { id:"industrial", emoji:"🏭", name:"Βιομηχανικό",
     desc:"Εμφανές τούβλο, μπετόν, μαύρο μέταλλο",
-    prompt:"industrial loft interior design style: exposed red brick walls, polished concrete or dark reclaimed wood floors, black steel-framed elements, Edison-bulb pendant lighting, distressed leather and raw metal furniture, ductwork accents, a moody dark and warm palette" },
+    prompt:"industrial loft interior design style: exposed red brick walls, polished concrete or dark reclaimed wood floors, black steel-framed elements, Edison-bulb pendant lighting, distressed leather and raw metal furniture, ductwork accents, a moody dark and warm palette",
+    ext:"industrial architectural style: exposed brick and raw concrete facade, black steel-framed large windows, metal cladding accents, flat roof, minimalist hardscaping with concrete and gravel" },
   { id:"classic", emoji:"🏛️", name:"Κλασσικό",
     desc:"Κομψό, συμμετρικό, ξύλο & μάρμαρο",
-    prompt:"classic elegant interior design style: symmetrical layout, ornate crown moldings and wainscoting, rich hardwood and marble floors, upholstered furniture with refined fabrics, warm neutral and cream palette, crystal chandeliers, timeless sophisticated decor" },
+    prompt:"classic elegant interior design style: symmetrical layout, ornate crown moldings and wainscoting, rich hardwood and marble floors, upholstered furniture with refined fabrics, warm neutral and cream palette, crystal chandeliers, timeless sophisticated decor",
+    ext:"classic neoclassical architectural style: symmetrical facade, plastered walls in warm cream tones, cornices and moldings, pitched tiled roof, elegant entrance with columns, manicured formal garden and stone pathways" },
   { id:"hotel", emoji:"🛎️", name:"Ξενοδοχειακό",
     desc:"Boutique luxury, πλούσια υφή",
-    prompt:"luxury boutique hotel suite interior design style: plush layered textiles, refined contemporary furniture, brass and gold accents, sophisticated layered ambient lighting, rich accent walls, high-end materials, elegant and inviting five-star atmosphere" },
+    prompt:"luxury boutique hotel suite interior design style: plush layered textiles, refined contemporary furniture, brass and gold accents, sophisticated layered ambient lighting, rich accent walls, high-end materials, elegant and inviting five-star atmosphere",
+    ext:"luxury boutique-hotel architectural style: refined contemporary facade, warm stone and wood cladding, expansive glazing, brass accents, designer landscape lighting, resort-style garden with a pool, lush planting" },
   { id:"rustic", emoji:"🪵", name:"Rustic",
     desc:"Φυσικό ξύλο, πέτρα, ζεστοί τόνοι",
-    prompt:"rustic farmhouse interior design style: exposed natural wood beams, stone and reclaimed timber, warm earthy tones, cozy woven textiles, wrought-iron details, handcrafted furniture, a warm inviting and natural atmosphere" },
+    prompt:"rustic farmhouse interior design style: exposed natural wood beams, stone and reclaimed timber, warm earthy tones, cozy woven textiles, wrought-iron details, handcrafted furniture, a warm inviting and natural atmosphere",
+    ext:"rustic farmhouse architectural style: natural stone and timber facade, pitched roof with wooden beams, warm earthy tones, shutters, a country garden with dry-stone walls, gravel paths and mature trees" },
   { id:"minimal", emoji:"⬜", name:"Minimal",
     desc:"Καθαρές γραμμές, λιτή παλέτα",
-    prompt:"minimalist interior design style: clean simple lines, uncluttered functional layout, neutral white and light palette, light natural oak wood, hidden storage, plenty of negative space, soft diffused natural light, calm and airy Scandinavian-influenced aesthetic" },
+    prompt:"minimalist interior design style: clean simple lines, uncluttered functional layout, neutral white and light palette, light natural oak wood, hidden storage, plenty of negative space, soft diffused natural light, calm and airy Scandinavian-influenced aesthetic",
+    ext:"minimalist modern architectural style: clean rectilinear volumes, smooth white render and light wood accents, flat roof, large frameless glazing, uncluttered landscaped garden with lawn, concrete pavers and architectural planting" },
   { id:"country", emoji:"🌻", name:"Country",
     desc:"Cottage, απαλά χρώματα, vintage",
-    prompt:"country cottage interior design style: soft pastel and cream palette, floral and gingham fabrics, vintage painted wood furniture, ceramic and wicker accessories, cozy layered textiles, cheerful homely and charming atmosphere" }
+    prompt:"country cottage interior design style: soft pastel and cream palette, floral and gingham fabrics, vintage painted wood furniture, ceramic and wicker accessories, cozy layered textiles, cheerful homely and charming atmosphere",
+    ext:"country cottage architectural style: charming plastered facade in soft pastel tones, pitched tiled roof, wooden shutters and framed windows, a cottage garden full of flowers, picket fence and winding stone path" }
 ];
 
 /* ---------- State ---------- */
@@ -342,6 +348,8 @@ modesWrap.querySelectorAll(".mode-opt").forEach(m=>{
   m.addEventListener("click", ()=>{
     selectedMode = m.dataset.mode;
     modesWrap.querySelectorAll(".mode-opt").forEach(x=>x.classList.toggle("sel", x===m));
+    // "Χρήση χώρου" applies only to interior renders
+    $("roomTypeField").style.visibility = (selectedMode === "exterior") ? "hidden" : "visible";
   });
 });
 
@@ -387,11 +395,21 @@ function handleFile(file){
 
 /* ---------- Prompt builder ---------- */
 function buildPrompt(styleObj){
-  const modeText = selectedMode === "3d"
-    ? "Render it as a photorealistic 3D isometric dollhouse cutaway view of the furnished interior, with realistic depth, volumes, materials, soft global-illumination lighting and shadows, as a professional architectural visualization."
-    : "Render it as a fully furnished, richly colored top-down (bird's-eye) floor plan visualization: keep the same top-view orientation but show realistic furniture seen from above, textured flooring per room, rugs, plants, realistic materials, soft shadows and ambient occlusion, like a high-end 2D interior presentation board.";
-
+  const notes = $("notes").value.trim();
+  const notesText = notes ? ` Additional client requirements: ${notes}.` : "";
   const strength = $("quality").value;
+
+  /* --- Exterior 3D view of the building & surroundings --- */
+  if(selectedMode === "exterior"){
+    const fidelity = strength === "creative"
+      ? "Use the plan's footprint as loose inspiration for the massing."
+      : strength === "balanced"
+        ? "Respect the building's footprint shape, proportions and approximate number of storeys as implied by the plan."
+        : "Keep the building's footprint outline, proportions, orientation and the position of the main entrance and window openings consistent with the plan.";
+    return `You are an expert architectural visualization AI. The provided image is a 2D architectural drawing (floor plan / site plan) of a residential building. Generate a photorealistic exterior 3D architectural rendering of the finished building and its surroundings, viewed from an eye-level three-quarter perspective from the garden. ${fidelity} Design the building in a ${styleObj.ext}. Include a realistic facade, roof, windows, entrance, and a landscaped surrounding area (garden, lawn, planting, pathways, driveway) with natural daylight, soft shadows, a clear sky and professional real-estate composition.${notesText} Output a single high-quality, photorealistic image. Do not add any text, labels, dimensions, watermarks or borders.`;
+  }
+
+  /* --- Interior top-down (bird's-eye) furnished plan --- */
   const preserveText = strength === "creative"
     ? "You may reinterpret finishes and furniture freely, but keep the overall room count and general layout recognizable."
     : strength === "balanced"
@@ -401,8 +419,7 @@ function buildPrompt(styleObj){
   const room = $("roomType").value;
   const roomText = room ? ` The space is primarily a ${room}; furnish it accordingly.` : " Furnish every room appropriately for its function (living room, bedrooms, kitchen, bathroom, hallways).";
 
-  const notes = $("notes").value.trim();
-  const notesText = notes ? ` Additional client requirements: ${notes}.` : "";
+  const modeText = "Render it as a fully furnished, richly colored top-down (bird's-eye) floor plan visualization: keep the same top-view orientation but show realistic furniture seen from above, textured flooring per room, rugs, plants, realistic materials, soft shadows and ambient occlusion, like a high-end 2D interior presentation board.";
 
   return `You are an expert interior design visualization AI. The provided image is a 2D architectural floor plan (top-down view) of a residential interior. ${preserveText}${roomText} Decorate the interior in a ${styleObj.prompt}. ${modeText}${notesText} Output a single high-quality, photorealistic, professionally composed image. Do not add any text, labels, dimensions, watermarks or borders.`;
 }
