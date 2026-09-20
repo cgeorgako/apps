@@ -15,7 +15,7 @@
     --acc-apd:#3b82f6; --acc-apd-soft:rgba(59,130,246,.15);
     --acc-static:#10b981; --acc-static-soft:rgba(16,185,129,.15);
     --acc-ref:#8b5cf6; --acc-ref-soft:rgba(139,92,246,.15);
-    --acc-ai:#ec4899; --acc-ai-soft:rgba(236,72,153,.15);
+    --acc-arch:#06b6d4; --acc-arch-soft:rgba(6,182,212,.15);
     --mono:'IBM Plex Mono',monospace; --sans:'IBM Plex Sans',sans-serif;
   }
   *{box-sizing:border-box;margin:0;padding:0}
@@ -52,7 +52,7 @@
   .section-title.apd-sec { border-left: 3px solid var(--acc-apd); color: var(--acc-apd); }
   .section-title.static-sec { border-left: 3px solid var(--acc-static); color: var(--acc-static); }
   .section-title.ref-sec { border-left: 3px solid var(--acc-ref); color: var(--acc-ref); }
-  .section-title.ai-sec { border-left: 3px solid var(--acc-ai); color: var(--acc-ai); }
+  .section-title.arch-sec { border-left: 3px solid var(--acc-arch); color: var(--acc-arch); }
 
   .grid{display:grid; grid-template-columns:repeat(auto-fit,minmax(280px,1fr)); gap:18px;}
   .brand{display:flex; align-items:center; gap:20px; margin-bottom:20px;}
@@ -89,9 +89,9 @@
   .card.ref-card:hover{border-color:rgba(139,92,246,.4); background:#201c33; transform:translateY(-2px);}
   .card.ref-card:hover::after{color:var(--acc-ref); transform:translateX(3px);}
 
-  /* AI Cards Hover */
-  .card.ai-card:hover{border-color:rgba(236,72,153,.4); background:#2a1826; transform:translateY(-2px);}
-  .card.ai-card:hover::after{color:var(--acc-ai); transform:translateX(3px);}
+  /* Architectural Cards Hover */
+  .card.arch-card:hover{border-color:rgba(6,182,212,.4); background:#0f2830; transform:translateY(-2px);}
+  .card.arch-card:hover::after{color:var(--acc-arch); transform:translateX(3px);}
 
   .icon{
     width:42px; height:42px; border-radius:10px;
@@ -101,7 +101,7 @@
   .apd-card .icon { background:var(--acc-apd-soft); border:1px solid rgba(59,130,246,.25); }
   .static-card .icon { background:var(--acc-static-soft); border:1px solid rgba(16,185,129,.25); }
   .ref-card .icon { background:var(--acc-ref-soft); border:1px solid rgba(139,92,246,.25); }
-  .ai-card .icon { background:var(--acc-ai-soft); border:1px solid rgba(236,72,153,.25); }
+  .arch-card .icon { background:var(--acc-arch-soft); border:1px solid rgba(6,182,212,.25); }
 
   .ctitle{font-size:17px; font-weight:700;}
   .cdesc{font-size:13px; color:var(--txt-dim); line-height:1.55;}
@@ -114,7 +114,7 @@
   .apd-card .ctype { color:var(--acc-apd); }
   .static-card .ctype { color:var(--acc-static); }
   .ref-card .ctype { color:var(--acc-ref); }
-  .ai-card .ctype { color:var(--acc-ai); }
+  .arch-card .ctype { color:var(--acc-arch); }
 
   footer{margin-top:50px; font-size:11.5px; color:#5c6675; text-align:center; font-family:var(--mono); letter-spacing:.5px; border-top:1px solid var(--line); padding-top:20px;}
 </style>
@@ -217,13 +217,13 @@
 
   </div>
 
-  <div class="section-title ai-sec">🤖 Εργαλεία Τεχνητής Νοημοσύνης</div>
+  <div class="section-title arch-sec">🏛️ Αρχιτεκτονικά</div>
   <div class="grid">
 
-    <a class="card ai-card" id="card15">
+    <a class="card arch-card" id="card15">
       <div class="icon">🏠</div>
       <div class="ctitle">AI Rendering Κατόψεων</div>
-      <div class="cdesc">Απόδοση εσωτερικών χώρων κατοικίας από κάτοψη (PNG/JPG) με επιλογή στυλ (βιομηχανικό, κλασσικό, ξενοδοχειακό, rustic, minimal, country) μέσω Google Gemini.</div>
+      <div class="cdesc">Φωτορεαλιστική απόδοση εσωτερικών & εξωτερικής άποψης κτιρίου από κάτοψη (PNG/JPG/WEBP/PDF ή επικόλληση) με επιλογή στυλ, πιστή διατήρηση διάταξης και σημειακές τροποποιήσεις, μέσω Google Gemini.</div>
       <div class="ctype">Εικόνα → AI Render</div>
     </a>
 
