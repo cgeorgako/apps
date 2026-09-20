@@ -7,6 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <style>
   :root{
     --bg:#0e1116; --panel:#161b22; --panel-2:#1c232d; --line:#2a323d;
@@ -65,6 +66,13 @@
   .drop .di{font-size:34px; margin-bottom:8px;}
   .drop .dt{font-size:14px; font-weight:600;}
   .drop .ds{font-size:12px; color:var(--txt-dim); margin-top:4px;}
+  .pdf-nav{display:none; align-items:center; gap:10px; margin-top:12px; font-size:12.5px; color:var(--txt-dim); font-family:var(--mono);}
+  .pdf-nav button{
+    width:28px; height:28px; border-radius:7px; background:var(--panel-2); border:1px solid var(--line);
+    color:var(--txt); font-size:16px; line-height:1; cursor:pointer; transition:.16s;
+  }
+  .pdf-nav button:hover:not(:disabled){border-color:var(--acc); color:var(--acc);}
+  .pdf-nav button:disabled{opacity:.4; cursor:not-allowed;}
   .preview-in{margin-top:14px; display:none;}
   .preview-frame{position:relative; display:inline-block;}
   .preview-in img{max-width:100%; max-height:320px; border-radius:10px; border:1px solid var(--line); display:block;}
@@ -165,10 +173,16 @@
     <h2><span class="step-num">1</span> Κάτοψη προς επεξεργασία</h2>
     <div class="drop" id="drop">
       <div class="di">🏠</div>
-      <div class="dt">Σύρε την κάτοψη εδώ ή κάνε κλικ για επιλογή</div>
-      <div class="ds">PNG ή JPG · καθαρή κάτοψη με ευδιάκριτους τοίχους & δωμάτια αποδίδει καλύτερα</div>
+      <div class="dt">Σύρε την κάτοψη εδώ, κάνε κλικ για επιλογή, ή επικόλλησε (Ctrl+V)</div>
+      <div class="ds">PNG · JPG · WEBP · PDF &nbsp;|&nbsp; καθαρή κάτοψη με ευδιάκριτους τοίχους & δωμάτια αποδίδει καλύτερα</div>
     </div>
-    <input type="file" id="fileInput" accept="image/png,image/jpeg" style="display:none">
+    <input type="file" id="fileInput" accept="image/png,image/jpeg,image/webp,application/pdf" style="display:none">
+    <div class="pdf-nav" id="pdfNav">
+      <span>📄 PDF · Σελίδα</span>
+      <button type="button" id="pdfPrev" aria-label="Προηγούμενη σελίδα">‹</button>
+      <span id="pdfPageLabel">1 / 1</span>
+      <button type="button" id="pdfNext" aria-label="Επόμενη σελίδα">›</button>
+    </div>
     <div class="preview-in" id="previewIn">
       <div class="preview-frame">
         <img id="previewImg" alt="Προεπισκόπηση κάτοψης">
@@ -305,6 +319,12 @@ let selectedMode = "topview";
 let uploadedImage = null; // { base64, mimeType, dataUrl }
 let currentResults = [];  // [{ styleId, styleName, dataUrl }]
 let activeResultIndex = 0;
+let pdfDoc = null;        // loaded pdf.js document (when input is a PDF)
+let pdfPage = 1;          // currently rendered PDF page
+
+if(window.pdfjsLib){
+  pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+}
 
 /* ---------- Elements ---------- */
 const $ = id => document.getElementById(id);
@@ -378,33 +398,99 @@ drop.addEventListener("drop", e=>{
 fileInput.addEventListener("change", e=>{ if(e.target.files[0]) handleFile(e.target.files[0]); });
 $("removeImgBtn").addEventListener("click", e=>{ e.stopPropagation(); resetForNew(); });
 
+/* Paste an image from the clipboard (Ctrl+V) anywhere on the page */
+window.addEventListener("paste", e=>{
+  const items = (e.clipboardData && e.clipboardData.items) || [];
+  for(const it of items){
+    if(it.type && it.type.indexOf("image/") === 0){
+      const f = it.getAsFile();
+      if(f){ e.preventDefault(); handleFile(f); return; }
+    }
+  }
+});
+
+/* PDF page navigation */
+$("pdfPrev").addEventListener("click", ()=>{ if(pdfDoc && pdfPage > 1){ pdfPage--; renderPdfPage(); } });
+$("pdfNext").addEventListener("click", ()=>{ if(pdfDoc && pdfPage < pdfDoc.numPages){ pdfPage++; renderPdfPage(); } });
+
 function handleFile(file){
-  if(!/^image\/(png|jpe?g)$/.test(file.type)){
-    showMsg("err","Δεκτά μόνο αρχεία PNG ή JPG."); return;
+  const isPdf = file.type === "application/pdf" || /\.pdf$/i.test(file.name || "");
+  const isImg = /^image\/(png|jpe?g|webp)$/.test(file.type);
+  if(!isPdf && !isImg){
+    showMsg("err","Δεκτά αρχεία: PNG, JPG, WEBP ή PDF."); return;
   }
-  if(file.size > 15*1024*1024){
-    showMsg("err","Το αρχείο είναι πολύ μεγάλο (μέγιστο ~15MB)."); return;
+  if(file.size > 25*1024*1024){
+    showMsg("err","Το αρχείο είναι πολύ μεγάλο (μέγιστο ~25MB)."); return;
   }
+  clearPreviousResult();
+  if(isPdf) handlePdf(file);
+  else handleImage(file);
+}
+
+function handleImage(file){
+  pdfDoc = null; $("pdfNav").style.display = "none";
   const reader = new FileReader();
   reader.onload = ev=>{
-    const dataUrl = ev.target.result;
-    uploadedImage = {
-      dataUrl,
-      base64: dataUrl.split(",")[1],
-      mimeType: file.type
-    };
-    previewImg.src = dataUrl;
-    fname.textContent = file.name + "  ·  " + Math.round(file.size/1024) + " KB";
-    previewIn.style.display = "block";
-    generateBtn.disabled = false;
-    // A new plan invalidates any previous result
-    currentResults = [];
-    activeResultIndex = 0;
-    gallery.innerHTML = "";
-    resultPanel.style.display = "none";
-    hideMsg();
+    setUploaded(ev.target.result, file.type, file.name + "  ·  " + Math.round(file.size/1024) + " KB");
   };
+  reader.onerror = ()=>showMsg("err","Αποτυχία ανάγνωσης του αρχείου εικόνας.");
   reader.readAsDataURL(file);
+}
+
+async function handlePdf(file){
+  if(!window.pdfjsLib){ showMsg("err","Η βιβλιοθήκη PDF δεν φόρτωσε (έλεγξε τη σύνδεση στο διαδίκτυο)."); return; }
+  showMsg("ok","Φόρτωση PDF…");
+  try{
+    const buf = await file.arrayBuffer();
+    pdfDoc = await pdfjsLib.getDocument({ data: buf }).promise;
+    pdfPage = 1;
+    pdfDoc._srcName = file.name;
+    await renderPdfPage();
+    hideMsg();
+  }catch(err){
+    pdfDoc = null; $("pdfNav").style.display = "none";
+    showMsg("err","Αποτυχία ανοίγματος PDF: " + (err && err.message ? err.message : err));
+  }
+}
+
+async function renderPdfPage(){
+  if(!pdfDoc) return;
+  const page = await pdfDoc.getPage(pdfPage);
+  const base = page.getViewport({ scale: 1 });
+  // Target ~2000px on the longest side for good rendering quality
+  const scale = Math.min(4, Math.max(1, 2000 / Math.max(base.width, base.height)));
+  const viewport = page.getViewport({ scale });
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.round(viewport.width);
+  canvas.height = Math.round(viewport.height);
+  const ctx = canvas.getContext("2d");
+  ctx.fillStyle = "#ffffff"; ctx.fillRect(0, 0, canvas.width, canvas.height); // white bg for transparent PDFs
+  await page.render({ canvasContext: ctx, viewport }).promise;
+  const dataUrl = canvas.toDataURL("image/png");
+  const n = pdfDoc.numPages;
+  $("pdfNav").style.display = n > 1 ? "flex" : "none";
+  $("pdfPageLabel").textContent = pdfPage + " / " + n;
+  $("pdfPrev").disabled = pdfPage <= 1;
+  $("pdfNext").disabled = pdfPage >= n;
+  setUploaded(dataUrl, "image/png", (pdfDoc._srcName || "PDF") + "  ·  σελ. " + pdfPage + "/" + n);
+}
+
+/* Commit a data URL as the active plan image */
+function setUploaded(dataUrl, mimeType, label){
+  uploadedImage = { dataUrl, base64: dataUrl.split(",")[1], mimeType };
+  previewImg.src = dataUrl;
+  fname.textContent = label;
+  previewIn.style.display = "block";
+  generateBtn.disabled = false;
+}
+
+/* A new plan invalidates any previous result */
+function clearPreviousResult(){
+  currentResults = [];
+  activeResultIndex = 0;
+  gallery.innerHTML = "";
+  resultPanel.style.display = "none";
+  hideMsg();
 }
 
 /* ---------- Prompt builder ---------- */
@@ -572,6 +658,8 @@ $("againBtn").addEventListener("click", ()=>{
 /* Clear the uploaded plan, results and inputs so a new plan starts fresh (keeps API key). */
 function resetForNew(){
   uploadedImage = null;
+  pdfDoc = null; pdfPage = 1;
+  $("pdfNav").style.display = "none";
   currentResults = [];
   activeResultIndex = 0;
   fileInput.value = "";
