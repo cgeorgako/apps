@@ -363,6 +363,11 @@ function handleFile(file){
     fname.textContent = file.name + "  ·  " + Math.round(file.size/1024) + " KB";
     previewIn.style.display = "block";
     generateBtn.disabled = false;
+    // A new plan invalidates any previous result
+    currentResults = [];
+    activeResultIndex = 0;
+    gallery.innerHTML = "";
+    resultPanel.style.display = "none";
     hideMsg();
   };
   reader.readAsDataURL(file);
@@ -505,8 +510,26 @@ $("downloadBtn").addEventListener("click", ()=>{
   a.click();
 });
 $("againBtn").addEventListener("click", ()=>{
+  resetForNew();
   window.scrollTo({top:0, behavior:"smooth"});
 });
+
+/* Clear the uploaded plan, results and inputs so a new plan starts fresh (keeps API key). */
+function resetForNew(){
+  uploadedImage = null;
+  currentResults = [];
+  activeResultIndex = 0;
+  fileInput.value = "";
+  previewImg.removeAttribute("src");
+  fname.textContent = "";
+  previewIn.style.display = "none";
+  origOut.removeAttribute("src");
+  resOut.removeAttribute("src");
+  gallery.innerHTML = "";
+  resultPanel.style.display = "none";
+  generateBtn.disabled = true;
+  hideMsg();
+}
 
 /* ---------- UI helpers ---------- */
 function setLoading(on, n){
