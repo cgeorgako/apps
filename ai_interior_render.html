@@ -214,8 +214,8 @@
       <div>
         <label for="quality">Ισχύς μετασχηματισμού</label>
         <select id="quality">
-          <option value="preserve">Πιστή διατήρηση διάταξης (προτεινόμενο)</option>
-          <option value="balanced">Ισορροπημένη</option>
+          <option value="preserve">Πιστή διατήρηση διάταξης — μόνο υλικά/χρώματα (προτεινόμενο)</option>
+          <option value="balanced">Ισορροπημένη — επιτρέπεται επίπλωση/ελευθερία</option>
           <option value="creative">Πιο δημιουργική ελευθερία</option>
         </select>
       </div>
@@ -269,6 +269,10 @@
 
 /* ---------- Style definitions ---------- */
 const STYLES = [
+  { id:"faithful", emoji:"🎯", name:"Πιστό rendering",
+    desc:"Ακριβές πρωτότυπο, μόνο φυσικά χρώματα/υλικά",
+    faithful:true,
+    prompt:"", ext:"" },
   { id:"industrial", emoji:"🏭", name:"Βιομηχανικό",
     desc:"Εμφανές τούβλο, μπετόν, μαύρο μέταλλο",
     prompt:"industrial loft interior design style: exposed red brick walls, polished concrete or dark reclaimed wood floors, black steel-framed elements, Edison-bulb pendant lighting, distressed leather and raw metal furniture, ductwork accents, a moody dark and warm palette",
@@ -339,9 +343,19 @@ STYLES.forEach(s=>{
   c.addEventListener("click", ()=>{
     selectedStyle = s.id;
     document.querySelectorAll(".style-card").forEach(x=>x.classList.toggle("sel", x.dataset.id===s.id));
+    syncStrengthState();
   });
   stylesGrid.appendChild(c);
 });
+
+/* "Πιστό rendering" is always geometry-locked, so the strength selector is irrelevant there. */
+function syncStrengthState(){
+  const st = STYLES.find(s=>s.id===selectedStyle);
+  const q = $("quality");
+  if(st && st.faithful){ q.disabled = true; q.style.opacity = ".5"; }
+  else { q.disabled = false; q.style.opacity = "1"; }
+}
+syncStrengthState();
 
 /* ---------- Mode toggle ---------- */
 modesWrap.querySelectorAll(".mode-opt").forEach(m=>{
@@ -398,30 +412,42 @@ function buildPrompt(styleObj){
   const notes = $("notes").value.trim();
   const notesText = notes ? ` Additional client requirements: ${notes}.` : "";
   const strength = $("quality").value;
+  const isFaithful = !!styleObj.faithful;
+  // "Faithful" style, or "preserve" strength for any style, means: geometry-locked.
+  const geometryLocked = isFaithful || strength === "preserve";
+
+  const noText = "Output a single high-quality, photorealistic image. Do not add any text, labels, dimensions, watermarks or borders.";
 
   /* --- Exterior 3D view of the building & surroundings --- */
   if(selectedMode === "exterior"){
+    if(geometryLocked){
+      const styleClause = isFaithful
+        ? "Do NOT restyle the building; simply render its existing surfaces and materials with natural, realistic colors."
+        : `Apply only the surface materials, finishes and colors of a ${styleObj.ext} to the existing surfaces — do NOT introduce any new architectural feature from that style.`;
+      return `You are an expert architectural visualization AI. The provided image is an architectural drawing of a residential building. Produce a photorealistic exterior rendering of EXACTLY this building as drawn. STRICT: keep the building's volumes, massing, roof shape and slopes, and every window and door opening (κουφώματα) identical to the original — do NOT add, remove, move, resize or reshape any volume, roof, opening or architectural element, and do not change the number of storeys or the proportions. ${styleClause} Add a realistic landscaped ground context (garden, lawn, planting, pathways) around the building only, without altering it, under natural daylight with soft shadows and a clear sky. ${noText}`;
+    }
     const fidelity = strength === "creative"
       ? "Use the plan's footprint as loose inspiration for the massing."
-      : strength === "balanced"
-        ? "Respect the building's footprint shape, proportions and approximate number of storeys as implied by the plan."
-        : "Keep the building's footprint outline, proportions, orientation and the position of the main entrance and window openings consistent with the plan.";
-    return `You are an expert architectural visualization AI. The provided image is a 2D architectural drawing (floor plan / site plan) of a residential building. Generate a photorealistic exterior 3D architectural rendering of the finished building and its surroundings, viewed from an eye-level three-quarter perspective from the garden. ${fidelity} Design the building in a ${styleObj.ext}. Include a realistic facade, roof, windows, entrance, and a landscaped surrounding area (garden, lawn, planting, pathways, driveway) with natural daylight, soft shadows, a clear sky and professional real-estate composition.${notesText} Output a single high-quality, photorealistic image. Do not add any text, labels, dimensions, watermarks or borders.`;
+      : "Respect the building's footprint shape, proportions and approximate number of storeys as implied by the plan.";
+    return `You are an expert architectural visualization AI. The provided image is a 2D architectural drawing (floor plan / site plan) of a residential building. Generate a photorealistic exterior 3D architectural rendering of the finished building and its surroundings, viewed from an eye-level three-quarter perspective from the garden. ${fidelity} Design the building in a ${styleObj.ext}. Include a realistic facade, roof, windows, entrance, and a landscaped surrounding area (garden, lawn, planting, pathways, driveway) with natural daylight, soft shadows, a clear sky and professional real-estate composition.${notesText} ${noText}`;
   }
 
-  /* --- Interior top-down (bird's-eye) furnished plan --- */
+  /* --- Interior top-down (bird's-eye) --- */
+  if(geometryLocked){
+    const styleClause = isFaithful
+      ? "Do NOT redecorate or restyle. Simply render the existing surfaces, materials and any drawn elements with natural, realistic colors, textures and lighting."
+      : `Apply only the surface finishes, materials and color palette of a ${styleObj.prompt} to the existing floors, walls and drawn elements — do NOT add, remove, move or redesign any wall, opening, furniture or object.`;
+    return `You are an expert architectural visualization AI. The provided image is a 2D architectural floor plan (top-down view) of a residential interior. Produce a photorealistic top-down (bird's-eye) rendering of EXACTLY this plan. STRICT: preserve the exact wall layout, wall thicknesses, room boundaries, door and window openings, orientation, proportions and every element already drawn — do NOT add, remove, move or reshape anything. ${styleClause} Keep the same top-view orientation, with realistic materials, soft shadows and ambient occlusion.${notesText} ${noText}`;
+  }
+
   const preserveText = strength === "creative"
     ? "You may reinterpret finishes and furniture freely, but keep the overall room count and general layout recognizable."
-    : strength === "balanced"
-      ? "Keep the wall layout, room boundaries, doors and windows and proportions of the original floor plan; you may choose finishes and furniture freely within each room."
-      : "CRITICAL: Preserve EXACTLY the original architecture — the same wall layout, room boundaries, wall thicknesses, door and window openings, orientation and proportions. Do NOT move, add or remove walls. Only add interior design (furniture, flooring, materials, colors, decor, lighting) inside the existing rooms.";
-
+    : "Keep the wall layout, room boundaries, doors and windows and proportions of the original floor plan; you may choose finishes and furniture freely within each room.";
   const room = $("roomType").value;
   const roomText = room ? ` The space is primarily a ${room}; furnish it accordingly.` : " Furnish every room appropriately for its function (living room, bedrooms, kitchen, bathroom, hallways).";
-
   const modeText = "Render it as a fully furnished, richly colored top-down (bird's-eye) floor plan visualization: keep the same top-view orientation but show realistic furniture seen from above, textured flooring per room, rugs, plants, realistic materials, soft shadows and ambient occlusion, like a high-end 2D interior presentation board.";
 
-  return `You are an expert interior design visualization AI. The provided image is a 2D architectural floor plan (top-down view) of a residential interior. ${preserveText}${roomText} Decorate the interior in a ${styleObj.prompt}. ${modeText}${notesText} Output a single high-quality, photorealistic, professionally composed image. Do not add any text, labels, dimensions, watermarks or borders.`;
+  return `You are an expert interior design visualization AI. The provided image is a 2D architectural floor plan (top-down view) of a residential interior. ${preserveText}${roomText} Decorate the interior in a ${styleObj.prompt}. ${modeText}${notesText} ${noText}`;
 }
 
 /* ---------- Gemini call ---------- */
