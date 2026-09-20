@@ -16,6 +16,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <style>
   :root{
     --bg:#0f1115;
@@ -258,6 +260,26 @@
 
   #installBtn{display:none;width:100%;margin-top:0.9rem;}
 
+  /* ── Χάρτης ── */
+  #map{
+    width:100%;height:56vh;min-height:320px;border-radius:12px;
+    border:1px solid var(--border);background:var(--surface-2);
+  }
+  .map-toolbar{display:flex;gap:0.5rem;margin-bottom:0.7rem;flex-wrap:wrap;}
+  .map-toolbar .act{flex:1;min-width:120px;font-size:0.82rem;padding:0.6rem 0.5rem;}
+  .map-tip{font-size:0.76rem;color:var(--text-muted);margin:0.7rem 0 0;line-height:1.45;}
+  .map-result{
+    margin-top:0.9rem;padding-top:0.9rem;border-top:1px dashed var(--border);display:none;
+  }
+  .map-result.show{display:block;}
+  .map-kaek{font-family:'IBM Plex Mono',monospace;font-size:1.1rem;font-weight:600;color:var(--gold);word-break:break-all;}
+  .map-sub{font-size:0.78rem;color:var(--text-muted);margin-top:0.3rem;}
+  .leaflet-container{font:inherit;}
+  .kaek-badge{
+    background:var(--gold);color:#1a1305;font-weight:700;border:none;border-radius:8px;
+    padding:2px 7px;font-family:'IBM Plex Mono',monospace;font-size:0.82rem;
+  }
+
   .toast{
     position:fixed;bottom:1.2rem;left:50%;
     transform:translateX(-50%) translateY(160%);
@@ -279,7 +301,8 @@
 
   <div class="tabs">
     <button class="tab active" data-tab="kaek" id="tabKaek">ΚΑΕΚ</button>
-    <button class="tab" data-tab="xy" id="tabXy">Συντεταγμένες Χ,Υ</button>
+    <button class="tab" data-tab="xy" id="tabXy">Χ,Υ</button>
+    <button class="tab" data-tab="map" id="tabMap">Χάρτης</button>
   </div>
 
   <!-- ── Καρτέλα ΚΑΕΚ ── -->
@@ -349,6 +372,28 @@
         <div id="xyKaekActions" class="btn-mini-row" style="margin-top:0.6rem;display:none;">
           <button id="xyKaekCopyBtn" class="act btn-secondary">Αντιγραφή ΚΑΕΚ</button>
           <button id="xyKaekOpenBtn" class="act btn-secondary">Δες γεωτεμάχιο →</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Καρτέλα Χάρτης (επιλογή γεωτεμαχίου) ── -->
+  <div class="card" id="panelMap" style="display:none;">
+    <div class="map-toolbar">
+      <button id="mapLocateBtn" class="act btn-secondary" type="button">📍 Η θέση μου</button>
+      <button id="mapKtimaBtn" class="act btn-secondary" type="button">Επίσημο GIS ↗</button>
+    </div>
+    <div id="map"></div>
+    <p class="map-tip">Κάνε <b>κλικ πάνω σε ένα γεωτεμάχιο</b> για να διαβαστεί ο ΚΑΕΚ από το Κτηματολόγιο. Στο κοντινό zoom εμφανίζονται τα όρια των γεωτεμαχίων.</p>
+    <div id="mapResult" class="map-result">
+      <div class="rlabel">Επιλεγμένο γεωτεμάχιο</div>
+      <div id="mapKaek" class="map-kaek">—</div>
+      <div id="mapSub" class="map-sub"></div>
+      <div class="actions">
+        <button id="mapUseBtn" class="act btn-primary">✓ Χρήση ΚΑΕΚ στην εφαρμογή</button>
+        <div class="btn-mini-row">
+          <button id="mapCopyBtn" class="act btn-secondary">Αντιγραφή ΚΑΕΚ</button>
+          <button id="mapMapsBtn" class="act btn-secondary">📍 Google Maps</button>
         </div>
       </div>
     </div>
@@ -490,9 +535,11 @@ document.querySelectorAll('.tab').forEach(tab => {
   tab.addEventListener('click', () => {
     document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
     tab.classList.add('active');
-    const isKaek = tab.dataset.tab === 'kaek';
-    $('panelKaek').style.display = isKaek ? '' : 'none';
-    $('panelXy').style.display   = isKaek ? 'none' : '';
+    const which = tab.dataset.tab;
+    $('panelKaek').style.display = which === 'kaek' ? '' : 'none';
+    $('panelXy').style.display   = which === 'xy'   ? '' : 'none';
+    $('panelMap').style.display  = which === 'map'  ? '' : 'none';
+    if(which === 'map') initMap();
   });
 });
 
@@ -744,6 +791,139 @@ $('historyList').addEventListener('click', e => {
 $('clearHistoryBtn').addEventListener('click', () => {
   if(loadHistory().length === 0) return;
   if(confirm('Διαγραφή όλου του ιστορικού;')){ saveHistory([]); renderHistory(); }
+});
+
+/* ═══════════════ Χάρτης: επιλογή γεωτεμαχίου (click → ΚΑΕΚ) ═══════════════ */
+let mapObj = null, mapInited = false;
+let parcelsLayer = null;   // όρια γεωτεμαχίων ορατής περιοχής
+let highlightLayer = null; // επιλεγμένο γεωτεμάχιο
+let mapSelected = null;    // { kaek, lat, lon }
+let parcelsAbort = null;
+
+function esriRingsToLatLngs(rings){
+  return rings.map(r => r.map(pt => [pt[1], pt[0]])); // [lon,lat] → [lat,lng]
+}
+
+function initMap(){
+  if(mapInited){ if(mapObj) setTimeout(() => mapObj.invalidateSize(), 60); return; }
+  mapInited = true;
+
+  const sat = L.tileLayer(
+    'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+    { maxZoom: 21, maxNativeZoom: 19, attribution: 'Esri World Imagery' });
+  const osm = L.tileLayer(
+    'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+    { maxZoom: 19, attribution: '© OpenStreetMap' });
+
+  // Κέντρο: τελευταίο σημείο ιστορικού, αλλιώς κέντρο Ελλάδας
+  const hist = loadHistory();
+  const center = hist.length ? [hist[0].lat, hist[0].lon] : [37.9838, 23.7275];
+  const zoom = hist.length ? 17 : 7;
+
+  mapObj = L.map('map', { layers: [sat], zoomControl: true }).setView(center, zoom);
+  L.control.layers({ 'Δορυφορικό': sat, 'Χάρτης (OSM)': osm }, null, { position: 'topright' }).addTo(mapObj);
+
+  parcelsLayer = L.layerGroup().addTo(mapObj);
+
+  mapObj.on('click', e => identifyParcel(e.latlng.lat, e.latlng.lng));
+  mapObj.on('moveend', loadViewportParcels);
+
+  setTimeout(() => { mapObj.invalidateSize(); loadViewportParcels(); }, 80);
+}
+
+/* Όρια γεωτεμαχίων της ορατής περιοχής (μόνο σε κοντινό zoom) */
+async function loadViewportParcels(){
+  if(!mapObj) return;
+  if(mapObj.getZoom() < 16){ parcelsLayer.clearLayers(); return; }
+  const b = mapObj.getBounds();
+  const env = [b.getWest(), b.getSouth(), b.getEast(), b.getNorth()].join(',');
+  const url = `${ARCGIS_URL}?f=json&geometry=${encodeURIComponent(env)}`
+            + `&geometryType=esriGeometryEnvelope&inSR=4326&spatialRel=esriSpatialRelIntersects`
+            + `&outFields=KAEK&returnGeometry=true&outSR=4326&resultRecordCount=400`;
+  try{
+    if(parcelsAbort) parcelsAbort.abort();
+    parcelsAbort = new AbortController();
+    const res = await fetch(url, { signal: parcelsAbort.signal });
+    const data = await res.json();
+    parcelsLayer.clearLayers();
+    (data.features || []).forEach(f => {
+      if(!f.geometry || !f.geometry.rings) return;
+      L.polygon(esriRingsToLatLngs(f.geometry.rings), {
+        color: '#c9a227', weight: 1, fill: true, fillOpacity: 0.04, interactive: false
+      }).addTo(parcelsLayer);
+    });
+  }catch(err){ /* abort/δίκτυο — αγνόησε */ }
+}
+
+/* Κλικ σε σημείο → ποιο γεωτεμάχιο (ΚΑΕΚ) το περιέχει */
+async function identifyParcel(lat, lon){
+  const box = $('mapKaek'), sub = $('mapSub');
+  $('mapResult').classList.add('show');
+  box.innerHTML = '<span class="spinner spinner-dim"></span> Ανάγνωση ΚΑΕΚ…';
+  sub.textContent = '';
+  mapSelected = null;
+  if(highlightLayer){ mapObj.removeLayer(highlightLayer); highlightLayer = null; }
+  try{
+    const geom = lon + ',' + lat;
+    const url = `${ARCGIS_URL}?f=json&geometry=${encodeURIComponent(geom)}`
+              + `&geometryType=esriGeometryPoint&inSR=4326&spatialRel=esriSpatialRelIntersects`
+              + `&outFields=KAEK,AREA&returnGeometry=true&outSR=4326`;
+    const res = await fetch(url);
+    if(!res.ok) throw new Error('server ' + res.status);
+    const data = await res.json();
+    if(data.error) throw new Error(data.error.message || 'arcgis');
+    if(!data.features || !data.features.length){
+      box.textContent = 'Δεν υπάρχει καταχωρημένο γεωτεμάχιο εδώ.';
+      return;
+    }
+    const feat = data.features[0];
+    const kaek = String(feat.attributes.KAEK || '').trim();
+    const area = feat.attributes.AREA;
+    let centerPt = { lat, lon };
+    if(feat.geometry && feat.geometry.rings){
+      const latlngs = esriRingsToLatLngs(feat.geometry.rings);
+      highlightLayer = L.polygon(latlngs, { color:'#4285F4', weight:2, fillColor:'#4285F4', fillOpacity:0.18 }).addTo(mapObj);
+      const c = highlightLayer.getBounds().getCenter();
+      centerPt = { lat: c.lat, lon: c.lng };
+    }
+    mapSelected = { kaek, lat: centerPt.lat, lon: centerPt.lon };
+    box.textContent = kaek || '(γεωτεμάχιο χωρίς ΚΑΕΚ)';
+    sub.textContent = area ? ('Εμβαδόν ~' + Math.round(area).toLocaleString('el-GR') + ' m²') : '';
+  }catch(err){
+    console.error(err);
+    box.textContent = 'Αποτυχία ανάγνωσης ΚΑΕΚ — έλεγξε το internet.';
+  }
+}
+
+$('mapUseBtn').addEventListener('click', () => {
+  if(!mapSelected) return;
+  const digits = String(mapSelected.kaek).replace(/\D/g,'').slice(0,12);
+  if(digits.length !== 12){ showToast('Μη έγκυρος ΚΑΕΚ (' + mapSelected.kaek + ')'); return; }
+  $('tabKaek').click();
+  kaekInput.value = digits;
+  validateKaek();
+  if(!kaekFindBtn.disabled) kaekFindBtn.click();
+  window.scrollTo({ top:0, behavior:'smooth' });
+  showToast('ΚΑΕΚ ' + digits + ' → εφαρμογή');
+});
+$('mapCopyBtn').addEventListener('click', async () => {
+  if(!mapSelected || !mapSelected.kaek) return;
+  try{ await navigator.clipboard.writeText(mapSelected.kaek); showToast('Αντιγράφηκε ΚΑΕΚ: ' + mapSelected.kaek); }
+  catch(e){ showToast('Αποτυχία αντιγραφής'); }
+});
+$('mapMapsBtn').addEventListener('click', () => { if(mapSelected) openGoogleMaps(mapSelected.lat, mapSelected.lon); });
+
+$('mapLocateBtn').addEventListener('click', () => {
+  if(!mapObj || !navigator.geolocation){ showToast('Μη διαθέσιμος εντοπισμός θέσης'); return; }
+  showToast('Εντοπισμός θέσης…');
+  navigator.geolocation.getCurrentPosition(
+    pos => mapObj.setView([pos.coords.latitude, pos.coords.longitude], 18),
+    () => showToast('Δεν ήταν δυνατός ο εντοπισμός θέσης'),
+    { enableHighAccuracy: true, timeout: 8000 }
+  );
+});
+$('mapKtimaBtn').addEventListener('click', () => {
+  window.open('https://gis.ktimanet.gr/gis/map', '_blank', 'noopener');
 });
 
 /* ═══════════════ PWA: εγκατάσταση & service worker ═══════════════ */
