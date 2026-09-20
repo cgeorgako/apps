@@ -228,9 +228,9 @@
       <div>
         <label for="quality">Ισχύς μετασχηματισμού</label>
         <select id="quality">
-          <option value="preserve">Πιστή διατήρηση διάταξης — μόνο υλικά/χρώματα (προτεινόμενο)</option>
-          <option value="balanced">Ισορροπημένη — επιτρέπεται επίπλωση/ελευθερία</option>
-          <option value="creative">Πιο δημιουργική ελευθερία</option>
+          <option value="preserve">Πιστή διατήρηση διάταξης — μόνο υλικά/χρώματα · temp 0.1 (προτεινόμενο)</option>
+          <option value="balanced">Ισορροπημένη — επιτρέπεται επίπλωση/ελευθερία · temp 0.5</option>
+          <option value="creative">Πιο δημιουργική ελευθερία · temp 1.0</option>
         </select>
       </div>
     </div>
@@ -284,7 +284,7 @@
 /* ---------- Style definitions ---------- */
 const STYLES = [
   { id:"faithful", emoji:"🎯", name:"Πιστό rendering",
-    desc:"Ακριβές πρωτότυπο, μόνο φυσικά χρώματα/υλικά",
+    desc:"Ακριβές πρωτότυπο, μόνο φυσικά χρώματα/υλικά · temp 0.1",
     faithful:true,
     prompt:"", ext:"" },
   { id:"industrial", emoji:"🏭", name:"Βιομηχανικό",
@@ -539,28 +539,43 @@ function buildPrompt(styleObj){
   return `You are an expert interior design visualization AI. The provided image is a 2D architectural floor plan (top-down view) of a residential interior. ${preserveText}${roomText} Decorate the interior in a ${styleObj.prompt}. ${modeText}${notesText} ${noText}`;
 }
 
+/* ---------- Temperature per fidelity level ---------- */
+/* Lower temperature = closer to the original (less invention). */
+function getTemperature(styleObj){
+  if(styleObj && styleObj.faithful) return 0.1;   // Πιστό rendering
+  const s = $("quality").value;
+  if(s === "preserve") return 0.1;                // Πιστή διατήρηση διάταξης
+  if(s === "balanced") return 0.5;                // Ισορροπημένη
+  return 1.0;                                     // Πιο δημιουργική ελευθερία
+}
+
 /* ---------- Gemini call ---------- */
 async function callGemini(styleObj){
   const key = apiKeyEl.value.trim();
   if(!key) throw new Error("NO_KEY");
 
-  const body = {
-    contents: [{
-      role: "user",
-      parts: [
-        { inlineData: { mimeType: uploadedImage.mimeType, data: uploadedImage.base64 } },
-        { text: buildPrompt(styleObj) }
-      ]
-    }]
-  };
+  const reqParts = [
+    { inlineData: { mimeType: uploadedImage.mimeType, data: uploadedImage.base64 } },
+    { text: buildPrompt(styleObj) }
+  ];
+  const temperature = getTemperature(styleObj);
 
-  const res = await fetch(ENDPOINT(key), {
-    method:"POST",
-    headers:{ "Content-Type":"application/json" },
-    body: JSON.stringify(body)
-  });
-
-  const data = await res.json().catch(()=>({}));
+  // Try with a temperature; if the API rejects generationConfig, retry once without it.
+  let res, data;
+  for(const withTemp of [true, false]){
+    const body = { contents: [{ role: "user", parts: reqParts }] };
+    if(withTemp) body.generationConfig = { temperature };
+    res = await fetch(ENDPOINT(key), {
+      method:"POST",
+      headers:{ "Content-Type":"application/json" },
+      body: JSON.stringify(body)
+    });
+    data = await res.json().catch(()=>({}));
+    const em0 = (data && data.error && data.error.message) ? data.error.message : "";
+    if(res.ok) break;
+    if(withTemp && res.status === 400 && /temperature|generation_?config/i.test(em0)) continue; // retry without temp
+    break;
+  }
 
   if(!res.ok){
     const em = (data && data.error && data.error.message) ? data.error.message : ("HTTP " + res.status);
