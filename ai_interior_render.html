@@ -528,7 +528,7 @@ function friendlyError(err){
   const m = err ? (err.message || String(err)) : "Άγνωστο σφάλμα.";
   if(m === "NO_KEY") return "Λείπει το API key.";
   if(m === "BAD_KEY") return "Μη έγκυρο API key. Έλεγξε το κλειδί στο Google AI Studio.";
-  if(m === "QUOTA") return "Εξαντλήθηκε το όριο χρήσης (quota) του κλειδιού. Δοκίμασε αργότερα ή αναβάθμισε το πλάνο.";
+  if(m === "QUOTA") return "Το μοντέλο παραγωγής εικόνας δεν είναι διαθέσιμο στο ΔΩΡΕΑΝ tier (όριο 0). Ενεργοποίησε χρέωση (billing) στο Google AI Studio / Cloud για το project του κλειδιού — κόστος ~4 λεπτά ($) ανά εικόνα. Δες: aistudio.google.com/apikey → Set up billing. (Αν μόλις το ενεργοποίησες, δοκίμασε ξανά σε λίγο.)";
   if(m.startsWith("BLOCKED:")) return "Η δημιουργία μπλοκαρίστηκε από τα φίλτρα ασφαλείας (" + m.slice(8) + "). Δοκίμασε άλλη εικόνα ή οδηγίες.";
   if(/Failed to fetch|NetworkError/i.test(m)) return "Πρόβλημα δικτύου κατά την κλήση του API.";
   return m;
