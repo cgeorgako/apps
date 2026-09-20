@@ -129,6 +129,10 @@
   .compare .box{background:var(--bg); border:1px solid var(--line); border-radius:11px; padding:12px;}
   .compare .box h3{font-size:11px; font-family:var(--mono); text-transform:uppercase; letter-spacing:.1em; color:var(--txt-dim); margin-bottom:10px;}
   .compare img{width:100%; border-radius:8px; display:block;}
+  .refine-box{margin-top:18px; padding:16px; background:var(--bg); border:1px solid var(--line); border-radius:11px;}
+  .refine-box label{font-size:13px; color:var(--txt); font-weight:600; margin-bottom:8px;}
+  .refine-actions{display:flex; gap:10px; margin-top:12px; flex-wrap:wrap;}
+  .refine-actions .btn{width:auto; flex:none; font-size:14px; padding:11px 20px;}
   .result-actions{display:flex; gap:10px; margin-top:16px; flex-wrap:wrap;}
   .result-actions .btn{width:auto; flex:1; min-width:150px; font-size:14px; padding:11px 18px;}
   .gallery{display:grid; grid-template-columns:repeat(auto-fill,minmax(140px,1fr)); gap:10px; margin-top:14px;}
@@ -264,6 +268,18 @@
       </div>
     </div>
     <div class="gallery" id="gallery"></div>
+
+    <div class="refine-box">
+      <label for="refineInput">✏️ Σημειακή τροποποίηση αυτού του αποτελέσματος</label>
+      <textarea id="refineInput" placeholder="Γράψε ΑΚΡΙΒΩΣ τι θέλεις να αλλάξει — π.χ.: κάνε τον καναπέ σκούρο μπλε · βάλε ξύλινο δάπεδο δρυς μόνο στο σαλόνι · αφαίρεσε το χαλί · πιο ζεστό φωτισμό στην κουζίνα"></textarea>
+      <div class="refine-actions">
+        <button class="btn" id="refineBtn">Εφαρμογή τροποποίησης</button>
+        <button class="btn secondary" id="undoRefineBtn" style="display:none;">↩︎ Αναίρεση</button>
+      </div>
+      <div class="hint">Αλλάζει <b>αυστηρά μόνο</b> ό,τι περιγράφεις· όλα τα υπόλοιπα (γεωμετρία, σύνθεση, υλικά) μένουν ίδια. Μπορείς να εφαρμόζεις διαδοχικές τροποποιήσεις.</div>
+      <div class="msg" id="refineMsg"></div>
+    </div>
+
     <div class="result-actions">
       <button class="btn" id="downloadBtn">⬇️ Λήψη εικόνας</button>
       <button class="btn secondary" id="againBtn">🔄 Νέα δημιουργία</button>
@@ -490,6 +506,8 @@ function clearPreviousResult(){
   activeResultIndex = 0;
   gallery.innerHTML = "";
   resultPanel.style.display = "none";
+  $("refineInput").value = "";
+  showRefineMsg("", "");
   hideMsg();
 }
 
@@ -549,16 +567,15 @@ function getTemperature(styleObj){
   return 1.0;                                     // Πιο δημιουργική ελευθερία
 }
 
-/* ---------- Gemini call ---------- */
-async function callGemini(styleObj){
+/* ---------- Gemini call (generic image edit/generate) ---------- */
+async function generateImage(inMime, inBase64, promptText, temperature){
   const key = apiKeyEl.value.trim();
   if(!key) throw new Error("NO_KEY");
 
   const reqParts = [
-    { inlineData: { mimeType: uploadedImage.mimeType, data: uploadedImage.base64 } },
-    { text: buildPrompt(styleObj) }
+    { inlineData: { mimeType: inMime, data: inBase64 } },
+    { text: promptText }
   ];
-  const temperature = getTemperature(styleObj);
 
   // Try with a temperature; if the API rejects generationConfig, retry once without it.
   let res, data;
@@ -598,6 +615,22 @@ async function callGemini(styleObj){
   }
   const mt = imgPart.inlineData.mimeType || "image/png";
   return `data:${mt};base64,${imgPart.inlineData.data}`;
+}
+
+/* Initial render from the uploaded plan */
+function callGemini(styleObj){
+  return generateImage(uploadedImage.mimeType, uploadedImage.base64, buildPrompt(styleObj), getTemperature(styleObj));
+}
+
+/* Strict, point-edit of an existing result image */
+function buildRefinePrompt(instruction){
+  return `You are performing a STRICT, minimal, localized edit of the provided image. Apply ONLY the following change(s), exactly as described, and nothing else: "${instruction}". ABSOLUTE RULE: every other part of the image must stay pixel-identical to the input — keep the same composition, framing, camera/viewpoint, geometry, walls, openings, roofs, layout, all other objects, materials, colors and lighting completely unchanged. Do NOT restyle, re-render, re-light, reframe, move, add or remove anything that the instruction does not explicitly mention. Make the requested change blend in photorealistically and consistently with the surrounding image. Output a single high-quality image at the exact same dimensions and framing as the input. Do not add any text, labels, watermarks or borders.`;
+}
+function refineImage(dataUrl, instruction){
+  const comma = dataUrl.indexOf(",");
+  const mime = (dataUrl.slice(5, dataUrl.indexOf(";")) || "image/png");
+  const b64 = dataUrl.slice(comma + 1);
+  return generateImage(mime, b64, buildRefinePrompt(instruction), 0.1); // low temp = tight, localized edit
 }
 
 /* ---------- Generate flow ---------- */
@@ -657,8 +690,53 @@ function showResult(i){
   activeResultIndex = i;
   const r = currentResults[i];
   resOut.src = r.dataUrl;
-  resTitle.textContent = "Rendering · " + r.styleName;
+  resTitle.textContent = "Rendering · " + r.styleName + (r.edited ? " (τροποποιημένο)" : "");
+  $("undoRefineBtn").style.display = (r.history && r.history.length) ? "inline-flex" : "none";
+  showRefineMsg("", "");
 }
+
+/* ---------- Point edit (refine) of the active result ---------- */
+$("refineBtn").addEventListener("click", async ()=>{
+  const r = currentResults[activeResultIndex];
+  if(!r){ return; }
+  const instruction = $("refineInput").value.trim();
+  if(!instruction){ showRefineMsg("err","Γράψε τι θέλεις να αλλάξει."); return; }
+  if(!apiKeyEl.value.trim()){ showRefineMsg("err","Λείπει το API key (Βήμα 🔑)."); return; }
+
+  const btn = $("refineBtn");
+  btn.disabled = true; btn.innerHTML = `<span class="spinner"></span> Εφαρμογή…`;
+  showRefineMsg("ok","Εφαρμογή τροποποίησης…");
+  try{
+    const newUrl = await refineImage(r.dataUrl, instruction);
+    (r.history = r.history || []).push(r.dataUrl); // for undo
+    r.dataUrl = newUrl;
+    r.edited = true;
+    showResult(activeResultIndex);
+    updateGalleryThumb(activeResultIndex);
+    $("refineInput").value = "";
+    showRefineMsg("ok","Έτοιμο. Μπορείς να εφαρμόσεις κι άλλη τροποποίηση ή να κάνεις Αναίρεση.");
+  }catch(err){
+    showRefineMsg("err", friendlyError(err));
+  }finally{
+    btn.disabled = false; btn.innerHTML = "Εφαρμογή τροποποίησης";
+  }
+});
+
+$("undoRefineBtn").addEventListener("click", ()=>{
+  const r = currentResults[activeResultIndex];
+  if(!r || !r.history || !r.history.length) return;
+  r.dataUrl = r.history.pop();
+  if(!r.history.length) r.edited = false;
+  showResult(activeResultIndex);
+  updateGalleryThumb(activeResultIndex);
+  showRefineMsg("ok","Η τελευταία τροποποίηση αναιρέθηκε.");
+});
+
+function updateGalleryThumb(i){
+  const imgs = gallery.querySelectorAll(".g img");
+  if(imgs[i]) imgs[i].src = currentResults[i].dataUrl;
+}
+function showRefineMsg(type, text){ const m=$("refineMsg"); m.className="msg "+type; m.textContent=text; }
 
 $("downloadBtn").addEventListener("click", ()=>{
   const r = currentResults[activeResultIndex];
