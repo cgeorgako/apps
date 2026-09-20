@@ -218,7 +218,7 @@
 
     <div class="actions">
       <button id="actKtima" class="act btn-primary">🏛️ Στοιχεία στο Κτηματολόγιο</button>
-      <button id="actDxf" class="act btn-dxf">📐 Λήψη DXF (διορθωμένο περίγραμμα)</button>
+      <button id="actDxf" class="act btn-dxf">📐 Λήψη DXF (διορθωμένο, GIS)</button>
       <div class="btn-mini-row">
         <button id="actMaps" class="act btn-maps">📍 Google Maps</button>
         <button id="actCopy" class="act btn-secondary">Αντιγραφή ΚΑΕΚ</button>
@@ -226,13 +226,13 @@
     </div>
 
     <details class="adv">
-      <summary>Επιλογές DXF</summary>
-      <label class="check"><input type="checkbox" id="gisFallback"> Αν δεν βρεθεί στο SYNOLIKO-12.dxf, χρήση της γεωμετρίας GIS (αδιόρθωτη)</label>
-      <div class="grid2" style="margin-top:0.6rem;">
-        <div><label for="dx">Προαιρετική μετάθεση ΔΧ (m)</label><input type="number" id="dx" value="0" step="0.0001"></div>
-        <div><label for="dy">Προαιρετική μετάθεση ΔΥ (m)</label><input type="number" id="dy" value="0" step="0.0001"></div>
+      <summary>Επιλογές DXF (διόρθωση / shift)</summary>
+      <div class="grid2">
+        <div><label for="dx">ΔΧ (m)</label><input type="number" id="dx" value="0.0006" step="0.0001"></div>
+        <div><label for="dy">ΔΥ (m)</label><input type="number" id="dy" value="0.0011" step="0.0001"></div>
       </div>
-      <div class="hint" style="margin-top:0.5rem;">Το DXF παράγεται από το <b>διορθωμένο περίγραμμα του SYNOLIKO-12.dxf</b> (ΕΓΣΑ87), κλειστή polyline στο layer «KAEK_&lt;κωδικός&gt;» με ΚΑΕΚ ως κείμενο — όχι από την αδιόρθωτη γεωμετρία του GIS.</div>
+      <label class="check"><input type="checkbox" id="keepOriginal" checked> Συμπερίληψη και του αρχικού (αδιόρθωτου) περιγράμματος από το GIS</label>
+      <div class="hint" style="margin-top:0.5rem;">Όπως στο KAEKtoDXF: το DXF προέρχεται από τη γεωμετρία του <b>GIS Κτηματολογίου</b> — διορθωμένη κλειστή polyline (layer «PST_KAEK_&lt;κωδικός&gt;») με μετάθεση ΔΧ/ΔΥ + ΚΑΕΚ ως κείμενο, σε ΕΓΣΑ87.</div>
     </details>
 
     <div class="login-row">
@@ -334,8 +334,8 @@ function setResolved(kaek, ringsEGSA, area, perimeter, note){
   if($('kaekInput').value.replace(/\D/g,'') !== digits){ $('kaekInput').value=digits; validateKaek(); }
   // map highlight
   if(mapObj && ringsEGSA){ drawHighlight(ringsEGSA); }
-  // SYNOLIKO-12.dxf lookup (κείμενο + διορθωμένο polyline)
-  lookupSynoliko(centroidEGSA, area);
+  // SYNOLIKO-12.dxf: εύρεση κειμένου (text) εντός του polyline που περιέχει το κέντρο
+  lookupSynoliko(centroidEGSA);
   // history
   if(digits.length===12) addToHistory({ kaek:digits, note:note||'', lat:point?point.lat:null, lon:point?point.lon:null });
 }
@@ -378,7 +378,7 @@ async function resolveByPoint(x, y, inSR, note){
 $('actKtima').addEventListener('click', ()=>{ if(!current||current.kaek.length!==12){ showToast('Δεν υπάρχει έγκυρος ΚΑΕΚ'); return; } window.open(buildKtimaUrl(current.kaek),'_blank','noopener'); });
 $('actMaps').addEventListener('click', ()=>{ if(current&&current.point) openGoogleMaps(current.point.lat,current.point.lon); else showToast('Δεν υπάρχει σημείο'); });
 $('actCopy').addEventListener('click', ()=>{ if(current&&current.kaek) copyText(current.kaek,'Αντιγράφηκε ΚΑΕΚ: '+current.kaek); });
-$('actDxf').addEventListener('click', ()=>{ if(current) downloadDxf(current); else showToast('Επίλεξε πρώτα ΚΑΕΚ'); });
+$('actDxf').addEventListener('click', ()=>{ if(current&&current.ringsEGSA) downloadDxf(current); else showToast('Δεν υπάρχει γεωμετρία GIS για DXF'); });
 
 /* ═══ DXF (ΕΓΣΑ87) ═══ */
 function fmt(n){ return Number(n.toFixed(9)).toString(); }
@@ -389,42 +389,31 @@ function writePolyline(vertices, layer, ox, oy){
 }
 function writeText(cx,cy,layer,txt,h){ return "  0\nTEXT\n  8\n"+layer+"\n 10\n"+fmt(cx)+"\n 20\n"+fmt(cy)+"\n 40\n"+fmt(h)+"\n  1\n"+txt+"\n 72\n4\n 11\n"+fmt(cx)+"\n 21\n"+fmt(cy)+"\n"; }
 
-async function downloadDxf(rec){
+/* DXF από τη γεωμετρία GIS του Κτηματολογίου, με διόρθωση/μετάθεση (shift) — όπως το KAEKtoDXF */
+function downloadDxf(rec){
+  const rings=rec.ringsEGSA;
+  if(!rings || !rings.length){ showToast('Δεν υπάρχει γεωμετρία GIS για DXF'); return; }
+  const dx=parseFloat($('dx').value)||0, dy=parseFloat($('dy').value)||0, keep=$('keepOriginal').checked;
   const kaek=rec.kaek;
-  const dx=parseFloat($('dx').value)||0, dy=parseFloat($('dy').value)||0;
-  const gisFallback=$('gisFallback').checked;
-
-  // ΚΥΡΙΑ ΠΗΓΗ: το διορθωμένο polyline από το SYNOLIKO-12.dxf
-  let rings=rec.synolikoRings, source='SYNOLIKO';
-  if(!rings && rec.centroidEGSA){
-    showToast('Αναζήτηση διορθωμένου polyline…');
-    const r=await resolveSynolikoParcel(rec.centroidEGSA, rec.area);
-    if(r && r.pts){ rings=[r.pts]; if(current) current.synolikoRings=rings; }
-  }
-  // Εναλλακτικά (αν το ζητήσει ο χρήστης): η αδιόρθωτη γεωμετρία GIS
-  if(!rings){
-    if(gisFallback && rec.ringsEGSA){ rings=rec.ringsEGSA; source='GIS'; showToast('Χρήση γεωμετρίας GIS (δεν βρέθηκε στο SYNOLIKO-12.dxf)'); }
-    else{ showToast('Δεν βρέθηκε διορθωμένο polyline στο SYNOLIKO-12.dxf για αυτόν τον ΚΑΕΚ'); return; }
-  }
-
-  const layer="KAEK_"+kaek;
   let dxf="  0\nSECTION\n  2\nENTITIES\n";
   let sumX=0,sumY=0,cnt=0;
   for(const vertices of rings){
     if(!vertices||!vertices.length) continue;
-    dxf+=writePolyline(vertices, layer, dx, dy);
+    dxf+=writePolyline(vertices, "PST_KAEK_"+kaek, dx, dy);          // διορθωμένο (shift)
+    if(keep) dxf+=writePolyline(vertices, "KTIMATOLOGIO_"+kaek, 0, 0); // αρχικό αδιόρθωτο GIS
     let uniq=vertices.length;
     if(vertices[0][0]===vertices[vertices.length-1][0] && vertices[0][1]===vertices[vertices.length-1][1]) uniq=vertices.length-1;
     for(let i=0;i<uniq;i++){ sumX+=vertices[i][0]; sumY+=vertices[i][1]; cnt++; }
   }
   if(cnt>0){
     const cX=sumX/cnt, cY=sumY/cnt, per=rec.perimeter||200, h=Math.max(2.0, per/80);
-    dxf+=writeText(cX+dx, cY+dy, "KAEK_TEXT_"+kaek, kaek, h);
+    dxf+=writeText(cX+dx, cY+dy, "PST_KAEK_TEXT_"+kaek, kaek, h);
+    if(keep) dxf+=writeText(cX, cY, "KAEK_TEXT_"+kaek, kaek, h);
   }
   dxf+="  0\nENDSEC\n  0\nEOF\n";
   const blob=new Blob([dxf],{type:"application/dxf;charset=utf-8;"});
   const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download="KAEK_"+kaek+".dxf"; document.body.appendChild(a); a.click(); document.body.removeChild(a);
-  showToast('Λήψη DXF ('+(source==='SYNOLIKO'?'διορθωμένο':'GIS')+'): KAEK_'+kaek+'.dxf');
+  showToast('Λήψη DXF (διορθωμένο GIS): KAEK_'+kaek+'.dxf');
 }
 
 /* ═══ SYNOLIKO-12.dxf: εύρεση polyline & κειμένου στο κέντρο του ΚΑΕΚ ═══ */
@@ -517,43 +506,33 @@ async function ensureSynoliko(){
   return null;
 }
 
-/* Βρες το ΔΙΟΡΘΩΜΕΝΟ polyline του γεωτεμαχίου: από τα polylines που περιέχουν το
-   κέντρο, προτίμησε αυτό με εμβαδόν πιο κοντά στο εμβαδόν του GIS (αλλιώς το μικρότερο). */
-function findSynolikoParcel(data, cx, cy, targetArea){
-  let best=null, bestScore=Infinity;
+/* Βρες στο SYNOLIKO το polyline που περιέχει το κέντρο του ΚΑΕΚ (το μικρότερο, αν
+   υπάρχουν εμφωλευμένα) και επίστρεψε το ΚΕΙΜΕΝΟ (text) που βρίσκεται μέσα του. */
+function findSynolikoText(data, cx, cy){
+  let best=null, bestArea=Infinity;
   for(const pl of data.polylines){
     if(pl.pts.length<3) continue;
     if(!pointInPoly(cx,cy,pl.pts)) continue;
     const a=polyArea(pl.pts);
-    if(a<1) continue;
-    const score = (targetArea && targetArea>0) ? Math.abs(a-targetArea)/targetArea : a;
-    if(score<bestScore){ bestScore=a===0?Infinity:score; best={pts:pl.pts, area:a}; }
+    if(a>0 && a<bestArea){ bestArea=a; best=pl; }
   }
-  if(!best) return null;
+  if(!best) return { found:false, text:null };
   const inside=[];
   for(const t of data.texts){ if(pointInPoly(t.x,t.y,best.pts)) inside.push(t.str); }
-  best.text = inside.length ? inside.join(' / ') : null;
-  return best;
+  return { found:true, text: inside.length ? inside.join(' / ') : null };
 }
 
-async function resolveSynolikoParcel(centroidEGSA, targetArea){
-  if(!centroidEGSA) return null;
-  const data=await ensureSynoliko();
-  if(!data) return { missing:true };
-  return findSynolikoParcel(data, centroidEGSA[0], centroidEGSA[1], targetArea) || { none:true };
-}
-
-async function lookupSynoliko(centroidEGSA, targetArea){
+async function lookupSynoliko(centroidEGSA){
   const val=$('synolikoVal'), load=$('synolikoLoad');
-  if(current){ current.synolikoRings=null; current.synolikoText=null; }
   if(!centroidEGSA){ val.textContent='—'; return; }
   val.innerHTML='<span class="spinner spinner-dim"></span>';
-  const r=await resolveSynolikoParcel(centroidEGSA, targetArea);
-  if(!r || r.missing){ val.textContent='—'; load.style.display='block'; return; }
+  const data=await ensureSynoliko();
+  if(!data){ val.textContent='—'; load.style.display='block'; return; }
   load.style.display='none';
-  if(r.none){ val.textContent='Δεν βρέθηκε polyline που να περιέχει το κέντρο του ΚΑΕΚ.'; return; }
-  if(current){ current.synolikoRings=[r.pts]; current.synolikoText=r.text; }
-  val.textContent = (r.text || '(polyline χωρίς κείμενο μέσα)') + '  ·  ~' + Math.round(r.area).toLocaleString('el-GR') + ' m²';
+  const r=findSynolikoText(data, centroidEGSA[0], centroidEGSA[1]);
+  if(r.text) val.textContent=r.text;
+  else if(r.found) val.textContent='(βρέθηκε polyline αλλά χωρίς κείμενο μέσα)';
+  else val.textContent='Δεν βρέθηκε polyline που να περιέχει το κέντρο του ΚΑΕΚ.';
 }
 
 /* Χειροκίνητη φόρτωση του DXF (αν δεν υπάρχει δίπλα στην εφαρμογή) */
@@ -567,7 +546,7 @@ $('synolikoFile').addEventListener('change', async e=>{
     await idbSet('synoliko', text);
     $('synolikoLoad').style.display='none';
     showToast('Φορτώθηκε: '+f.name+' ('+synoliko.polylines.length+' polylines, '+synoliko.texts.length+' κείμενα)');
-    if(current && current.centroidEGSA) lookupSynoliko(current.centroidEGSA, current.area);
+    if(current && current.centroidEGSA) lookupSynoliko(current.centroidEGSA);
     else val.textContent='—';
   }catch(err){ console.error(err); showToast('Αποτυχία ανάγνωσης DXF'); val.textContent='—'; }
   e.target.value='';
