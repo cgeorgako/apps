@@ -504,13 +504,16 @@ function buildPrompt(styleObj){
 
   const noText = "Output a single high-quality, photorealistic image. Do not add any text, labels, dimensions, watermarks or borders.";
 
+  // Absolute, non-negotiable geometry lock shared by every style in "preserve" mode.
+  const LOCK = "ABSOLUTE TOP-PRIORITY RULE, overriding the chosen style and everything else: the original architectural design MUST be preserved with 100% fidelity. Every wall, partition, door, window and other opening, roof, staircase, column, balcony and fixed structural element must keep the EXACT same position, size, shape, count, thickness, angle and proportions as in the input image. You may NOT add, remove, move, resize, rotate, straighten, redraw, merge, split or reinterpret ANY architectural element, and you may NOT change the layout or geometry in any way. Treat the input as a locked, immutable template: keep its lines and framing pixel-for-pixel and change ONLY surface colors, textures and material finishes. If the style would imply any architectural change, ignore that part of the style — geometry always wins.";
+
   /* --- Exterior 3D view of the building & surroundings --- */
   if(selectedMode === "exterior"){
     if(geometryLocked){
       const styleClause = isFaithful
-        ? "Do NOT restyle the building; simply render its existing surfaces and materials with natural, realistic colors."
-        : `Apply only the surface materials, finishes and colors of a ${styleObj.ext} to the existing surfaces — do NOT introduce any new architectural feature from that style.`;
-      return `You are an expert architectural visualization AI. The provided image is an architectural drawing of a residential building. Produce a photorealistic exterior rendering of EXACTLY this building as drawn. STRICT: keep the building's volumes, massing, roof shape and slopes, and every window and door opening (κουφώματα) identical to the original — do NOT add, remove, move, resize or reshape any volume, roof, opening or architectural element, and do not change the number of storeys or the proportions. ${styleClause} Add a realistic landscaped ground context (garden, lawn, planting, pathways) around the building only, without altering it, under natural daylight with soft shadows and a clear sky. ${noText}`;
+        ? "Do NOT restyle the building; render its existing surfaces with natural, realistic colors and materials only."
+        : `Apply ONLY the surface materials, finishes and color palette of a ${styleObj.ext} onto the unchanged surfaces; take nothing structural or architectural from that style.`;
+      return `You are performing a STRICT in-place material/color edit of the provided architectural drawing of a residential building, keeping it exactly as drawn. ${LOCK} ${styleClause} You may add a realistic landscaped ground context (garden, lawn, planting, pathways) around the building only, without touching the building itself, under natural daylight with soft shadows and a clear sky. Output a photorealistic image at the same viewpoint and framing as the input. ${noText}`;
     }
     const fidelity = strength === "creative"
       ? "Use the plan's footprint as loose inspiration for the massing."
@@ -521,9 +524,9 @@ function buildPrompt(styleObj){
   /* --- Interior top-down (bird's-eye) --- */
   if(geometryLocked){
     const styleClause = isFaithful
-      ? "Do NOT redecorate or restyle. Simply render the existing surfaces, materials and any drawn elements with natural, realistic colors, textures and lighting."
-      : `Apply only the surface finishes, materials and color palette of a ${styleObj.prompt} to the existing floors, walls and drawn elements — do NOT add, remove, move or redesign any wall, opening, furniture or object.`;
-    return `You are an expert architectural visualization AI. The provided image is a 2D architectural floor plan (top-down view) of a residential interior. Produce a photorealistic top-down (bird's-eye) rendering of EXACTLY this plan. STRICT: preserve the exact wall layout, wall thicknesses, room boundaries, door and window openings, orientation, proportions and every element already drawn — do NOT add, remove, move or reshape anything. ${styleClause} Keep the same top-view orientation, with realistic materials, soft shadows and ambient occlusion.${notesText} ${noText}`;
+      ? "Do NOT redecorate or restyle. Render the existing surfaces and any drawn elements with natural, realistic colors, textures and lighting only."
+      : `Apply ONLY the surface finishes, materials and color palette of a ${styleObj.prompt} onto the existing floors, walls and drawn elements; do NOT add, remove, move or redesign any wall, opening, furniture or object.`;
+    return `You are performing a STRICT in-place material/color edit of the provided 2D architectural floor plan (top-down view) of a residential interior, keeping it exactly as drawn. ${LOCK} ${styleClause} Output a photorealistic top-down (bird's-eye) image at the same orientation and framing as the input, with realistic materials, soft shadows and ambient occlusion.${notesText} ${noText}`;
   }
 
   const preserveText = strength === "creative"
