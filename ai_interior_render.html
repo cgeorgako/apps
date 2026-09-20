@@ -1,0 +1,538 @@
+<!DOCTYPE html>
+<html lang="el">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI Rendering Κατόψεων Εσωτερικών Χώρων</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0e1116; --panel:#161b22; --panel-2:#1c232d; --line:#2a323d;
+    --txt:#e6edf3; --txt-dim:#8b97a7;
+    --acc:#ff7a18; --acc-soft:rgba(255,122,24,.12);
+    --ok:#10b981; --ok-soft:rgba(16,185,129,.14);
+    --err:#f43f5e; --err-soft:rgba(244,63,94,.14);
+    --mono:'IBM Plex Mono',monospace; --sans:'IBM Plex Sans',sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{
+    font-family:var(--sans); background:var(--bg);
+    background-image:
+      radial-gradient(circle at 15% 0%,rgba(255,122,24,.07),transparent 45%),
+      linear-gradient(#1b212b 1px,transparent 1px),
+      linear-gradient(90deg,#1b212b 1px,transparent 1px);
+    background-size:auto,30px 30px,30px 30px;
+    color:var(--txt); min-height:100vh; padding:32px 16px 60px;
+  }
+  a{color:var(--acc);}
+  .wrap{max-width:1080px; margin:0 auto;}
+  .tag{font-family:var(--mono); font-size:11px; letter-spacing:.14em; text-transform:uppercase;
+    color:var(--acc); display:inline-flex; align-items:center; gap:8px; margin-bottom:10px;}
+  .tag::before{content:""; width:22px; height:1px; background:var(--acc);}
+  .back{font-family:var(--mono); font-size:12px; color:var(--txt-dim); text-decoration:none; display:inline-block; margin-bottom:18px;}
+  .back:hover{color:var(--acc);}
+  h1{font-size:27px; font-weight:700; letter-spacing:-.02em; margin-bottom:8px;}
+  .sub{color:var(--txt-dim); font-size:14px; max-width:640px; margin-bottom:26px; line-height:1.55;}
+
+  .panel{
+    background:var(--panel); border:1px solid var(--line); border-radius:14px;
+    padding:20px; margin-bottom:18px;
+  }
+  .panel h2{font-size:13px; font-family:var(--mono); font-weight:600; text-transform:uppercase;
+    letter-spacing:.1em; color:var(--acc); margin-bottom:14px; display:flex; align-items:center; gap:8px;}
+  .step-num{background:var(--acc-soft); border:1px solid rgba(255,122,24,.3); color:var(--acc);
+    width:22px; height:22px; border-radius:6px; display:inline-flex; align-items:center; justify-content:center; font-size:12px;}
+
+  label{font-size:12.5px; color:var(--txt-dim); display:block; margin-bottom:6px;}
+  input[type=text], input[type=password], textarea, select{
+    width:100%; background:var(--bg); border:1px solid var(--line); border-radius:9px;
+    color:var(--txt); font-family:var(--sans); font-size:14px; padding:10px 12px; outline:none;
+  }
+  input:focus, textarea:focus, select:focus{border-color:var(--acc);}
+  textarea{resize:vertical; min-height:64px; line-height:1.5;}
+  .row{display:flex; gap:12px; flex-wrap:wrap;}
+  .row > *{flex:1; min-width:180px;}
+  .hint{font-size:11.5px; color:var(--txt-dim); margin-top:6px; line-height:1.5;}
+
+  /* Dropzone */
+  .drop{
+    border:2px dashed var(--line); border-radius:12px; padding:30px 20px; text-align:center;
+    cursor:pointer; transition:.18s; background:var(--bg);
+  }
+  .drop:hover, .drop.over{border-color:var(--acc); background:var(--panel-2);}
+  .drop .di{font-size:34px; margin-bottom:8px;}
+  .drop .dt{font-size:14px; font-weight:600;}
+  .drop .ds{font-size:12px; color:var(--txt-dim); margin-top:4px;}
+  .preview-in{margin-top:14px; display:none;}
+  .preview-in img{max-width:100%; max-height:320px; border-radius:10px; border:1px solid var(--line);}
+  .fname{font-family:var(--mono); font-size:11.5px; color:var(--txt-dim); margin-top:8px; word-break:break-all;}
+
+  /* Styles grid */
+  .styles{display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:10px;}
+  .style-card{
+    background:var(--bg); border:1px solid var(--line); border-radius:11px; padding:14px;
+    cursor:pointer; transition:.16s; position:relative;
+  }
+  .style-card:hover{border-color:rgba(255,122,24,.4); transform:translateY(-2px);}
+  .style-card.sel{border-color:var(--acc); background:var(--acc-soft); box-shadow:0 0 0 1px var(--acc) inset;}
+  .style-card .se{font-size:22px;}
+  .style-card .sn{font-size:14px; font-weight:700; margin-top:6px;}
+  .style-card .sd{font-size:11px; color:var(--txt-dim); margin-top:3px; line-height:1.45;}
+  .style-card.sel::after{content:"✓"; position:absolute; top:10px; right:12px; color:var(--acc); font-weight:700;}
+
+  /* Mode toggle */
+  .modes{display:flex; gap:10px; flex-wrap:wrap;}
+  .mode-opt{flex:1; min-width:200px; background:var(--bg); border:1px solid var(--line); border-radius:11px; padding:14px; cursor:pointer; transition:.16s;}
+  .mode-opt:hover{border-color:rgba(255,122,24,.4);}
+  .mode-opt.sel{border-color:var(--acc); background:var(--acc-soft);}
+  .mode-opt .mt{font-size:14px; font-weight:700;}
+  .mode-opt .md{font-size:11.5px; color:var(--txt-dim); margin-top:4px; line-height:1.45;}
+
+  .btn{
+    background:linear-gradient(180deg,#ff8a2e,#ff7a18); color:#1a1205; border:none; border-radius:10px;
+    font-family:var(--sans); font-size:15px; font-weight:700; padding:14px 22px; cursor:pointer;
+    width:100%; transition:.16s; display:flex; align-items:center; justify-content:center; gap:10px;
+  }
+  .btn:hover{filter:brightness(1.06);}
+  .btn:disabled{opacity:.5; cursor:not-allowed;}
+  .btn.secondary{background:var(--panel-2); color:var(--txt); border:1px solid var(--line);}
+
+  .spinner{width:16px; height:16px; border:2px solid rgba(26,18,5,.35); border-top-color:#1a1205; border-radius:50%; animation:spin .7s linear infinite; display:inline-block;}
+  @keyframes spin{to{transform:rotate(360deg);}}
+
+  .msg{border-radius:9px; padding:11px 14px; font-size:13px; margin-top:12px; display:none; line-height:1.5;}
+  .msg.ok{background:var(--ok-soft); border:1px solid rgba(16,185,129,.35); color:#6ee7b7; display:block;}
+  .msg.err{background:var(--err-soft); border:1px solid rgba(244,63,94,.35); color:#fda4af; display:block;}
+
+  /* Result */
+  #resultPanel{display:none;}
+  .compare{display:grid; grid-template-columns:1fr 1fr; gap:16px;}
+  @media(max-width:640px){.compare{grid-template-columns:1fr;}}
+  .compare .box{background:var(--bg); border:1px solid var(--line); border-radius:11px; padding:12px;}
+  .compare .box h3{font-size:11px; font-family:var(--mono); text-transform:uppercase; letter-spacing:.1em; color:var(--txt-dim); margin-bottom:10px;}
+  .compare img{width:100%; border-radius:8px; display:block;}
+  .result-actions{display:flex; gap:10px; margin-top:16px; flex-wrap:wrap;}
+  .result-actions .btn{width:auto; flex:1; min-width:150px; font-size:14px; padding:11px 18px;}
+  .gallery{display:grid; grid-template-columns:repeat(auto-fill,minmax(140px,1fr)); gap:10px; margin-top:14px;}
+  .gallery .g{background:var(--bg); border:1px solid var(--line); border-radius:9px; overflow:hidden; cursor:pointer; transition:.16s;}
+  .gallery .g:hover{border-color:var(--acc);}
+  .gallery .g img{width:100%; display:block;}
+  .gallery .g .gl{font-size:10.5px; color:var(--txt-dim); font-family:var(--mono); padding:6px 8px; text-transform:uppercase;}
+
+  .disclaimer{font-size:11.5px; color:#5c6675; line-height:1.6; margin-top:8px;}
+  footer{margin-top:40px; font-size:11.5px; color:#5c6675; text-align:center; font-family:var(--mono); letter-spacing:.5px; border-top:1px solid var(--line); padding-top:20px;}
+  .keywrap{display:flex; gap:10px; align-items:flex-end;}
+  .keywrap > div:first-child{flex:1;}
+  .savedchip{font-size:11px; font-family:var(--mono); color:var(--ok); margin-top:6px; display:none;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <a class="back" href="index.html">← Επιστροφή στα Εργαλεία</a>
+  <div class="tag">AI Visualization · Interior Rendering</div>
+  <h1>AI Rendering Κατόψεων Εσωτερικών Χώρων</h1>
+  <p class="sub">Ανέβασε την κάτοψη μιας κατοικίας (PNG ή JPG), επίλεξε στυλ διακόσμησης και δημιούργησε ρεαλιστική απεικόνιση του εσωτερικού χώρου με τεχνητή νοημοσύνη (Google Gemini 2.5 Flash Image). Η αρχιτεκτονική διάταξη — τοίχοι, ανοίγματα, δωμάτια — διατηρείται· προστίθενται επίπλωση, υλικά, χρώματα και φωτισμός.</p>
+
+  <!-- STEP 0: API KEY -->
+  <div class="panel">
+    <h2><span class="step-num">🔑</span> Κλειδί API (Google AI Studio)</h2>
+    <div class="keywrap">
+      <div>
+        <label for="apiKey">Gemini API Key</label>
+        <input type="password" id="apiKey" placeholder="AIza..." autocomplete="off">
+        <div class="savedchip" id="savedChip">✓ Αποθηκευμένο τοπικά σε αυτόν τον browser</div>
+      </div>
+      <button class="btn secondary" id="saveKeyBtn" style="width:auto; padding:10px 16px; font-size:13px;">Αποθήκευση</button>
+    </div>
+    <div class="hint">
+      Δωρεάν κλειδί από το <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">Google AI Studio</a>.
+      Το κλειδί αποθηκεύεται <b>μόνο τοπικά</b> στον browser σου (localStorage) και στέλνεται απευθείας στο Google — δεν περνά από κανέναν άλλο server.
+    </div>
+  </div>
+
+  <!-- STEP 1: UPLOAD -->
+  <div class="panel">
+    <h2><span class="step-num">1</span> Κάτοψη προς επεξεργασία</h2>
+    <div class="drop" id="drop">
+      <div class="di">🏠</div>
+      <div class="dt">Σύρε την κάτοψη εδώ ή κάνε κλικ για επιλογή</div>
+      <div class="ds">PNG ή JPG · καθαρή κάτοψη με ευδιάκριτους τοίχους & δωμάτια αποδίδει καλύτερα</div>
+    </div>
+    <input type="file" id="fileInput" accept="image/png,image/jpeg" style="display:none">
+    <div class="preview-in" id="previewIn">
+      <img id="previewImg" alt="Προεπισκόπηση κάτοψης">
+      <div class="fname" id="fname"></div>
+    </div>
+  </div>
+
+  <!-- STEP 2: STYLE -->
+  <div class="panel">
+    <h2><span class="step-num">2</span> Στυλ διακόσμησης</h2>
+    <div class="styles" id="stylesGrid"></div>
+  </div>
+
+  <!-- STEP 3: OPTIONS -->
+  <div class="panel">
+    <h2><span class="step-num">3</span> Τύπος απόδοσης & επιλογές</h2>
+    <div class="modes" id="modesWrap" style="margin-bottom:16px;">
+      <div class="mode-opt sel" data-mode="topview">
+        <div class="mt">🗺️ Έγχρωμη κάτοψη (κάτοψη από ψηλά)</div>
+        <div class="md">Διατηρεί τη μορφή κάτοψης (top-view), με ρεαλιστική επίπλωση, υλικά δαπέδων, χρώματα και σκιές — ιδανικό για παρουσίαση διαρρύθμισης.</div>
+      </div>
+      <div class="mode-opt" data-mode="3d">
+        <div class="mt">🧊 Ρεαλιστικό 3D (dollhouse)</div>
+        <div class="md">Ισομετρική/προοπτική 3D απόδοση του επιπλωμένου χώρου σε τομή (cutaway), με βάθος, όγκους και φωτορεαλισμό.</div>
+      </div>
+    </div>
+    <div class="row">
+      <div>
+        <label for="roomType">Χρήση χώρου (προαιρετικό)</label>
+        <select id="roomType">
+          <option value="">Αυτόματο (ολόκληρη κατοικία)</option>
+          <option value="living room">Σαλόνι / Καθιστικό</option>
+          <option value="bedroom">Υπνοδωμάτιο</option>
+          <option value="kitchen">Κουζίνα</option>
+          <option value="open-plan kitchen and living room">Ενιαίο σαλόνι-κουζίνα</option>
+          <option value="bathroom">Μπάνιο</option>
+          <option value="home office">Γραφείο</option>
+          <option value="children's room">Παιδικό δωμάτιο</option>
+        </select>
+      </div>
+      <div>
+        <label for="quality">Ισχύς μετασχηματισμού</label>
+        <select id="quality">
+          <option value="preserve">Πιστή διατήρηση διάταξης (προτεινόμενο)</option>
+          <option value="balanced">Ισορροπημένη</option>
+          <option value="creative">Πιο δημιουργική ελευθερία</option>
+        </select>
+      </div>
+    </div>
+    <div style="margin-top:14px;">
+      <label for="notes">Επιπλέον οδηγίες (προαιρετικό)</label>
+      <textarea id="notes" placeholder="π.χ. ξύλινο δάπεδο δρυς, ουδέτερη παλέτα, μεγάλος καναπές, φυτά, ζεστός φωτισμός..."></textarea>
+    </div>
+  </div>
+
+  <!-- GENERATE -->
+  <div class="panel">
+    <button class="btn" id="generateBtn" disabled>✨ Δημιουργία Rendering</button>
+    <label style="display:flex; align-items:center; gap:8px; margin-top:14px; cursor:pointer; color:var(--txt); font-size:13px;">
+      <input type="checkbox" id="allStyles" style="width:auto; flex:none;">
+      Δημιουργία και για τα 6 στυλ ταυτόχρονα (συγκριτικά — καταναλώνει περισσότερο quota)
+    </label>
+    <div class="msg" id="msg"></div>
+  </div>
+
+  <!-- RESULT -->
+  <div class="panel" id="resultPanel">
+    <h2><span class="step-num">✓</span> Αποτέλεσμα</h2>
+    <div class="compare">
+      <div class="box">
+        <h3>Αρχική κάτοψη</h3>
+        <img id="origOut" alt="Αρχική">
+      </div>
+      <div class="box">
+        <h3 id="resTitle">Rendering</h3>
+        <img id="resOut" alt="Αποτέλεσμα">
+      </div>
+    </div>
+    <div class="gallery" id="gallery"></div>
+    <div class="result-actions">
+      <button class="btn" id="downloadBtn">⬇️ Λήψη εικόνας</button>
+      <button class="btn secondary" id="againBtn">🔄 Νέα δημιουργία</button>
+    </div>
+    <div id="modelNote" class="disclaimer"></div>
+  </div>
+
+  <div class="disclaimer">
+    ⚠️ Οι εικόνες παράγονται από AI και προορίζονται για <b>έμπνευση / concept παρουσίαση</b>. Δεν αποτελούν κατασκευαστικά σχέδια ούτε εγγυώνται διαστασιολογική ακρίβεια. Ελέγχετε πάντα τη διάταξη σε σχέση με το πραγματικό αρχιτεκτονικό σχέδιο.
+  </div>
+
+  <footer>ΧΡΗΣΤΟΣ Δ. ΓΕΩΡΓΑΚΟΠΟΥΛΟΣ · ΔΙΠΛ. ΠΟΛΙΤΙΚΟΣ ΜΗΧΑΝΙΚΟΣ Ε.Μ.Π. · ΑΜΑΛΙΑΔΑ ΗΛΕΙΑΣ</footer>
+</div>
+
+<script>
+"use strict";
+
+/* ---------- Style definitions ---------- */
+const STYLES = [
+  { id:"industrial", emoji:"🏭", name:"Βιομηχανικό",
+    desc:"Εμφανές τούβλο, μπετόν, μαύρο μέταλλο",
+    prompt:"industrial loft interior design style: exposed red brick walls, polished concrete or dark reclaimed wood floors, black steel-framed elements, Edison-bulb pendant lighting, distressed leather and raw metal furniture, ductwork accents, a moody dark and warm palette" },
+  { id:"classic", emoji:"🏛️", name:"Κλασσικό",
+    desc:"Κομψό, συμμετρικό, ξύλο & μάρμαρο",
+    prompt:"classic elegant interior design style: symmetrical layout, ornate crown moldings and wainscoting, rich hardwood and marble floors, upholstered furniture with refined fabrics, warm neutral and cream palette, crystal chandeliers, timeless sophisticated decor" },
+  { id:"hotel", emoji:"🛎️", name:"Ξενοδοχειακό",
+    desc:"Boutique luxury, πλούσια υφή",
+    prompt:"luxury boutique hotel suite interior design style: plush layered textiles, refined contemporary furniture, brass and gold accents, sophisticated layered ambient lighting, rich accent walls, high-end materials, elegant and inviting five-star atmosphere" },
+  { id:"rustic", emoji:"🪵", name:"Rustic",
+    desc:"Φυσικό ξύλο, πέτρα, ζεστοί τόνοι",
+    prompt:"rustic farmhouse interior design style: exposed natural wood beams, stone and reclaimed timber, warm earthy tones, cozy woven textiles, wrought-iron details, handcrafted furniture, a warm inviting and natural atmosphere" },
+  { id:"minimal", emoji:"⬜", name:"Minimal",
+    desc:"Καθαρές γραμμές, λιτή παλέτα",
+    prompt:"minimalist interior design style: clean simple lines, uncluttered functional layout, neutral white and light palette, light natural oak wood, hidden storage, plenty of negative space, soft diffused natural light, calm and airy Scandinavian-influenced aesthetic" },
+  { id:"country", emoji:"🌻", name:"Country",
+    desc:"Cottage, απαλά χρώματα, vintage",
+    prompt:"country cottage interior design style: soft pastel and cream palette, floral and gingham fabrics, vintage painted wood furniture, ceramic and wicker accessories, cozy layered textiles, cheerful homely and charming atmosphere" }
+];
+
+/* ---------- State ---------- */
+let selectedStyle = "minimal";
+let selectedMode = "topview";
+let uploadedImage = null; // { base64, mimeType, dataUrl }
+let currentResults = [];  // [{ styleId, styleName, dataUrl }]
+let activeResultIndex = 0;
+
+/* ---------- Elements ---------- */
+const $ = id => document.getElementById(id);
+const apiKeyEl = $("apiKey"), savedChip = $("savedChip");
+const drop = $("drop"), fileInput = $("fileInput");
+const previewIn = $("previewIn"), previewImg = $("previewImg"), fname = $("fname");
+const stylesGrid = $("stylesGrid"), modesWrap = $("modesWrap");
+const generateBtn = $("generateBtn"), allStyles = $("allStyles"), msg = $("msg");
+const resultPanel = $("resultPanel"), origOut = $("origOut"), resOut = $("resOut"),
+      resTitle = $("resTitle"), gallery = $("gallery"), modelNote = $("modelNote");
+
+const MODEL = "gemini-2.5-flash-image";
+const ENDPOINT = k => `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent?key=${encodeURIComponent(k)}`;
+
+/* ---------- API key persistence ---------- */
+(function initKey(){
+  try{
+    const k = localStorage.getItem("gemini_api_key");
+    if(k){ apiKeyEl.value = k; savedChip.style.display="block"; }
+  }catch(e){}
+})();
+$("saveKeyBtn").addEventListener("click", ()=>{
+  try{
+    localStorage.setItem("gemini_api_key", apiKeyEl.value.trim());
+    savedChip.style.display = apiKeyEl.value.trim() ? "block" : "none";
+    showMsg("ok","Το κλειδί αποθηκεύτηκε τοπικά.");
+  }catch(e){ showMsg("err","Αδυναμία αποθήκευσης στον browser."); }
+});
+
+/* ---------- Build style cards ---------- */
+STYLES.forEach(s=>{
+  const c = document.createElement("div");
+  c.className = "style-card" + (s.id===selectedStyle ? " sel":"");
+  c.dataset.id = s.id;
+  c.innerHTML = `<div class="se">${s.emoji}</div><div class="sn">${s.name}</div><div class="sd">${s.desc}</div>`;
+  c.addEventListener("click", ()=>{
+    selectedStyle = s.id;
+    document.querySelectorAll(".style-card").forEach(x=>x.classList.toggle("sel", x.dataset.id===s.id));
+  });
+  stylesGrid.appendChild(c);
+});
+
+/* ---------- Mode toggle ---------- */
+modesWrap.querySelectorAll(".mode-opt").forEach(m=>{
+  m.addEventListener("click", ()=>{
+    selectedMode = m.dataset.mode;
+    modesWrap.querySelectorAll(".mode-opt").forEach(x=>x.classList.toggle("sel", x===m));
+  });
+});
+
+/* ---------- Upload handling ---------- */
+drop.addEventListener("click", ()=>fileInput.click());
+drop.addEventListener("dragover", e=>{ e.preventDefault(); drop.classList.add("over"); });
+drop.addEventListener("dragleave", ()=>drop.classList.remove("over"));
+drop.addEventListener("drop", e=>{
+  e.preventDefault(); drop.classList.remove("over");
+  if(e.dataTransfer.files && e.dataTransfer.files[0]) handleFile(e.dataTransfer.files[0]);
+});
+fileInput.addEventListener("change", e=>{ if(e.target.files[0]) handleFile(e.target.files[0]); });
+
+function handleFile(file){
+  if(!/^image\/(png|jpe?g)$/.test(file.type)){
+    showMsg("err","Δεκτά μόνο αρχεία PNG ή JPG."); return;
+  }
+  if(file.size > 15*1024*1024){
+    showMsg("err","Το αρχείο είναι πολύ μεγάλο (μέγιστο ~15MB)."); return;
+  }
+  const reader = new FileReader();
+  reader.onload = ev=>{
+    const dataUrl = ev.target.result;
+    uploadedImage = {
+      dataUrl,
+      base64: dataUrl.split(",")[1],
+      mimeType: file.type
+    };
+    previewImg.src = dataUrl;
+    fname.textContent = file.name + "  ·  " + Math.round(file.size/1024) + " KB";
+    previewIn.style.display = "block";
+    generateBtn.disabled = false;
+    hideMsg();
+  };
+  reader.readAsDataURL(file);
+}
+
+/* ---------- Prompt builder ---------- */
+function buildPrompt(styleObj){
+  const modeText = selectedMode === "3d"
+    ? "Render it as a photorealistic 3D isometric dollhouse cutaway view of the furnished interior, with realistic depth, volumes, materials, soft global-illumination lighting and shadows, as a professional architectural visualization."
+    : "Render it as a fully furnished, richly colored top-down (bird's-eye) floor plan visualization: keep the same top-view orientation but show realistic furniture seen from above, textured flooring per room, rugs, plants, realistic materials, soft shadows and ambient occlusion, like a high-end 2D interior presentation board.";
+
+  const strength = $("quality").value;
+  const preserveText = strength === "creative"
+    ? "You may reinterpret finishes and furniture freely, but keep the overall room count and general layout recognizable."
+    : strength === "balanced"
+      ? "Keep the wall layout, room boundaries, doors and windows and proportions of the original floor plan; you may choose finishes and furniture freely within each room."
+      : "CRITICAL: Preserve EXACTLY the original architecture — the same wall layout, room boundaries, wall thicknesses, door and window openings, orientation and proportions. Do NOT move, add or remove walls. Only add interior design (furniture, flooring, materials, colors, decor, lighting) inside the existing rooms.";
+
+  const room = $("roomType").value;
+  const roomText = room ? ` The space is primarily a ${room}; furnish it accordingly.` : " Furnish every room appropriately for its function (living room, bedrooms, kitchen, bathroom, hallways).";
+
+  const notes = $("notes").value.trim();
+  const notesText = notes ? ` Additional client requirements: ${notes}.` : "";
+
+  return `You are an expert interior design visualization AI. The provided image is a 2D architectural floor plan (top-down view) of a residential interior. ${preserveText}${roomText} Decorate the interior in a ${styleObj.prompt}. ${modeText}${notesText} Output a single high-quality, photorealistic, professionally composed image. Do not add any text, labels, dimensions, watermarks or borders.`;
+}
+
+/* ---------- Gemini call ---------- */
+async function callGemini(styleObj){
+  const key = apiKeyEl.value.trim();
+  if(!key) throw new Error("NO_KEY");
+
+  const body = {
+    contents: [{
+      role: "user",
+      parts: [
+        { inlineData: { mimeType: uploadedImage.mimeType, data: uploadedImage.base64 } },
+        { text: buildPrompt(styleObj) }
+      ]
+    }]
+  };
+
+  const res = await fetch(ENDPOINT(key), {
+    method:"POST",
+    headers:{ "Content-Type":"application/json" },
+    body: JSON.stringify(body)
+  });
+
+  const data = await res.json().catch(()=>({}));
+
+  if(!res.ok){
+    const em = (data && data.error && data.error.message) ? data.error.message : ("HTTP " + res.status);
+    if(res.status === 400 && /API key not valid|API_KEY_INVALID/i.test(em)) throw new Error("BAD_KEY");
+    if(res.status === 429) throw new Error("QUOTA");
+    throw new Error(em);
+  }
+
+  const cand = data.candidates && data.candidates[0];
+  if(!cand){
+    if(data.promptFeedback && data.promptFeedback.blockReason) throw new Error("BLOCKED:"+data.promptFeedback.blockReason);
+    throw new Error("Κενή απάντηση από το μοντέλο.");
+  }
+  const parts = (cand.content && cand.content.parts) || [];
+  const imgPart = parts.find(p => p.inlineData && p.inlineData.data);
+  if(!imgPart){
+    if(cand.finishReason && cand.finishReason !== "STOP") throw new Error("BLOCKED:"+cand.finishReason);
+    const txt = parts.find(p=>p.text);
+    throw new Error("Δεν επιστράφηκε εικόνα" + (txt ? (": " + txt.text.slice(0,140)) : "."));
+  }
+  const mt = imgPart.inlineData.mimeType || "image/png";
+  return `data:${mt};base64,${imgPart.inlineData.data}`;
+}
+
+/* ---------- Generate flow ---------- */
+generateBtn.addEventListener("click", async ()=>{
+  if(!uploadedImage){ showMsg("err","Ανέβασε πρώτα μια κάτοψη."); return; }
+  if(!apiKeyEl.value.trim()){ showMsg("err","Καταχώρησε το Gemini API key σου (Βήμα 🔑)."); return; }
+
+  const targets = allStyles.checked ? STYLES.slice() : [STYLES.find(s=>s.id===selectedStyle)];
+  currentResults = [];
+  setLoading(true, targets.length);
+
+  let done = 0, firstErr = null;
+  for(const st of targets){
+    try{
+      updateLoading(`Δημιουργία: ${st.name} (${done+1}/${targets.length})…`);
+      const dataUrl = await callGemini(st);
+      currentResults.push({ styleId:st.id, styleName:st.name, dataUrl });
+      done++;
+      renderResults(); // progressive
+    }catch(err){
+      if(!firstErr) firstErr = err;
+      // continue with remaining styles
+    }
+  }
+
+  setLoading(false);
+  if(currentResults.length === 0){
+    showMsg("err", friendlyError(firstErr));
+  }else{
+    if(firstErr) showMsg("err","Ορισμένα στυλ απέτυχαν: " + friendlyError(firstErr));
+    else showMsg("ok","Ολοκληρώθηκε! " + currentResults.length + " εικόνα(ες).");
+    resultPanel.scrollIntoView({behavior:"smooth", block:"start"});
+  }
+});
+
+function renderResults(){
+  if(currentResults.length === 0) return;
+  resultPanel.style.display = "block";
+  origOut.src = uploadedImage.dataUrl;
+  activeResultIndex = Math.min(activeResultIndex, currentResults.length-1);
+  showResult(activeResultIndex);
+  modelNote.textContent = "Μοντέλο: Google " + MODEL + " · Στυλ: " +
+    currentResults.map(r=>r.styleName).join(", ");
+
+  gallery.innerHTML = "";
+  if(currentResults.length > 1){
+    currentResults.forEach((r, i)=>{
+      const g = document.createElement("div");
+      g.className = "g";
+      g.innerHTML = `<img src="${r.dataUrl}" alt="${r.styleName}"><div class="gl">${r.styleName}</div>`;
+      g.addEventListener("click", ()=>{ showResult(i); });
+      gallery.appendChild(g);
+    });
+  }
+}
+function showResult(i){
+  activeResultIndex = i;
+  const r = currentResults[i];
+  resOut.src = r.dataUrl;
+  resTitle.textContent = "Rendering · " + r.styleName;
+}
+
+$("downloadBtn").addEventListener("click", ()=>{
+  const r = currentResults[activeResultIndex];
+  if(!r) return;
+  const a = document.createElement("a");
+  a.href = r.dataUrl;
+  a.download = "katopsi_render_" + r.styleId + ".png";
+  a.click();
+});
+$("againBtn").addEventListener("click", ()=>{
+  window.scrollTo({top:0, behavior:"smooth"});
+});
+
+/* ---------- UI helpers ---------- */
+function setLoading(on, n){
+  generateBtn.disabled = on;
+  if(on){
+    generateBtn.innerHTML = `<span class="spinner"></span> Επεξεργασία…`;
+    hideMsg();
+  }else{
+    generateBtn.innerHTML = "✨ Δημιουργία Rendering";
+  }
+}
+function updateLoading(t){
+  generateBtn.innerHTML = `<span class="spinner"></span> ${t}`;
+}
+function showMsg(type, text){ msg.className = "msg " + type; msg.textContent = text; }
+function hideMsg(){ msg.className = "msg"; msg.textContent = ""; }
+
+function friendlyError(err){
+  const m = err ? (err.message || String(err)) : "Άγνωστο σφάλμα.";
+  if(m === "NO_KEY") return "Λείπει το API key.";
+  if(m === "BAD_KEY") return "Μη έγκυρο API key. Έλεγξε το κλειδί στο Google AI Studio.";
+  if(m === "QUOTA") return "Εξαντλήθηκε το όριο χρήσης (quota) του κλειδιού. Δοκίμασε αργότερα ή αναβάθμισε το πλάνο.";
+  if(m.startsWith("BLOCKED:")) return "Η δημιουργία μπλοκαρίστηκε από τα φίλτρα ασφαλείας (" + m.slice(8) + "). Δοκίμασε άλλη εικόνα ή οδηγίες.";
+  if(/Failed to fetch|NetworkError/i.test(m)) return "Πρόβλημα δικτύου κατά την κλήση του API.";
+  return m;
+}
+</script>
+</body>
+</html>
