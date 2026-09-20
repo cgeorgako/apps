@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512" role="img" aria-label="Πινέζα χάρτη">
+  <!-- Φόντο (maskable safe) -->
+  <rect width="512" height="512" rx="112" fill="#0f1115"/>
+  <circle cx="256" cy="256" r="196" fill="#171b22"/>
+  <!-- Πινέζα -->
+  <g>
+    <path d="M256 120c-62 0-112 50-112 112 0 78 96 168 108 179a6 6 0 0 0 8 0c12-11 108-101 108-179 0-62-50-112-112-112z"
+          fill="#c9a227"/>
+    <circle cx="256" cy="232" r="44" fill="#0f1115"/>
+    <circle cx="256" cy="232" r="20" fill="#c9a227"/>
+  </g>
+</svg>
