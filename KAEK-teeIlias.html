@@ -106,6 +106,8 @@
   details.adv input[type=number]{font-size:0.95rem;}
   .check{display:flex;align-items:center;gap:0.5rem;margin-top:0.8rem;font-size:0.82rem;color:var(--text);cursor:pointer;}
   .check input{width:16px;height:16px;accent-color:var(--gold);}
+  .synoliko-row{margin-top:0.9rem;border-top:1px dashed var(--border);padding-top:0.8rem;}
+  .synoliko-val{font-family:'IBM Plex Mono',monospace;font-size:1.05rem;font-weight:600;color:var(--green);word-break:break-word;line-height:1.4;}
   .login-row{margin-top:1rem;border-top:1px dashed var(--border);padding-top:0.9rem;}
   .quick-link{display:flex;align-items:center;gap:0.6rem;background:var(--surface-2);border:1px solid var(--border);border-radius:10px;padding:0.65rem 0.8rem;color:var(--text);text-decoration:none;font-size:0.85rem;font-weight:500;}
   .quick-link:hover{border-color:var(--gold-dim);}
@@ -204,6 +206,16 @@
     <div class="rlabel">Επιλεγμένο γεωτεμάχιο</div>
     <div id="curKaek" class="cur-kaek">—</div>
     <div id="curMeta" class="cur-meta"></div>
+
+    <div id="synolikoRow" class="synoliko-row">
+      <div class="rlabel">Κείμενο από SYNOLIKO-12.dxf</div>
+      <div id="synolikoVal" class="synoliko-val">—</div>
+      <div id="synolikoLoad" style="display:none;margin-top:0.35rem;">
+        <span class="paste-text">Το <b>SYNOLIKO-12.dxf</b> δεν βρέθηκε. <span class="link" id="synolikoPick">Φόρτωση αρχείου</span> (αποθηκεύεται τοπικά).</span>
+        <input type="file" id="synolikoFile" accept=".dxf,.DXF" style="display:none">
+      </div>
+    </div>
+
     <div class="actions">
       <button id="actKtima" class="act btn-primary">🏛️ Στοιχεία στο Κτηματολόγιο</button>
       <button id="actDxf" class="act btn-dxf">📐 Λήψη DXF περιγράμματος</button>
@@ -302,12 +314,13 @@ let current = null; // { kaek, point:{lat,lon}, ringsEGSA, area, perimeter }
 
 function setResolved(kaek, ringsEGSA, area, perimeter, note){
   const digits = String(kaek||'').replace(/\D/g,'').slice(0,12);
-  let point=null;
+  let point=null, centroidEGSA=null;
   if(ringsEGSA && ringsEGSA.length){
     const [cx,cy]=ringCentroid(ringsEGSA[0]);
+    centroidEGSA=[cx,cy];
     point=egsa87ToWgs84(cx,cy);
   }
-  current={ kaek:digits, ringsEGSA:ringsEGSA||null, area:area||null, perimeter:perimeter||null, point };
+  current={ kaek:digits, ringsEGSA:ringsEGSA||null, area:area||null, perimeter:perimeter||null, point, centroidEGSA };
   // UI
   $('curKaek').textContent = digits || '(χωρίς ΚΑΕΚ)';
   const bits=[];
@@ -321,6 +334,8 @@ function setResolved(kaek, ringsEGSA, area, perimeter, note){
   if($('kaekInput').value.replace(/\D/g,'') !== digits){ $('kaekInput').value=digits; validateKaek(); }
   // map highlight
   if(mapObj && ringsEGSA){ drawHighlight(ringsEGSA); }
+  // SYNOLIKO-12.dxf lookup
+  lookupSynoliko(centroidEGSA);
   // history
   if(digits.length===12) addToHistory({ kaek:digits, note:note||'', lat:point?point.lat:null, lon:point?point.lon:null });
 }
@@ -397,6 +412,140 @@ function downloadDxf(rec){
   const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download="KAEK_"+kaek+".dxf"; document.body.appendChild(a); a.click(); document.body.removeChild(a);
   showToast('Λήψη DXF: KAEK_'+kaek+'.dxf');
 }
+
+/* ═══ SYNOLIKO-12.dxf: εύρεση polyline & κειμένου στο κέντρο του ΚΑΕΚ ═══ */
+let synoliko=null; // { polylines:[{pts,closed}], texts:[{x,y,str}] }
+
+function cleanMText(s){
+  return String(s).replace(/\\P/g,' ').replace(/\\~/g,' ')
+    .replace(/\{\\[^;]*;/g,'').replace(/[{}]/g,'')
+    .replace(/\\[A-Za-z][^;\\]*;/g,'').replace(/\\[A-Za-z]/g,'').trim();
+}
+function parseDxf(text){
+  const raw=text.split(/\r\n|\r|\n/);
+  const pairs=[];
+  for(let i=0;i+1<raw.length;i+=2){
+    const code=parseInt(raw[i],10);
+    if(Number.isNaN(code)){ i-=1; continue; } // resync σε τυχόν κακοσχηματισμό
+    pairs.push({code, value:raw[i+1]});
+  }
+  // Σπάσιμο σε οντότητες (code 0 = νέα οντότητα)
+  const ents=[];
+  for(let i=0;i<pairs.length;){
+    if(pairs[i].code===0){
+      const type=(pairs[i].value||'').trim(); i++;
+      const props=[];
+      while(i<pairs.length && pairs[i].code!==0){ props.push(pairs[i]); i++; }
+      ents.push({type, props});
+    } else i++;
+  }
+  const polylines=[], texts=[];
+  for(let k=0;k<ents.length;k++){
+    const e=ents[k];
+    if(e.type==='LWPOLYLINE'){
+      const pts=[]; let closed=false, curX=null;
+      for(const p of e.props){
+        if(p.code===10) curX=parseFloat(p.value);
+        else if(p.code===20 && curX!==null){ pts.push([curX, parseFloat(p.value)]); curX=null; }
+        else if(p.code===70) closed=(parseInt(p.value,10)&1)===1;
+      }
+      if(pts.length>=3) polylines.push({pts, closed});
+    } else if(e.type==='POLYLINE'){
+      let closed=false;
+      for(const p of e.props){ if(p.code===70) closed=(parseInt(p.value,10)&1)===1; }
+      const pts=[]; let j=k+1;
+      while(j<ents.length && ents[j].type==='VERTEX'){
+        let vx=null, vy=null;
+        for(const p of ents[j].props){ if(p.code===10) vx=parseFloat(p.value); else if(p.code===20) vy=parseFloat(p.value); }
+        if(vx!==null && vy!==null) pts.push([vx,vy]);
+        j++;
+      }
+      if(pts.length>=3) polylines.push({pts, closed});
+      k=j-1;
+    } else if(e.type==='TEXT' || e.type==='MTEXT'){
+      let x=null,y=null,str='';
+      for(const p of e.props){
+        if(p.code===10) x=parseFloat(p.value);
+        else if(p.code===20) y=parseFloat(p.value);
+        else if(p.code===1) str+=p.value;
+        else if(p.code===3) str+=p.value; // MTEXT continuation
+      }
+      str=cleanMText(str);
+      if(x!==null && y!==null && str) texts.push({x,y,str});
+    }
+  }
+  return { polylines, texts };
+}
+
+function pointInPoly(x,y,pts){
+  let inside=false;
+  for(let i=0,j=pts.length-1;i<pts.length;j=i++){
+    const xi=pts[i][0], yi=pts[i][1], xj=pts[j][0], yj=pts[j][1];
+    if(((yi>y)!==(yj>y)) && (x < (xj-xi)*(y-yi)/((yj-yi)||1e-12)+xi)) inside=!inside;
+  }
+  return inside;
+}
+function polyArea(pts){ let a=0; for(let i=0,j=pts.length-1;i<pts.length;j=i++){ a+=(pts[j][0]+pts[i][0])*(pts[j][1]-pts[i][1]); } return Math.abs(a/2); }
+
+/* IndexedDB (μία μικρή αποθήκη key/value για το DXF) */
+function idbOpen(){ return new Promise((res,rej)=>{ const rq=indexedDB.open('kaek-teeilias',1); rq.onupgradeneeded=()=>{ if(!rq.result.objectStoreNames.contains('kv')) rq.result.createObjectStore('kv'); }; rq.onsuccess=()=>res(rq.result); rq.onerror=()=>rej(rq.error); }); }
+async function idbGet(key){ try{ const db=await idbOpen(); return await new Promise(res=>{ const g=db.transaction('kv','readonly').objectStore('kv').get(key); g.onsuccess=()=>res(g.result||null); g.onerror=()=>res(null); }); }catch(e){ return null; } }
+async function idbSet(key,val){ try{ const db=await idbOpen(); return await new Promise(res=>{ const tx=db.transaction('kv','readwrite'); tx.objectStore('kv').put(val,key); tx.oncomplete=()=>res(true); tx.onerror=()=>res(false); }); }catch(e){ return false; } }
+
+async function ensureSynoliko(){
+  if(synoliko) return synoliko;
+  let text=null;
+  try{ const r=await fetch('SYNOLIKO-12.dxf',{cache:'no-store'}); if(r.ok) text=await r.text(); }catch(e){}
+  if(!text){ text=await idbGet('synoliko'); }
+  if(text){ synoliko=parseDxf(text); return synoliko; }
+  return null;
+}
+
+function findSynolikoText(data, cx, cy){
+  let best=null, bestArea=Infinity;
+  for(const pl of data.polylines){
+    if(pl.pts.length<3) continue;
+    if(pointInPoly(cx,cy,pl.pts)){
+      const a=polyArea(pl.pts);
+      if(a<bestArea){ bestArea=a; best=pl; }
+    }
+  }
+  if(!best) return { text:null, found:false };
+  const inside=[];
+  for(const t of data.texts){ if(pointInPoly(t.x,t.y,best.pts)) inside.push(t.str); }
+  return { text: inside.length ? inside.join(' / ') : null, found:true };
+}
+
+async function lookupSynoliko(centroidEGSA){
+  const val=$('synolikoVal'), load=$('synolikoLoad');
+  if(!centroidEGSA){ val.textContent='—'; return; }
+  val.innerHTML='<span class="spinner spinner-dim"></span>';
+  const data=await ensureSynoliko();
+  if(!data){ val.textContent='—'; load.style.display='block'; return; }
+  load.style.display='none';
+  const [cx,cy]=centroidEGSA;
+  const r=findSynolikoText(data, cx, cy);
+  if(r.text) val.textContent=r.text;
+  else if(r.found) val.textContent='(βρέθηκε polyline αλλά χωρίς κείμενο μέσα)';
+  else val.textContent='Δεν βρέθηκε polyline που να περιέχει το κέντρο του ΚΑΕΚ.';
+}
+
+/* Χειροκίνητη φόρτωση του DXF (αν δεν υπάρχει δίπλα στην εφαρμογή) */
+$('synolikoPick').addEventListener('click', ()=>$('synolikoFile').click());
+$('synolikoFile').addEventListener('change', async e=>{
+  const f=e.target.files && e.target.files[0]; if(!f) return;
+  const val=$('synolikoVal'); val.innerHTML='<span class="spinner spinner-dim"></span>';
+  try{
+    const text=await f.text();
+    synoliko=parseDxf(text);
+    await idbSet('synoliko', text);
+    $('synolikoLoad').style.display='none';
+    showToast('Φορτώθηκε: '+f.name+' ('+synoliko.polylines.length+' polylines, '+synoliko.texts.length+' κείμενα)');
+    if(current && current.centroidEGSA) lookupSynoliko(current.centroidEGSA);
+    else val.textContent='—';
+  }catch(err){ console.error(err); showToast('Αποτυχία ανάγνωσης DXF'); val.textContent='—'; }
+  e.target.value='';
+});
 
 /* ═══ Καρτέλες ═══ */
 document.querySelectorAll('.tab').forEach(tab=>{
