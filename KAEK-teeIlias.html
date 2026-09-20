@@ -231,8 +231,7 @@
         <div><label for="dx">ΔΧ (m)</label><input type="number" id="dx" value="0.0006" step="0.0001"></div>
         <div><label for="dy">ΔΥ (m)</label><input type="number" id="dy" value="0.0011" step="0.0001"></div>
       </div>
-      <label class="check"><input type="checkbox" id="keepOriginal" checked> Συμπερίληψη και του αρχικού (αδιόρθωτου) περιγράμματος από το GIS</label>
-      <div class="hint" style="margin-top:0.5rem;">Όπως στο KAEKtoDXF: το DXF προέρχεται από τη γεωμετρία του <b>GIS Κτηματολογίου</b> — διορθωμένη κλειστή polyline (layer «PST_KAEK_&lt;κωδικός&gt;») με μετάθεση ΔΧ/ΔΥ + ΚΑΕΚ ως κείμενο, σε ΕΓΣΑ87.</div>
+      <div class="hint" style="margin-top:0.5rem;">Εξάγεται <b>μόνο το διορθωμένο</b> περίγραμμα (shift): κλειστή polyline στο layer «PST_KAEK_&lt;κωδικός&gt;» με μετάθεση ΔΧ/ΔΥ + ΚΑΕΚ ως κείμενο, σε ΕΓΣΑ87. Το αδιόρθωτο GIS δεν συμπεριλαμβάνεται.</div>
     </details>
 
     <div class="login-row">
@@ -393,14 +392,13 @@ function writeText(cx,cy,layer,txt,h){ return "  0\nTEXT\n  8\n"+layer+"\n 10\n"
 function downloadDxf(rec){
   const rings=rec.ringsEGSA;
   if(!rings || !rings.length){ showToast('Δεν υπάρχει γεωμετρία GIS για DXF'); return; }
-  const dx=parseFloat($('dx').value)||0, dy=parseFloat($('dy').value)||0, keep=$('keepOriginal').checked;
+  const dx=parseFloat($('dx').value)||0, dy=parseFloat($('dy').value)||0;
   const kaek=rec.kaek;
   let dxf="  0\nSECTION\n  2\nENTITIES\n";
   let sumX=0,sumY=0,cnt=0;
   for(const vertices of rings){
     if(!vertices||!vertices.length) continue;
-    dxf+=writePolyline(vertices, "PST_KAEK_"+kaek, dx, dy);          // διορθωμένο (shift)
-    if(keep) dxf+=writePolyline(vertices, "KTIMATOLOGIO_"+kaek, 0, 0); // αρχικό αδιόρθωτο GIS
+    dxf+=writePolyline(vertices, "PST_KAEK_"+kaek, dx, dy);   // ΜΟΝΟ το διορθωμένο (shift)
     let uniq=vertices.length;
     if(vertices[0][0]===vertices[vertices.length-1][0] && vertices[0][1]===vertices[vertices.length-1][1]) uniq=vertices.length-1;
     for(let i=0;i<uniq;i++){ sumX+=vertices[i][0]; sumY+=vertices[i][1]; cnt++; }
@@ -408,7 +406,6 @@ function downloadDxf(rec){
   if(cnt>0){
     const cX=sumX/cnt, cY=sumY/cnt, per=rec.perimeter||200, h=Math.max(2.0, per/80);
     dxf+=writeText(cX+dx, cY+dy, "PST_KAEK_TEXT_"+kaek, kaek, h);
-    if(keep) dxf+=writeText(cX, cY, "KAEK_TEXT_"+kaek, kaek, h);
   }
   dxf+="  0\nENDSEC\n  0\nEOF\n";
   const blob=new Blob([dxf],{type:"application/dxf;charset=utf-8;"});
