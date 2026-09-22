@@ -368,7 +368,8 @@ function renderSelection(){
     let syn='';
     if(s.synolikoState==='pending') syn='<span class="syn">SYNOLIKO: …</span>';
     else if(s.synolikoText) syn='<span class="syn">SYNOLIKO: '+escapeHtml(s.synolikoText)+'</span>';
-    else if(s.synolikoState==='ok'||s.synolikoState==='notext'||s.synolikoState==='none') syn='<span>SYNOLIKO: —</span>';
+    else if(s.synolikoState==='notext') syn='<span class="syn">SYNOLIKO: επικάλυψη (χωρίς κείμενο)</span>';
+    else if(s.synolikoState==='none') syn='<span>SYNOLIKO: χωρίς επικάλυψη</span>';
     const sub=[areaTxt, syn].filter(Boolean).join(' · ');
     return `<div class="sel-item${s.overlaps?' overlap':''}" data-kaek="${s.kaek}">
       <div class="sel-info"><div class="sel-kaek">${first}${s.kaek||'(—)'}${ovl}</div><div class="sel-sub">${sub}</div></div>
@@ -487,7 +488,7 @@ function parseDxf(text){
         else if(p.code===20 && curX!==null){ pts.push([curX, parseFloat(p.value)]); curX=null; }
         else if(p.code===70) closed=(parseInt(p.value,10)&1)===1;
       }
-      if(pts.length>=3) polylines.push({pts, closed, bbox:bboxOf(pts)});
+      if(pts.length>=3) polylines.push({pts, closed, bbox:bboxOf(pts), area:polyArea(pts)});
     } else if(e.type==='POLYLINE'){
       let closed=false;
       for(const p of e.props){ if(p.code===70) closed=(parseInt(p.value,10)&1)===1; }
@@ -498,7 +499,7 @@ function parseDxf(text){
         if(vx!==null && vy!==null) pts.push([vx,vy]);
         j++;
       }
-      if(pts.length>=3) polylines.push({pts, closed, bbox:bboxOf(pts)});
+      if(pts.length>=3) polylines.push({pts, closed, bbox:bboxOf(pts), area:polyArea(pts)});
       k=j-1;
     } else if(e.type==='TEXT' || e.type==='MTEXT'){
       let x=null,y=null,str='';
@@ -541,20 +542,14 @@ async function ensureSynoliko(){
   return null;
 }
 
-/* Βρες στο SYNOLIKO το polyline που περιέχει το κέντρο του ΚΑΕΚ (το μικρότερο, αν
-   υπάρχουν εμφωλευμένα) και επίστρεψε το ΚΕΙΜΕΝΟ (text) που βρίσκεται μέσα του. */
-function findSynolikoText(data, cx, cy){
-  let best=null, bestArea=Infinity;
-  for(const pl of data.polylines){
-    if(pl.pts.length<3) continue;
-    if(!pointInPoly(cx,cy,pl.pts)) continue;
-    const a=polyArea(pl.pts);
-    if(a>0 && a<bestArea){ bestArea=a; best=pl; }
+/* Όλα τα TEXT/MTEXT των οποίων το σημείο βρίσκεται εντός του πολυγώνου pts */
+function textsInsidePoly(data, pts){
+  const bb=bboxOf(pts), out=[];
+  for(const t of data.texts){
+    if(t.x<bb[0]||t.x>bb[2]||t.y<bb[1]||t.y>bb[3]) continue;
+    if(pointInPoly(t.x,t.y,pts)) out.push(t.str);
   }
-  if(!best) return { found:false, text:null };
-  const inside=[];
-  for(const t of data.texts){ if(pointInPoly(t.x,t.y,best.pts)) inside.push(t.str); }
-  return { found:true, text: inside.length ? inside.join(' / ') : null };
+  return out;
 }
 
 /* Γεωμετρικοί έλεγχοι επικάλυψης δύο πολυγώνων (bbox-pruned) */
@@ -567,27 +562,36 @@ function polysIntersect(a,b){
   for(let i=0;i<a.length-1;i++){ for(let j=0;j<b.length-1;j++){ if(segInt(a[i],a[i+1],b[j],b[j+1])) return true; } }
   return false;
 }
-function polygonOverlapsSynoliko(data, ring){
-  const rb=bboxOf(ring);
+/* Βρες τα polylines του SYNOLIKO που ΕΠΙΚΑΛΥΠΤΟΝΤΑΙ με τον ΚΑΕΚ και επίστρεψε τα
+   κείμενα (TEXT/MTEXT) που περιέχονται σε αυτά (+ όσα πέφτουν μέσα στον ίδιο τον ΚΑΕΚ).
+   Εξαιρούνται υπερμεγέθη πολύγωνα (πλαίσιο/μεγάλα blocks) ώστε να μη «πλημμυρίζει». */
+function findSynolikoOverlap(data, ring, kaekArea){
+  const rb=bboxOf(ring), HUGE=100000;
+  const overlapping=[];
   for(const pl of data.polylines){
     if(pl.pts.length<3) continue;
+    const a=(pl.area!=null)?pl.area:polyArea(pl.pts);
+    if(a<=0 || a>HUGE) continue;
+    if(kaekArea && a>8*kaekArea) continue;         // αγνόησε πολύ μεγαλύτερα (blocks)
     if(!bboxOverlap(rb, pl.bbox||bboxOf(pl.pts))) continue;
-    if(polysIntersect(ring, pl.pts)) return true;
+    if(polysIntersect(ring, pl.pts)) overlapping.push(pl);
   }
-  return false;
+  const seen=new Set(), texts=[];
+  const add=arr=>{ for(const s of arr){ const k=(s||'').trim(); if(k && !seen.has(k)){ seen.add(k); texts.push(k); } } };
+  for(const pl of overlapping) add(textsInsidePoly(data, pl.pts));
+  add(textsInsidePoly(data, ring));
+  return { overlaps: overlapping.length>0, texts: texts.slice(0,40) };
 }
 
-/* Υπολογισμός SYNOLIKO (κείμενο στο κέντρο + επικάλυψη) για ένα γεωτεμάχιο της επιλογής */
+/* Υπολογισμός SYNOLIKO (επικάλυψη + κείμενα των επικαλυπτόμενων polylines) */
 async function computeSynolikoForRecord(rec){
   const data=await ensureSynoliko();
   if(!data){ rec.synolikoState='missing'; $('synolikoLoad').style.display='block'; renderSelection(); return; }
   $('synolikoLoad').style.display='none';
-  if(rec.centroidEGSA){
-    const t=findSynolikoText(data, rec.centroidEGSA[0], rec.centroidEGSA[1]);
-    rec.synolikoText = t.text || null;
-    rec.synolikoState = t.text ? 'ok' : (t.found ? 'notext' : 'none');
-  } else rec.synolikoState='none';
-  rec.overlaps = rec.ringsEGSA ? polygonOverlapsSynoliko(data, rec.ringsEGSA[0]) : false;
+  const res = rec.ringsEGSA ? findSynolikoOverlap(data, rec.ringsEGSA[0], rec.area) : { overlaps:false, texts:[] };
+  rec.overlaps = res.overlaps;
+  rec.synolikoText = res.texts.length ? res.texts.join(' / ') : null;
+  rec.synolikoState = res.overlaps ? (res.texts.length ? 'ok' : 'notext') : 'none';
   renderSelection();
   drawSelectionHighlights();
 }
