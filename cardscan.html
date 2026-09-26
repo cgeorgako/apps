@@ -148,6 +148,17 @@
     position:absolute;bottom:8px;right:8px;background:rgba(14,17,22,.85);border:1px solid var(--line);
     color:var(--txt);font-size:11px;padding:5px 10px;border-radius:20px;z-index:2;backdrop-filter:blur(4px);
   }
+  .side .rotbtn{
+    position:absolute;bottom:8px;left:8px;background:rgba(14,17,22,.85);border:1px solid var(--line);
+    color:var(--txt);font-size:15px;width:32px;height:32px;line-height:1;border-radius:50%;z-index:3;
+    cursor:pointer;backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center;
+  }
+  .side .rotbtn:hover{border-color:var(--acc);color:var(--acc);}
+  .side .side-proc{
+    position:absolute;inset:0;z-index:4;background:rgba(14,17,22,.72);backdrop-filter:blur(2px);
+    display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;
+    font-size:12px;color:var(--txt);
+  }
   .side .tag-side{
     position:absolute;top:8px;left:8px;background:rgba(14,17,22,.8);color:var(--acc);
     font-family:var(--mono);font-size:9px;text-transform:uppercase;letter-spacing:.1em;padding:3px 8px;border-radius:20px;z-index:2;
@@ -370,21 +381,152 @@ function openLightbox(src){ $('#lightboxImg').src=src; $('#lightbox').classList.
 $('#lightboxClose').onclick=()=>$('#lightbox').classList.remove('open');
 $('#lightbox').onclick=e=>{ if(e.target.id==='lightbox') $('#lightbox').classList.remove('open'); };
 
-/* ---------- Επεξεργασία εικόνας ---------- */
-function fileToCompressedDataURL(file,maxW=1400,quality=0.82){
-  return new Promise((res,rej)=>{
-    const img=new Image(); const url=URL.createObjectURL(file);
-    img.onload=()=>{
-      URL.revokeObjectURL(url);
-      let {width:w,height:h}=img;
-      if(w>maxW){ h=Math.round(h*maxW/w); w=maxW; }
-      const cv=document.createElement('canvas'); cv.width=w; cv.height=h;
-      cv.getContext('2d').drawImage(img,0,0,w,h);
-      try{ res(cv.toDataURL('image/jpeg',quality)); }catch(e){ rej(e); }
+/* ============================================================
+   Επεξεργασία εικόνας κάρτας:
+   EXIF προσανατολισμός → αυτόματο crop/ίσιωμα (OpenCV) → προεπεξεργασία OCR
+   ============================================================ */
+
+// Φόρτωση εικόνας με σωστό EXIF προσανατολισμό
+async function loadBitmap(file){
+  if('createImageBitmap' in window){
+    try{ return await createImageBitmap(file,{imageOrientation:'from-image'}); }catch(e){}
+    try{ return await createImageBitmap(file); }catch(e){}
+  }
+  const url=URL.createObjectURL(file);
+  try{ return await new Promise((res,rej)=>{ const i=new Image(); i.onload=()=>res(i); i.onerror=rej; i.src=url; }); }
+  finally{ setTimeout(()=>URL.revokeObjectURL(url),2000); }
+}
+function drawToCanvas(bmp,maxDim){
+  let w=bmp.width||bmp.naturalWidth, h=bmp.height||bmp.naturalHeight;
+  const scale=Math.min(1, maxDim/Math.max(w,h));
+  const cw=Math.max(1,Math.round(w*scale)), ch=Math.max(1,Math.round(h*scale));
+  const cv=document.createElement('canvas'); cv.width=cw; cv.height=ch;
+  const ctx=cv.getContext('2d'); ctx.imageSmoothingQuality='high'; ctx.drawImage(bmp,0,0,cw,ch);
+  return cv;
+}
+function canvasToJpeg(canvas,maxW,q){
+  let w=canvas.width,h=canvas.height;
+  if(w>maxW){ h=Math.round(h*maxW/w); w=maxW;
+    const t=document.createElement('canvas'); t.width=w; t.height=h;
+    const c=t.getContext('2d'); c.imageSmoothingQuality='high'; c.drawImage(canvas,0,0,w,h); canvas=t; }
+  return canvas.toDataURL('image/jpeg',q||0.85);
+}
+function rotateCanvas(canvas,deg){
+  const rad=deg*Math.PI/180, s=Math.abs(Math.sin(rad)), c=Math.abs(Math.cos(rad));
+  const w=canvas.width, h=canvas.height;
+  const nw=Math.round(w*c+h*s), nh=Math.round(w*s+h*c);
+  const out=document.createElement('canvas'); out.width=nw; out.height=nh;
+  const ctx=out.getContext('2d'); ctx.imageSmoothingQuality='high';
+  ctx.translate(nw/2,nh/2); ctx.rotate(rad); ctx.drawImage(canvas,-w/2,-h/2); return out;
+}
+function ensureLandscape(canvas){
+  return (canvas.height>canvas.width*1.15) ? rotateCanvas(canvas,90) : canvas;
+}
+
+// ---- OpenCV.js lazy load ----
+let _cvPromise=null;
+function loadOpenCV(){
+  if(window.cv && window.cv.Mat) return Promise.resolve(window.cv);
+  if(_cvPromise) return _cvPromise;
+  _cvPromise=new Promise((resolve,reject)=>{
+    const s=document.createElement('script');
+    s.src='https://docs.opencv.org/4.10.0/opencv.js'; s.async=true;
+    s.onload=()=>{
+      const t=setInterval(()=>{ if(window.cv && window.cv.Mat){ clearInterval(t); resolve(window.cv); } },60);
+      setTimeout(()=>{ clearInterval(t); if(!(window.cv&&window.cv.Mat)) reject(new Error('opencv init timeout')); },20000);
     };
-    img.onerror=e=>{ URL.revokeObjectURL(url); rej(e); };
-    img.src=url;
-  });
+    s.onerror=()=>reject(new Error('opencv load failed'));
+    document.head.appendChild(s);
+  }).catch(e=>{ _cvPromise=null; throw e; });
+  return _cvPromise;
+}
+function _orderCorners(pts){
+  const bySum=[...pts].sort((a,b)=>(a.x+a.y)-(b.x+b.y));
+  const byDiff=[...pts].sort((a,b)=>(a.x-a.y)-(b.x-b.y));
+  return [bySum[0], byDiff[3], bySum[3], byDiff[0]]; // tl, tr, br, bl
+}
+// Εντοπισμός μεγαλύτερου τετράπλευρου (κάρτα) και perspective warp -> canvas ή null
+function warpLargestQuad(canvas){
+  const cv=window.cv; if(!cv||!cv.Mat) return null;
+  let src=cv.imread(canvas), gray=new cv.Mat(), blur=new cv.Mat(), edges=new cv.Mat();
+  let best=null;
+  try{
+    cv.cvtColor(src,gray,cv.COLOR_RGBA2GRAY);
+    cv.GaussianBlur(gray,blur,new cv.Size(5,5),0);
+    cv.Canny(blur,edges,50,150);
+    const k=cv.getStructuringElement(cv.MORPH_RECT,new cv.Size(5,5));
+    cv.dilate(edges,edges,k); k.delete();
+    const contours=new cv.MatVector(), hierarchy=new cv.Mat();
+    cv.findContours(edges,contours,hierarchy,cv.RETR_EXTERNAL,cv.CHAIN_APPROX_SIMPLE);
+    const imgArea=canvas.width*canvas.height; let bestArea=0;
+    for(let i=0;i<contours.size();i++){
+      const c=contours.get(i); const area=cv.contourArea(c);
+      if(area>imgArea*0.18){
+        const peri=cv.arcLength(c,true); const approx=new cv.Mat();
+        cv.approxPolyDP(c,approx,0.02*peri,true);
+        if(approx.rows===4 && area>bestArea){ if(best) best.delete(); best=approx; bestArea=area; }
+        else approx.delete();
+      }
+      c.delete();
+    }
+    contours.delete(); hierarchy.delete();
+    if(!best) return null;
+    const pts=[]; for(let i=0;i<4;i++) pts.push({x:best.data32S[i*2], y:best.data32S[i*2+1]});
+    const [tl,tr,br,bl]=_orderCorners(pts);
+    const outW=Math.round(Math.max(Math.hypot(br.x-bl.x,br.y-bl.y),Math.hypot(tr.x-tl.x,tr.y-tl.y)));
+    const outH=Math.round(Math.max(Math.hypot(tr.x-br.x,tr.y-br.y),Math.hypot(tl.x-bl.x,tl.y-bl.y)));
+    if(outW<60||outH<60) return null;
+    const srcTri=cv.matFromArray(4,1,cv.CV_32FC2,[tl.x,tl.y,tr.x,tr.y,br.x,br.y,bl.x,bl.y]);
+    const dstTri=cv.matFromArray(4,1,cv.CV_32FC2,[0,0,outW,0,outW,outH,0,outH]);
+    const M=cv.getPerspectiveTransform(srcTri,dstTri);
+    const dst=new cv.Mat();
+    cv.warpPerspective(src,dst,M,new cv.Size(outW,outH),cv.INTER_LINEAR,cv.BORDER_CONSTANT,new cv.Scalar(255,255,255,255));
+    const out=document.createElement('canvas'); out.width=outW; out.height=outH; cv.imshow(out,dst);
+    srcTri.delete(); dstTri.delete(); M.delete(); dst.delete();
+    return out;
+  }catch(e){ return null; }
+  finally{ if(best) try{best.delete();}catch(e){} src.delete(); gray.delete(); blur.delete(); edges.delete(); }
+}
+
+// Προεπεξεργασία για OCR: μεγέθυνση + grayscale + τέντωμα αντίθεσης (min-max)
+function preprocessOCR(canvas,targetW){
+  targetW=targetW||1800;
+  let w=canvas.width,h=canvas.height;
+  const scale=Math.min(3, Math.max(1, targetW/w));
+  const cw=Math.round(w*scale), ch=Math.round(h*scale);
+  const cv2=document.createElement('canvas'); cv2.width=cw; cv2.height=ch;
+  const ctx=cv2.getContext('2d'); ctx.imageSmoothingQuality='high'; ctx.drawImage(canvas,0,0,cw,ch);
+  let im; try{ im=ctx.getImageData(0,0,cw,ch); }catch(e){ return cv2.toDataURL('image/png'); }
+  const d=im.data; const n=cw*ch; const g=new Uint8ClampedArray(n);
+  let min=255,max=0;
+  for(let i=0,p=0;i<d.length;i+=4,p++){ const v=(d[i]*0.299+d[i+1]*0.587+d[i+2]*0.114)|0; g[p]=v; if(v<min)min=v; if(v>max)max=v; }
+  const range=Math.max(1,max-min);
+  for(let i=0,p=0;i<d.length;i+=4,p++){ let v=((g[p]-min)/range)*255; v=v<0?0:v>255?255:v; d[i]=d[i+1]=d[i+2]=v; }
+  ctx.putImageData(im,0,0);
+  return cv2.toDataURL('image/png');
+}
+
+// Πλήρης επεξεργασία μιας όψης: επιστρέφει {display, ocr}
+async function processCardImage(file){
+  const bmp=await loadBitmap(file);
+  const base=drawToCanvas(bmp,2000);
+  let cropped=null;
+  try{
+    // Guard: αν το OpenCV αργήσει να φορτώσει, συνέχισε χωρίς auto-crop.
+    const timeout=new Promise((_,rej)=>setTimeout(()=>rej(new Error('cv timeout')),18000));
+    await Promise.race([loadOpenCV(),timeout]);
+    cropped=warpLargestQuad(base);
+  }catch(e){ cropped=null; }
+  let card=ensureLandscape(cropped||base);
+  return { display:canvasToJpeg(card,1400,0.85), ocr:preprocessOCR(card,1800), cropped:!!cropped };
+}
+
+// Περιστροφή αποθηκευμένης όψης (dataURLs) κατά 90°
+async function rotateSide(side){
+  const load=src=>new Promise((res,rej)=>{ const i=new Image(); i.onload=()=>res(i); i.onerror=rej; i.src=src; });
+  const rot=async src=>{ const img=await load(src); const c=document.createElement('canvas'); c.width=img.naturalWidth; c.height=img.naturalHeight; c.getContext('2d').drawImage(img,0,0); const r=rotateCanvas(c,90); return r; };
+  const rd=await rot(side.display); const ro=await rot(side.ocr);
+  return { display:canvasToJpeg(rd,1400,0.85), ocr:ro.toDataURL('image/png'), cropped:side.cropped };
 }
 
 /* ---------- OCR ---------- */
@@ -395,6 +537,12 @@ async function ensureWorker(onProgress){
   _worker=await Tesseract.createWorker('ell+eng',1,{
     logger:m=>{ if(onProgress) onProgress(m); }
   });
+  try{
+    await _worker.setParameters({
+      preserve_interword_spaces:'1',
+      tessedit_pageseg_mode: (Tesseract.PSM && Tesseract.PSM.AUTO) || '3'
+    });
+  }catch(e){}
   _workerLang='ell+eng';
   return _worker;
 }
@@ -608,7 +756,7 @@ function renderScan(){
   viewEl.innerHTML=`
     <div class="backrow"><button class="backbtn" onclick="cancelScan()">‹ Ακύρωση</button></div>
     <div class="viewtitle">Σάρωση κάρτας</div>
-    <div class="viewsub">Φωτογράφισε ή διάλεξε τις δύο όψεις της επαγγελματικής κάρτας. Η ανάγνωση κειμένου (OCR) γίνεται τοπικά στη συσκευή σου.</div>
+    <div class="viewsub">Φωτογράφισε ή διάλεξε τις δύο όψεις της κάρτας. Η κάρτα εντοπίζεται, <b>κόβεται και ισιώνει αυτόματα</b>, και το κείμενο διαβάζεται (OCR) τοπικά στη συσκευή. Με το ⟳ μπορείς να περιστρέψεις αν χρειάζεται.</div>
 
     <div class="sides">
       <label class="side" id="sideFront">
@@ -633,33 +781,52 @@ function renderScan(){
     <button class="btn btn-ghost" id="manualFromScan" style="margin-top:10px">✍️ Εισαγωγή χωρίς κάρτα</button>
     <div class="hint-inline">💡 Συμβουλή: καλός φωτισμός και σταθερό χέρι δίνουν καλύτερη ανάγνωση. Μπορείς να διορθώσεις όλα τα στοιχεία στο επόμενο βήμα.</div>
   `;
-  const fillSide=(sideId,which,dataURL)=>{
-    const el=$('#'+sideId);
+  const fillSide=(sideId,which)=>{
+    const el=$('#'+sideId); const side=scanState[which];
     el.classList.add('filled');
     el.querySelector('.side-emoji')?.remove();
     el.querySelector('.side-label')?.remove();
     el.querySelector('.side-hint')?.remove();
+    el.querySelector('.side-proc')?.remove();
     let img=el.querySelector('img');
     if(!img){ img=document.createElement('img'); el.appendChild(img); }
-    img.src=dataURL;
+    img.src=side.display;
     if(!el.querySelector('.retake')){
-      const r=document.createElement('span'); r.className='retake'; r.textContent='Αλλαγή';
-      el.appendChild(r);
+      const r=document.createElement('span'); r.className='retake'; r.textContent='Αλλαγή'; el.appendChild(r);
+    }
+    if(!el.querySelector('.rotbtn')){
+      const rot=document.createElement('button'); rot.type='button'; rot.className='rotbtn'; rot.textContent='⟳';
+      rot.title='Περιστροφή 90°';
+      rot.onclick=async ev=>{ ev.preventDefault(); ev.stopPropagation();
+        try{ scanState[which]=await rotateSide(scanState[which]); fillSide(sideId,which); }
+        catch(e){ toast('Σφάλμα περιστροφής',true); } };
+      el.appendChild(rot);
     }
     $('#readBtn').disabled = !scanState.front;
+  };
+  const showProcessing=(sideId)=>{
+    const el=$('#'+sideId); el.classList.add('filled');
+    if(!el.querySelector('.side-proc')){
+      const p=document.createElement('div'); p.className='side-proc';
+      p.innerHTML='<span class="spinner"></span><span>Επεξεργασία…</span>'; el.appendChild(p);
+    }
   };
   const handle=(input,which,sideId)=>{
     input.onchange=async e=>{
       const f=e.target.files&&e.target.files[0]; if(!f) return;
+      showProcessing(sideId);
       try{
-        const url=await fileToCompressedDataURL(f);
-        scanState[which]=url; fillSide(sideId,which,url);
-      }catch(err){ toast('Σφάλμα φόρτωσης εικόνας',true); }
+        scanState[which]=await processCardImage(f);
+        fillSide(sideId,which);
+        if(!scanState[which].cropped && which==='front')
+          toast('Δεν εντοπίστηκε αυτόματα η κάρτα — αν χρειάζεται, χρησιμοποίησε ⟳ ή «Αλλαγή».');
+      }catch(err){ console.error(err); toast('Σφάλμα φόρτωσης εικόνας',true);
+        $('#'+sideId+' .side-proc')?.remove(); }
     };
   };
   // Επαναφορά αν επιστρέψαμε
-  if(scanState.front) fillSide('sideFront','front',scanState.front);
-  if(scanState.back) fillSide('sideBack','back',scanState.back);
+  if(scanState.front) fillSide('sideFront','front');
+  if(scanState.back) fillSide('sideBack','back');
   $('#readBtn').disabled = !scanState.front;
 
   handle($('#inpFront'),'front','sideFront');
@@ -778,10 +945,10 @@ async function doRead(){
   try{
     let text='';
     setMsg('Ανάγνωση μπροστινής όψης…',0.02);
-    text += await runOCR(scanState.front,prog);
+    text += await runOCR(scanState.front.ocr,prog);
     if(scanState.back){
       setMsg('Ανάγνωση πίσω όψης…',0.02);
-      text += '\n'+await runOCR(scanState.back,prog);
+      text += '\n'+await runOCR(scanState.back.ocr,prog);
     }
     const parsed=parseCard(text);
     editDraft={
@@ -791,7 +958,7 @@ async function doRead(){
       emails:parsed.emails.length?parsed.emails:[''],
       sites:parsed.sites, address:parsed.address, notes:'',
       rawText:parsed.rawText,
-      imageFront:scanState.front, imageBack:scanState.back,
+      imageFront:scanState.front.display, imageBack:scanState.back?scanState.back.display:null,
       createdAt:0, updatedAt:0
     };
     nav('edit');
@@ -801,7 +968,9 @@ async function doRead(){
     toast(err.message||'Σφάλμα OCR. Μπορείς να συμπληρώσεις τα στοιχεία χειροκίνητα.',true);
     // Επίτρεψε χειροκίνητη καταχώρηση ακόμη κι αν αποτύχει το OCR
     editDraft={ id:'',category:'',name:'',company:'',title:'',phones:[''],emails:[''],sites:[],
-      address:'',notes:'',rawText:'',imageFront:scanState.front,imageBack:scanState.back,createdAt:0,updatedAt:0 };
+      address:'',notes:'',rawText:'',
+      imageFront:scanState.front?scanState.front.display:null,
+      imageBack:scanState.back?scanState.back.display:null,createdAt:0,updatedAt:0 };
     setTimeout(()=>nav('edit'),400);
   }finally{ btn.disabled=false; }
 }
