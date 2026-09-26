@@ -1278,11 +1278,123 @@ function exportVCard(c){
 
 /* ---- Menu (backup / restore) ---- */
 $('#menuBtn').onclick=async()=>{
-  const choice=prompt('CardScan · Επιλογές\n\n1 = Εξαγωγή αντιγράφου ασφαλείας (JSON)\n2 = Εισαγωγή αντιγράφου (JSON)\n3 = Gemini API key (ανάγνωση με AI)'+(getGeminiKey()?' ✓':'')+'\n\nΓράψε 1, 2 ή 3:');
+  const choice=prompt('CardScan · Επιλογές\n\n1 = Εξαγωγή αντιγράφου ασφαλείας (JSON)\n2 = Εισαγωγή αντιγράφου (JSON)\n3 = Gemini API key (ανάγνωση με AI)'+(getGeminiKey()?' ✓':'')+'\n4 = Εξαγωγή για Obsidian (.md / ZIP)\n\nΓράψε 1, 2, 3 ή 4:');
   if(choice==='1') await exportBackup();
   else if(choice==='2') importBackup();
   else if(choice==='3'){ askGeminiKey(); renderAiBanner(); }
+  else if(choice==='4') await exportObsidian();
 };
+// ---------- Εξαγωγή για Obsidian (ZIP με σημειώσεις .md) ----------
+let _jszipPromise=null;
+function loadJSZip(){
+  if(window.JSZip) return Promise.resolve(window.JSZip);
+  if(_jszipPromise) return _jszipPromise;
+  _jszipPromise=new Promise((resolve,reject)=>{
+    const sc=document.createElement('script');
+    sc.src='https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js';
+    sc.onload=()=>window.JSZip?resolve(window.JSZip):reject(new Error('JSZip δεν φορτώθηκε'));
+    sc.onerror=()=>reject(new Error('Αποτυχία λήψης JSZip (έλεγξε τη σύνδεση)'));
+    document.head.appendChild(sc);
+  }).catch(e=>{ _jszipPromise=null; throw e; });
+  return _jszipPromise;
+}
+function _sanitizeFile(s){
+  return String(s||'').replace(/[\\/:*?"<>|#\^\[\]]/g,' ').replace(/[\r\n\t]+/g,' ')
+    .replace(/\s{2,}/g,' ').trim().slice(0,80) || 'Καρτα';
+}
+function _slug(s){
+  return String(s||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'')
+    .replace(/[^a-z0-9Ͱ-Ͽ]+/g,'-').replace(/^-+|-+$/g,'') || 'allo';
+}
+const _ystr=s=>JSON.stringify(String(s==null?'':s));
+const _yarr=a=>'['+(a||[]).map(x=>JSON.stringify(String(x))).join(', ')+']';
+function _dataUrlToBytes(dataURL){
+  const b64=dataURL.slice(dataURL.indexOf(',')+1); const bin=atob(b64);
+  const len=bin.length; const bytes=new Uint8Array(len);
+  for(let i=0;i<len;i++) bytes[i]=bin.charCodeAt(i);
+  return bytes;
+}
+function _cardMarkdown(c){
+  const phones=(c.phones||[]).filter(Boolean), emails=(c.emails||[]).filter(Boolean), sites=(c.sites||[]).filter(Boolean);
+  const created=c.createdAt?new Date(c.createdAt).toISOString():'';
+  const fm=['---',
+    'title: '+_ystr(c.name||c.company||'Χωρίς όνομα'),
+    'name: '+_ystr(c.name||''),
+    'company: '+_ystr(c.company||''),
+    'role: '+_ystr(c.title||''),
+    'category: '+_ystr(c.category||''),
+    'phones: '+_yarr(phones),
+    'emails: '+_yarr(emails),
+    'websites: '+_yarr(sites),
+    'address: '+_ystr(c.address||''),
+    'created: '+_ystr(created),
+    'tags: [cardscan, '+_slug(c.category)+']',
+    '---',''].join('\n');
+  const L=[]; L.push('# '+(c.name||c.company||'Χωρίς όνομα'));
+  if(c.company && c.company!==c.name) L.push('**Εταιρεία:** '+c.company);
+  if(c.title) L.push('**Ιδιότητα:** '+c.title);
+  L.push('**Κατηγορία:** #cardscan/'+_slug(c.category)+' ('+(c.category||'')+')');
+  if(phones.length) L.push('**Τηλέφωνα:** '+phones.join(' · '));
+  if(emails.length) L.push('**Email:** '+emails.join(' · '));
+  if(sites.length) L.push('**Ιστοσελίδα:** '+sites.join(' · '));
+  if(c.address) L.push('**Διεύθυνση:** '+c.address);
+  if(c.notes) L.push('**Σημειώσεις:** '+c.notes);
+  const imgs=[];
+  if(c.imageFront) imgs.push('![['+'attachments/'+c.id+'-front.jpg]]');
+  if(c.imageBack)  imgs.push('![['+'attachments/'+c.id+'-back.jpg]]');
+  if(imgs.length){ L.push('','## Όψεις κάρτας',imgs.join('\n')); }
+  L.push('','---','*CardScan · CG apps'+(created?' · '+new Date(c.createdAt).toLocaleDateString('el-GR'):'')+'*');
+  return fm+L.join('\n')+'\n';
+}
+async function exportObsidian(){
+  let cards; try{ cards=await dbAll(); }catch(e){ toast('Σφάλμα ανάγνωσης βάσης',true); return; }
+  if(!cards.length){ toast('Δεν υπάρχουν κάρτες για εξαγωγή',true); return; }
+  let JSZip; try{ toast('Προετοιμασία εξαγωγής…'); JSZip=await loadJSZip(); }
+  catch(e){ toast(e.message||'Αποτυχία φόρτωσης JSZip',true); return; }
+  const zip=new JSZip(); const root=zip.folder('CardScan');
+  const used=new Set(); const indexLines=['# CardScan — Όλες οι επαφές','',
+    '> Εξαγωγή '+new Date().toLocaleString('el-GR')+' · '+cards.length+' επαφές','',''];
+  const byCat={};
+  cards.sort((a,b)=>(a.category||'').localeCompare(b.category||'','el')|| (a.name||'').localeCompare(b.name||'','el'));
+  for(const c of cards){
+    // αρχείο ανά κατηγορία
+    const catFolder=_sanitizeFile(c.category||'Άλλο');
+    let base=_sanitizeFile(c.name||c.company||'Καρτα');
+    let fname=catFolder+'/'+base; let n=2;
+    while(used.has(fname.toLowerCase())){ fname=catFolder+'/'+base+' ('+n+')'; n++; }
+    used.add(fname.toLowerCase());
+    root.file(fname+'.md', _cardMarkdown(c));
+    // φωτογραφίες
+    try{ if(c.imageFront) root.file('attachments/'+c.id+'-front.jpg', _dataUrlToBytes(c.imageFront),{binary:true}); }catch(e){}
+    try{ if(c.imageBack)  root.file('attachments/'+c.id+'-back.jpg',  _dataUrlToBytes(c.imageBack),{binary:true}); }catch(e){}
+    // συγκεντρωτικό
+    (byCat[c.category||'Άλλο']=byCat[c.category||'Άλλο']||[]).push(c);
+  }
+  // Συγκεντρωτικό αρχείο (ιδανικό για ανέβασμα σε Claude Project)
+  for(const cat of Object.keys(byCat).sort((a,b)=>a.localeCompare(b,'el'))){
+    indexLines.push('## '+cat);
+    for(const c of byCat[cat]){
+      const parts=[];
+      if(c.company && c.company!==c.name) parts.push(c.company);
+      if(c.title) parts.push(c.title);
+      if((c.phones||[]).filter(Boolean).length) parts.push('☎ '+c.phones.filter(Boolean).join(', '));
+      if((c.emails||[]).filter(Boolean).length) parts.push('✉ '+c.emails.filter(Boolean).join(', '));
+      if((c.sites||[]).filter(Boolean).length) parts.push('🌐 '+c.sites.filter(Boolean).join(', '));
+      if(c.address) parts.push('📍 '+c.address);
+      if(c.notes) parts.push('📝 '+c.notes);
+      indexLines.push('- **'+(c.name||c.company||'Χωρίς όνομα')+'** — '+parts.join(' · '));
+    }
+    indexLines.push('');
+  }
+  root.file('_Ολες-οι-επαφες.md', indexLines.join('\n')+'\n');
+  let blob; try{ blob=await zip.generateAsync({type:'blob'}); }
+  catch(e){ toast('Σφάλμα δημιουργίας ZIP',true); return; }
+  const url=URL.createObjectURL(blob); const a=document.createElement('a');
+  a.href=url; a.download='CardScan-Obsidian-'+new Date().toISOString().slice(0,10)+'.zip';
+  document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(url),4000);
+  toast('✅ Εξήχθη ZIP για Obsidian ('+cards.length+' σημειώσεις)');
+}
+
 async function exportBackup(){
   const cards=await dbAll();
   const data={app:'CardScan',maker:'CG apps',exportedAt:new Date().toISOString(),categories:getCategories(),cards};
