@@ -1386,27 +1386,84 @@ async function fsWriteFile(handle,name,text){
   const fh=await handle.getFileHandle(name,{create:true});
   const w=await fh.createWritable(); await w.write(text); await w.close();
 }
-// Αποθήκευση/ενημέρωση μιας κάρτας ως .md (χωρίς φωτογραφίες)
+// ---- Ένα ενιαίο αρχείο .md με όλες τις κάρτες + φωτογραφίες στον ίδιο φάκελο ----
+const MD_ALL='oles_oi_kartes.md';
+function _imgLink(alt,fname){ return '!['+alt+'](<'+fname+'>)'; } // angle-brackets: επιτρέπουν κενά/παρενθέσεις
+function _allCardsMarkdown(cards){
+  const byCat={};
+  cards.forEach(c=>{ (byCat[c.category||'Άλλο']=byCat[c.category||'Άλλο']||[]).push(c); });
+  const L=['# CardScan — Όλες οι κάρτες','',
+    '> Ενημερώθηκε '+new Date().toLocaleString('el-GR')+' · '+cards.length+' επαφές','',''];
+  Object.keys(byCat).sort((a,b)=>a.localeCompare(b,'el')).forEach(cat=>{
+    L.push('# '+cat,'');
+    byCat[cat].sort((a,b)=>(a.name||a.company||'').localeCompare(b.name||b.company||'','el')).forEach(c=>{
+      L.push('## '+(c.name||c.company||'Χωρίς όνομα'));
+      if(c.company && c.company!==c.name) L.push('- **Εταιρεία:** '+c.company);
+      if(c.title) L.push('- **Ιδιότητα:** '+c.title);
+      const ph=(c.phones||[]).filter(Boolean), em=(c.emails||[]).filter(Boolean), si=(c.sites||[]).filter(Boolean);
+      if(ph.length) L.push('- **Τηλέφωνα:** '+ph.join(' · '));
+      if(em.length) L.push('- **Email:** '+em.join(' · '));
+      if(si.length) L.push('- **Ιστοσελίδα:** '+si.join(' · '));
+      if(c.address) L.push('- **Διεύθυνση:** '+c.address);
+      if(c.notes) L.push('- **Σημειώσεις:** '+c.notes);
+      if(c.imgBase){
+        L.push('');
+        if(c.imageFront) L.push(_imgLink((c.name||c.company||'')+' (μπροστά)', c.imgBase+'.jpg'));
+        if(c.imageBack)  L.push(_imgLink((c.name||c.company||'')+' (πίσω)',    c.imgBase+'-πισω.jpg'));
+      }
+      L.push('');
+    });
+  });
+  return L.join('\n')+'\n';
+}
+async function fsWriteBytes(h,name,bytes){ const fh=await h.getFileHandle(name,{create:true}); const w=await fh.createWritable(); await w.write(bytes); await w.close(); }
+async function _fsExists(h,name){ try{ await h.getFileHandle(name,{create:false}); return true; }catch(e){ return false; } }
+async function fsImgBaseUnique(h,base){
+  base=_sanitizeFile(base); let cand=base, i=2;
+  while(await _fsExists(h,cand+'.jpg')){ cand=base+' ('+i+')'; i++; }
+  return cand;
+}
+// Γράφει τις φωτογραφίες μιας κάρτας στον φάκελο, με όνομα βάσει ονοματεπώνυμου
+async function fsWriteCardImages(h,card){
+  const desired=_sanitizeFile(card.name||card.company||'Καρτα');
+  let changed=false;
+  if(card.imgBase){
+    const cur=card.imgBase.replace(/ \(\d+\)$/,'');
+    if(cur!==desired){
+      try{ await h.removeEntry(card.imgBase+'.jpg'); }catch(e){}
+      try{ await h.removeEntry(card.imgBase+'-πισω.jpg'); }catch(e){}
+      card.imgBase=await fsImgBaseUnique(h,desired); changed=true;
+    }
+  } else { card.imgBase=await fsImgBaseUnique(h,desired); changed=true; }
+  try{ if(card.imageFront) await fsWriteBytes(h,card.imgBase+'.jpg',_dataUrlToBytes(card.imageFront)); }catch(e){}
+  try{
+    if(card.imageBack) await fsWriteBytes(h,card.imgBase+'-πισω.jpg',_dataUrlToBytes(card.imageBack));
+    else { try{ await h.removeEntry(card.imgBase+'-πισω.jpg'); }catch(e){} }
+  }catch(e){}
+  return changed;
+}
+async function fsRegenIndex(h){ let cards; try{ cards=await dbAll(); }catch(e){ return; } await fsWriteFile(h,MD_ALL,_allCardsMarkdown(cards)); }
+// Καθάρισε τυχόν παλιό ατομικό .md από προηγούμενη έκδοση
+async function _fsCleanupOldMd(h,rec){ if(rec.mdFile){ try{ await h.removeEntry(rec.mdFile); }catch(e){} rec.mdFile=null; return true; } return false; }
+
 async function fsAutoSaveCard(rec){
   if(!FS_SUPPORTED || !(await fsAutoOn())) return;
   const h=await fsLoadHandle(); if(!h) return;
   if(!(await fsVerifyPermission(h,true))) return;
-  const desired=_sanitizeFile(rec.name||rec.company||'Καρτα');
-  let changed=false;
-  if(rec.mdFile){
-    const oldBase=rec.mdFile.replace(/\.md$/i,'').replace(/ \(\d+\)$/,'');
-    if(oldBase!==desired){ try{ await h.removeEntry(rec.mdFile); }catch(e){} rec.mdFile=await fsUniqueName(h,desired); changed=true; }
-  } else { rec.mdFile=await fsUniqueName(h,desired); changed=true; }
-  await fsWriteFile(h,rec.mdFile,_cardMarkdown(rec,false));
-  if(changed){ try{ await dbPut(rec); }catch(e){} }
+  await _fsCleanupOldMd(h,rec);
+  await fsWriteCardImages(h,rec);
+  try{ await dbPut(rec); }catch(e){}
+  await fsRegenIndex(h);
 }
 async function fsDeleteCardFile(rec){
-  if(!FS_SUPPORTED || !rec || !rec.mdFile || !(await fsAutoOn())) return;
+  if(!FS_SUPPORTED || !rec || !(await fsAutoOn())) return;
   const h=await fsLoadHandle(); if(!h) return;
   if(!(await fsVerifyPermission(h,true))) return;
-  try{ await h.removeEntry(rec.mdFile); }catch(e){}
+  if(rec.mdFile){ try{ await h.removeEntry(rec.mdFile); }catch(e){} }
+  if(rec.imgBase){ try{ await h.removeEntry(rec.imgBase+'.jpg'); }catch(e){} try{ await h.removeEntry(rec.imgBase+'-πισω.jpg'); }catch(e){} }
+  await fsRegenIndex(h);
 }
-// Γράψε ΟΛΕΣ τις κάρτες ως .md στον φάκελο
+// Γράψε ΟΛΕΣ τις κάρτες: ένα oles_oi_kartes.md + φωτογραφίες στον ίδιο φάκελο
 async function fsSyncAllMd(){
   if(!FS_SUPPORTED){ toast('Δεν υποστηρίζεται εδώ — άνοιξε την εφαρμογή σε Chrome (Android).',true); return; }
   const h=await fsLoadHandle();
@@ -1414,15 +1471,12 @@ async function fsSyncAllMd(){
   if(!(await fsVerifyPermission(h,true))){ toast('Δεν δόθηκε άδεια εγγραφής στον φάκελο',true); return; }
   let cards; try{ cards=await dbAll(); }catch(e){ toast('Σφάλμα βάσης',true); return; }
   if(!cards.length){ toast('Δεν υπάρχουν κάρτες',true); return; }
-  toast('Αποθήκευση .md…'); let n=0; const used=new Set();
+  toast('Αποθήκευση σε φάκελο…'); let n=0;
   for(const c of cards){
-    const base=_sanitizeFile(c.name||c.company||'Καρτα'); let name=base+'.md', i=2;
-    while(used.has(name.toLowerCase())){ name=base+' ('+i+').md'; i++; }
-    used.add(name.toLowerCase());
-    if(c.mdFile!==name){ if(c.mdFile){ try{ await h.removeEntry(c.mdFile); }catch(e){} } c.mdFile=name; try{ await dbPut(c); }catch(e){} }
-    try{ await fsWriteFile(h,name,_cardMarkdown(c,false)); n++; }catch(e){}
+    try{ await _fsCleanupOldMd(h,c); await fsWriteCardImages(h,c); await dbPut(c); n++; }catch(e){}
   }
-  toast('✅ Αποθηκεύτηκαν '+n+' αρχεία .md στον φάκελο');
+  await fsRegenIndex(h);
+  toast('✅ Αποθηκεύτηκαν '+n+' κάρτες + φωτογραφίες ('+MD_ALL+')');
 }
 async function fsPickFolder(){
   if(!FS_SUPPORTED){ alert('Η άμεση αποθήκευση σε φάκελο δεν υποστηρίζεται εδώ.\n\nΆνοιξε την εφαρμογή με Chrome σε Android (ως εγκατεστημένη PWA).'); return false; }
@@ -1442,7 +1496,7 @@ async function fsSetupFolder(){
     if(a==='2'){ await kvSet('mdAuto',false); toast('Απενεργοποιήθηκε η αυτόματη αποθήκευση .md'); return; }
     if(a!=='1') return;
   } else {
-    alert('Επίλεξε τον φάκελο αποθήκευσης.\n\nΓια το Markor: Documents ▸ markor\n(διαδρομή: /storage/emulated/0/Documents/markor)\n\nΘα ζητηθεί άδεια εγγραφής μία φορά.');
+    alert('Επίλεξε τον φάκελο αποθήκευσης.\n\nΓια το Markor: Documents ▸ markor\n(διαδρομή: /storage/emulated/0/Documents/markor)\n\nΘα αποθηκεύονται ΟΛΕΣ οι κάρτες σε ένα αρχείο "'+MD_ALL+'" και οι φωτογραφίες (με όνομα βάσει ονόματος) στον ίδιο φάκελο.\n\nΘα ζητηθεί άδεια εγγραφής μία φορά.');
   }
   await fsPickFolder();
 }
