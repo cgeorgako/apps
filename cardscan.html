@@ -232,6 +232,13 @@
   .chip:hover{border-color:var(--acc);}
   .chip.active{background:var(--acc-soft);border-color:var(--acc);color:var(--acc);}
 
+  .ai-banner{display:flex;align-items:center;gap:10px;background:var(--panel);border:1px solid rgba(255,122,24,.35);
+    border-radius:12px;padding:11px 12px;margin-bottom:12px;font-size:12.5px;line-height:1.45;color:var(--txt-dim);}
+  .ai-banner.ok{border-color:rgba(16,185,129,.35);}
+  .ai-banner span{flex:1;}
+  .ai-banner button{background:var(--panel-2);border:1px solid var(--line);color:var(--txt);border-radius:8px;
+    padding:7px 11px;font-size:12px;font-weight:600;cursor:pointer;font-family:var(--sans);flex-shrink:0;}
+  .ai-banner button:hover{border-color:var(--acc);color:var(--acc);}
   .hidden{display:none!important;}
   .hint-inline{font-size:12px;color:var(--txt-dim);margin-top:6px;line-height:1.5;}
   footer.credit{margin-top:34px;text-align:center;font-family:var(--mono);font-size:11px;color:#5c6675;letter-spacing:.5px;padding:16px 0;border-top:1px solid var(--line);}
@@ -777,6 +784,7 @@ function renderScan(){
 
     <div id="ocrArea"></div>
 
+    <div id="aiBanner"></div>
     <button class="btn btn-primary" id="readBtn" disabled>🔎 Ανάγνωση στοιχείων</button>
     <button class="btn btn-ghost" id="manualFromScan" style="margin-top:10px">✍️ Εισαγωγή χωρίς κάρτα</button>
     <div class="hint-inline">💡 Συμβουλή: καλός φωτισμός και σταθερό χέρι δίνουν καλύτερη ανάγνωση. Μπορείς να διορθώσεις όλα τα στοιχεία στο επόμενο βήμα.</div>
@@ -833,6 +841,15 @@ function renderScan(){
   handle($('#inpBack'),'back','sideBack');
   $('#readBtn').onclick=doRead;
   $('#manualFromScan').onclick=manualEntry;
+  renderAiBanner();
+}
+function renderAiBanner(){
+  const el=$('#aiBanner'); if(!el) return;
+  const has=!!getGeminiKey();
+  el.innerHTML = has
+    ? `<div class="ai-banner ok">🤖 <span>Ανάγνωση με <b>AI (Gemini)</b> ενεργή — υψηλή ακρίβεια.</span><button type="button" id="aiKeyBtn">Κλειδί</button></div>`
+    : `<div class="ai-banner">⚠️ <span>Χωρίς AI η ανάγνωση γίνεται με απλό OCR και έχει λάθη. Πρόσθεσε ένα δωρεάν <b>Gemini API key</b> για ακριβή αναγνώριση.</span><button type="button" id="aiKeyBtn">Προσθήκη</button></div>`;
+  $('#aiKeyBtn').onclick=()=>{ if(askGeminiKey()) renderAiBanner(); };
 }
 function cancelScan(){ scanState={front:null,back:null}; nav(''); }
 
@@ -928,6 +945,65 @@ async function generateCardImage(d){
   return cv.toDataURL('image/jpeg',0.92);
 }
 
+/* ---------- Ανάγνωση με AI (Google Gemini Vision) ----------
+   Το κλειδί είναι κοινό με το εργαλείο «AI Rendering» (ίδιο domain, ίδιο localStorage).
+   Οι φωτογραφίες στέλνονται απευθείας στο Google· τίποτα δεν περνά από άλλο server. */
+const GEMINI_KEY_LS='gemini_api_key';
+const GEMINI_MODELS=['gemini-2.5-flash','gemini-flash-latest','gemini-2.0-flash'];
+function getGeminiKey(){ try{ return (localStorage.getItem(GEMINI_KEY_LS)||'').trim(); }catch(e){ return ''; } }
+function setGeminiKey(k){ try{ k=(k||'').trim(); if(k) localStorage.setItem(GEMINI_KEY_LS,k); else localStorage.removeItem(GEMINI_KEY_LS); }catch(e){} }
+function askGeminiKey(){
+  const k=prompt('Gemini API key\n\nΔωρεάν από: aistudio.google.com/apikey\nΑποθηκεύεται μόνο τοπικά σε αυτή τη συσκευή.\nΆφησε κενό για διαγραφή.', getGeminiKey());
+  if(k===null) return false;
+  setGeminiKey(k); toast(k.trim()?'🔑 Το κλειδί αποθηκεύτηκε':'Το κλειδί διαγράφηκε'); return true;
+}
+async function aiExtract(front,back){
+  const key=getGeminiKey(); if(!key) throw new Error('NO_KEY');
+  const cats=getCategories();
+  const instr=`Είσαι σύστημα ανάγνωσης επαγγελματικών καρτών. Σου δίνω φωτογραφία της μπροστινής${back?' και της πίσω':''} όψης μιας κάρτας (μπορεί να είναι στραβή, περιστραμμένη ή με λογότυπα / χρωματιστό φόντο).
+Διάβασε προσεκτικά ΟΛΟ το κείμενο (ελληνικά και λατινικά) και συμπλήρωσε:
+- name: ονοματεπώνυμο του ατόμου (όχι η επωνυμία της επιχείρησης)
+- company: επωνυμία επιχείρησης
+- title: ιδιότητα / επάγγελμα / δραστηριότητα (π.χ. «Πολιτικός Μηχανικός», «Κατασκευές πισινών»)
+- phones: όλα τα τηλέφωνα (σταθερά, κινητά, fax) όπως γράφονται, με +30 αν υπάρχει
+- emails, websites
+- address: πλήρης διεύθυνση σε μία γραμμή (οδός, αριθμός, Τ.Κ., πόλη)
+- category: η πιο ταιριαστή από: ${cats.join(' | ')}. Αν καμία δεν ταιριάζει: «${OTHER}».
+- notes: άλλες χρήσιμες πληροφορίες (π.χ. ΑΦΜ, υπηρεσίες), σύντομα
+- rawText: όλο το κείμενο της κάρτας αυτούσιο, γραμμή-γραμμή
+Μην επινοείς στοιχεία· ό,τι δεν υπάρχει μένει κενό.`;
+  const img=d=>({inline_data:{mime_type:d.slice(5,d.indexOf(';')),data:d.slice(d.indexOf(',')+1)}});
+  const parts=[{text:instr},{text:'Μπροστινή όψη:'},img(front)];
+  if(back) parts.push({text:'Πίσω όψη:'},img(back));
+  const S={type:'STRING'}, A={type:'ARRAY',items:{type:'STRING'}};
+  const body={contents:[{role:'user',parts}],generationConfig:{temperature:0,responseMimeType:'application/json',
+    responseSchema:{type:'OBJECT',properties:{name:S,company:S,title:S,phones:A,emails:A,websites:A,address:S,
+      category:{type:'STRING',enum:cats},notes:S,rawText:S},
+      required:['name','company','title','phones','emails','websites','address','category','notes','rawText']}}};
+  let lastErr=null;
+  for(const model of GEMINI_MODELS){
+    const ctrl=new AbortController(); const t=setTimeout(()=>ctrl.abort(),60000);
+    try{
+      const res=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(key)}`,
+        {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body),signal:ctrl.signal});
+      const data=await res.json().catch(()=>({}));
+      if(!res.ok){
+        const msg=(data.error&&data.error.message)||('HTTP '+res.status);
+        if(res.status===404){ lastErr=new Error(msg); continue; } // μοντέλο μη διαθέσιμο -> επόμενο
+        if(/API key not valid|API_KEY_INVALID/i.test(msg)||res.status===401||res.status===403) throw new Error('BAD_KEY');
+        throw new Error(msg);
+      }
+      const txt=((data.candidates&&data.candidates[0]&&data.candidates[0].content&&data.candidates[0].content.parts)||[]).map(p=>p.text||'').join('');
+      if(!txt) throw new Error('Κενή απάντηση από το AI');
+      return JSON.parse(txt);
+    }catch(e){
+      if(e.name==='AbortError') throw new Error('Λήξη χρόνου απάντησης AI');
+      throw e;
+    }finally{ clearTimeout(t); }
+  }
+  throw lastErr||new Error('Κανένα διαθέσιμο μοντέλο Gemini');
+}
+
 async function doRead(){
   if(!scanState.front){ toast('Φωτογράφισε τουλάχιστον τη μπροστινή όψη',true); return; }
   const area=$('#ocrArea'); const btn=$('#readBtn'); btn.disabled=true;
@@ -942,7 +1018,32 @@ async function doRead(){
     else if(/language|traineddata/i.test(m.status||'')) setMsg('Λήψη ελληνικού λεξικού (μία φορά)…',0.1);
     else if(m.status) setMsg(m.status+'…');
   };
+  const baseDraft={ id:'', title:'', notes:'', createdAt:0, updatedAt:0,
+    imageFront:scanState.front.display, imageBack:scanState.back?scanState.back.display:null };
   try{
+    // 1) Ακριβής ανάγνωση με AI (Gemini), αν υπάρχει κλειδί και σύνδεση
+    if(getGeminiKey() && navigator.onLine!==false){
+      try{
+        setMsg('🤖 Ανάγνωση με AI (Gemini)…',0.35);
+        const r=await aiExtract(scanState.front.display, scanState.back?scanState.back.display:null);
+        const clean=a=>(Array.isArray(a)?a:[]).map(x=>String(x).trim()).filter(Boolean);
+        let cat=getCategories().includes(r.category)?r.category:'';
+        if(!cat||cat===OTHER){ const d=detectCategory([r.title,r.company,r.rawText].join(' ')); if(d) cat=d; }
+        const phones=clean(r.phones), emails=clean(r.emails).map(e=>e.toLowerCase());
+        editDraft={...baseDraft, aiRead:true, category:cat,
+          name:(r.name||'').trim(), company:(r.company||'').trim(), title:(r.title||'').trim(),
+          phones:phones.length?phones:[''], emails:emails.length?emails:[''], sites:clean(r.websites),
+          address:(r.address||'').trim(), notes:(r.notes||'').trim(), rawText:r.rawText||'' };
+        setMsg('Ολοκληρώθηκε',1);
+        nav('edit');
+        return;
+      }catch(err){
+        console.error(err);
+        toast(err.message==='BAD_KEY'?'Μη έγκυρο Gemini API key — συνέχεια με τοπικό OCR'
+                                     :'AI: '+err.message+' — συνέχεια με τοπικό OCR',true);
+      }
+    }
+    // 2) Εφεδρικά: τοπικό OCR (Tesseract)
     let text='';
     setMsg('Ανάγνωση μπροστινής όψης…',0.02);
     text += await runOCR(scanState.front.ocr,prog);
@@ -984,7 +1085,7 @@ function renderEditForm(){
   viewEl.innerHTML=`
     <div class="backrow"><button class="backbtn" id="cancelEdit">‹ ${isNew?'Ακύρωση':'Πίσω'}</button></div>
     <div class="viewtitle">${isNew?'Στοιχεία κάρτας':'Επεξεργασία'}</div>
-    <div class="viewsub">Έλεγξε και διόρθωσε τα στοιχεία που διαβάστηκαν. Επίλεξε κατηγορία και αποθήκευσε.</div>
+    <div class="viewsub">${d.aiRead?'🤖 Τα στοιχεία διαβάστηκαν με AI. ':''}Έλεγξε και διόρθωσε τα στοιχεία που διαβάστηκαν. Επίλεξε κατηγορία και αποθήκευσε.</div>
 
     ${(d.imageFront||d.imageBack)?`<div class="detail-imgs">
       ${d.imageFront?`<img src="${d.imageFront}" alt="Μπροστά" data-zoom>`:''}
@@ -1177,9 +1278,10 @@ function exportVCard(c){
 
 /* ---- Menu (backup / restore) ---- */
 $('#menuBtn').onclick=async()=>{
-  const choice=prompt('CardScan · Επιλογές\n\n1 = Εξαγωγή αντιγράφου ασφαλείας (JSON)\n2 = Εισαγωγή αντιγράφου (JSON)\n\nΓράψε 1 ή 2:');
+  const choice=prompt('CardScan · Επιλογές\n\n1 = Εξαγωγή αντιγράφου ασφαλείας (JSON)\n2 = Εισαγωγή αντιγράφου (JSON)\n3 = Gemini API key (ανάγνωση με AI)'+(getGeminiKey()?' ✓':'')+'\n\nΓράψε 1, 2 ή 3:');
   if(choice==='1') await exportBackup();
   else if(choice==='2') importBackup();
+  else if(choice==='3'){ askGeminiKey(); renderAiBanner(); }
 };
 async function exportBackup(){
   const cards=await dbAll();
