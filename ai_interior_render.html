@@ -1,0 +1,800 @@
+<!DOCTYPE html>
+<html lang="el">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI Rendering Κατόψεων Εσωτερικών Χώρων</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<style>
+  :root{
+    --bg:#0e1116; --panel:#161b22; --panel-2:#1c232d; --line:#2a323d;
+    --txt:#e6edf3; --txt-dim:#8b97a7;
+    --acc:#ff7a18; --acc-soft:rgba(255,122,24,.12);
+    --ok:#10b981; --ok-soft:rgba(16,185,129,.14);
+    --err:#f43f5e; --err-soft:rgba(244,63,94,.14);
+    --mono:'IBM Plex Mono',monospace; --sans:'IBM Plex Sans',sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{
+    font-family:var(--sans); background:var(--bg);
+    background-image:
+      radial-gradient(circle at 15% 0%,rgba(255,122,24,.07),transparent 45%),
+      linear-gradient(#1b212b 1px,transparent 1px),
+      linear-gradient(90deg,#1b212b 1px,transparent 1px);
+    background-size:auto,30px 30px,30px 30px;
+    color:var(--txt); min-height:100vh; padding:32px 16px 60px;
+  }
+  a{color:var(--acc);}
+  .wrap{max-width:1080px; margin:0 auto;}
+  .tag{font-family:var(--mono); font-size:11px; letter-spacing:.14em; text-transform:uppercase;
+    color:var(--acc); display:inline-flex; align-items:center; gap:8px; margin-bottom:10px;}
+  .tag::before{content:""; width:22px; height:1px; background:var(--acc);}
+  .back{font-family:var(--mono); font-size:12px; color:var(--txt-dim); text-decoration:none; display:inline-block; margin-bottom:18px;}
+  .back:hover{color:var(--acc);}
+  h1{font-size:27px; font-weight:700; letter-spacing:-.02em; margin-bottom:8px;}
+  .sub{color:var(--txt-dim); font-size:14px; max-width:640px; margin-bottom:26px; line-height:1.55;}
+
+  .panel{
+    background:var(--panel); border:1px solid var(--line); border-radius:14px;
+    padding:20px; margin-bottom:18px;
+  }
+  .panel h2{font-size:13px; font-family:var(--mono); font-weight:600; text-transform:uppercase;
+    letter-spacing:.1em; color:var(--acc); margin-bottom:14px; display:flex; align-items:center; gap:8px;}
+  .step-num{background:var(--acc-soft); border:1px solid rgba(255,122,24,.3); color:var(--acc);
+    width:22px; height:22px; border-radius:6px; display:inline-flex; align-items:center; justify-content:center; font-size:12px;}
+
+  label{font-size:12.5px; color:var(--txt-dim); display:block; margin-bottom:6px;}
+  input[type=text], input[type=password], textarea, select{
+    width:100%; background:var(--bg); border:1px solid var(--line); border-radius:9px;
+    color:var(--txt); font-family:var(--sans); font-size:14px; padding:10px 12px; outline:none;
+  }
+  input:focus, textarea:focus, select:focus{border-color:var(--acc);}
+  textarea{resize:vertical; min-height:64px; line-height:1.5;}
+  .row{display:flex; gap:12px; flex-wrap:wrap;}
+  .row > *{flex:1; min-width:180px;}
+  .hint{font-size:11.5px; color:var(--txt-dim); margin-top:6px; line-height:1.5;}
+
+  /* Dropzone */
+  .drop{
+    border:2px dashed var(--line); border-radius:12px; padding:30px 20px; text-align:center;
+    cursor:pointer; transition:.18s; background:var(--bg);
+  }
+  .drop:hover, .drop.over{border-color:var(--acc); background:var(--panel-2);}
+  .drop .di{font-size:34px; margin-bottom:8px;}
+  .drop .dt{font-size:14px; font-weight:600;}
+  .drop .ds{font-size:12px; color:var(--txt-dim); margin-top:4px;}
+  .pdf-nav{display:none; align-items:center; gap:10px; margin-top:12px; font-size:12.5px; color:var(--txt-dim); font-family:var(--mono);}
+  .pdf-nav button{
+    width:28px; height:28px; border-radius:7px; background:var(--panel-2); border:1px solid var(--line);
+    color:var(--txt); font-size:16px; line-height:1; cursor:pointer; transition:.16s;
+  }
+  .pdf-nav button:hover:not(:disabled){border-color:var(--acc); color:var(--acc);}
+  .pdf-nav button:disabled{opacity:.4; cursor:not-allowed;}
+  .preview-in{margin-top:14px; display:none;}
+  .preview-frame{position:relative; display:inline-block;}
+  .preview-in img{max-width:100%; max-height:320px; border-radius:10px; border:1px solid var(--line); display:block;}
+  .remove-btn{
+    position:absolute; top:8px; right:8px; width:30px; height:30px; border-radius:8px;
+    background:rgba(14,17,22,.82); border:1px solid var(--line); color:var(--txt);
+    font-size:15px; line-height:1; cursor:pointer; transition:.16s; backdrop-filter:blur(2px);
+    display:flex; align-items:center; justify-content:center;
+  }
+  .remove-btn:hover{background:var(--err-soft); border-color:var(--err); color:#fda4af;}
+  .fname{font-family:var(--mono); font-size:11.5px; color:var(--txt-dim); margin-top:8px; word-break:break-all;}
+
+  /* Styles grid */
+  .styles{display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:10px;}
+  .style-card{
+    background:var(--bg); border:1px solid var(--line); border-radius:11px; padding:14px;
+    cursor:pointer; transition:.16s; position:relative;
+  }
+  .style-card:hover{border-color:rgba(255,122,24,.4); transform:translateY(-2px);}
+  .style-card.sel{border-color:var(--acc); background:var(--acc-soft); box-shadow:0 0 0 1px var(--acc) inset;}
+  .style-card .se{font-size:22px;}
+  .style-card .sn{font-size:14px; font-weight:700; margin-top:6px;}
+  .style-card .sd{font-size:11px; color:var(--txt-dim); margin-top:3px; line-height:1.45;}
+  .style-card.sel::after{content:"✓"; position:absolute; top:10px; right:12px; color:var(--acc); font-weight:700;}
+
+  /* Mode toggle */
+  .modes{display:flex; gap:10px; flex-wrap:wrap;}
+  .mode-opt{flex:1; min-width:200px; background:var(--bg); border:1px solid var(--line); border-radius:11px; padding:14px; cursor:pointer; transition:.16s;}
+  .mode-opt:hover{border-color:rgba(255,122,24,.4);}
+  .mode-opt.sel{border-color:var(--acc); background:var(--acc-soft);}
+  .mode-opt .mt{font-size:14px; font-weight:700;}
+  .mode-opt .md{font-size:11.5px; color:var(--txt-dim); margin-top:4px; line-height:1.45;}
+
+  .btn{
+    background:linear-gradient(180deg,#ff8a2e,#ff7a18); color:#1a1205; border:none; border-radius:10px;
+    font-family:var(--sans); font-size:15px; font-weight:700; padding:14px 22px; cursor:pointer;
+    width:100%; transition:.16s; display:flex; align-items:center; justify-content:center; gap:10px;
+  }
+  .btn:hover{filter:brightness(1.06);}
+  .btn:disabled{opacity:.5; cursor:not-allowed;}
+  .btn.secondary{background:var(--panel-2); color:var(--txt); border:1px solid var(--line);}
+
+  .spinner{width:16px; height:16px; border:2px solid rgba(26,18,5,.35); border-top-color:#1a1205; border-radius:50%; animation:spin .7s linear infinite; display:inline-block;}
+  @keyframes spin{to{transform:rotate(360deg);}}
+
+  .msg{border-radius:9px; padding:11px 14px; font-size:13px; margin-top:12px; display:none; line-height:1.5;}
+  .msg.ok{background:var(--ok-soft); border:1px solid rgba(16,185,129,.35); color:#6ee7b7; display:block;}
+  .msg.err{background:var(--err-soft); border:1px solid rgba(244,63,94,.35); color:#fda4af; display:block;}
+
+  /* Result */
+  #resultPanel{display:none;}
+  .compare{display:grid; grid-template-columns:1fr 1fr; gap:16px;}
+  @media(max-width:640px){.compare{grid-template-columns:1fr;}}
+  .compare .box{background:var(--bg); border:1px solid var(--line); border-radius:11px; padding:12px;}
+  .compare .box h3{font-size:11px; font-family:var(--mono); text-transform:uppercase; letter-spacing:.1em; color:var(--txt-dim); margin-bottom:10px;}
+  .compare img{width:100%; border-radius:8px; display:block;}
+  .refine-box{margin-top:18px; padding:16px; background:var(--bg); border:1px solid var(--line); border-radius:11px;}
+  .refine-box label{font-size:13px; color:var(--txt); font-weight:600; margin-bottom:8px;}
+  .refine-actions{display:flex; gap:10px; margin-top:12px; flex-wrap:wrap;}
+  .refine-actions .btn{width:auto; flex:none; font-size:14px; padding:11px 20px;}
+  .result-actions{display:flex; gap:10px; margin-top:16px; flex-wrap:wrap;}
+  .result-actions .btn{width:auto; flex:1; min-width:150px; font-size:14px; padding:11px 18px;}
+  .gallery{display:grid; grid-template-columns:repeat(auto-fill,minmax(140px,1fr)); gap:10px; margin-top:14px;}
+  .gallery .g{background:var(--bg); border:1px solid var(--line); border-radius:9px; overflow:hidden; cursor:pointer; transition:.16s;}
+  .gallery .g:hover{border-color:var(--acc);}
+  .gallery .g img{width:100%; display:block;}
+  .gallery .g .gl{font-size:10.5px; color:var(--txt-dim); font-family:var(--mono); padding:6px 8px; text-transform:uppercase;}
+
+  .disclaimer{font-size:11.5px; color:#5c6675; line-height:1.6; margin-top:8px;}
+  footer{margin-top:40px; font-size:11.5px; color:#5c6675; text-align:center; font-family:var(--mono); letter-spacing:.5px; border-top:1px solid var(--line); padding-top:20px;}
+  .keywrap{display:flex; gap:10px; align-items:flex-end;}
+  .keywrap > div:first-child{flex:1;}
+  .savedchip{font-size:11px; font-family:var(--mono); color:var(--ok); margin-top:6px; display:none;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <a class="back" href="index.html">← Επιστροφή στα Εργαλεία</a>
+  <div class="tag">AI Visualization · Interior Rendering</div>
+  <h1>AI Rendering Κατόψεων Εσωτερικών Χώρων</h1>
+  <p class="sub">Ανέβασε την κάτοψη μιας κατοικίας (PNG ή JPG), επίλεξε στυλ διακόσμησης και δημιούργησε ρεαλιστική απεικόνιση του εσωτερικού χώρου με τεχνητή νοημοσύνη (Google Gemini 2.5 Flash Image). Η αρχιτεκτονική διάταξη — τοίχοι, ανοίγματα, δωμάτια — διατηρείται· προστίθενται επίπλωση, υλικά, χρώματα και φωτισμός.</p>
+
+  <!-- STEP 0: API KEY -->
+  <div class="panel">
+    <h2><span class="step-num">🔑</span> Κλειδί API (Google AI Studio)</h2>
+    <div class="keywrap">
+      <div>
+        <label for="apiKey">Gemini API Key</label>
+        <input type="password" id="apiKey" placeholder="AIza..." autocomplete="off">
+        <div class="savedchip" id="savedChip">✓ Αποθηκευμένο τοπικά σε αυτόν τον browser</div>
+      </div>
+      <button class="btn secondary" id="saveKeyBtn" style="width:auto; padding:10px 16px; font-size:13px;">Αποθήκευση</button>
+    </div>
+    <div class="hint">
+      Δωρεάν κλειδί από το <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">Google AI Studio</a>.
+      Το κλειδί αποθηκεύεται <b>μόνο τοπικά</b> στον browser σου (localStorage) και στέλνεται απευθείας στο Google — δεν περνά από κανέναν άλλο server.
+    </div>
+  </div>
+
+  <!-- STEP 1: UPLOAD -->
+  <div class="panel">
+    <h2><span class="step-num">1</span> Κάτοψη προς επεξεργασία</h2>
+    <div class="drop" id="drop">
+      <div class="di">🏠</div>
+      <div class="dt">Σύρε την κάτοψη εδώ, κάνε κλικ για επιλογή, ή επικόλλησε (Ctrl+V)</div>
+      <div class="ds">PNG · JPG · WEBP · PDF &nbsp;|&nbsp; καθαρή κάτοψη με ευδιάκριτους τοίχους & δωμάτια αποδίδει καλύτερα</div>
+    </div>
+    <input type="file" id="fileInput" accept="image/png,image/jpeg,image/webp,application/pdf" style="display:none">
+    <div class="pdf-nav" id="pdfNav">
+      <span>📄 PDF · Σελίδα</span>
+      <button type="button" id="pdfPrev" aria-label="Προηγούμενη σελίδα">‹</button>
+      <span id="pdfPageLabel">1 / 1</span>
+      <button type="button" id="pdfNext" aria-label="Επόμενη σελίδα">›</button>
+    </div>
+    <div class="preview-in" id="previewIn">
+      <div class="preview-frame">
+        <img id="previewImg" alt="Προεπισκόπηση κάτοψης">
+        <button type="button" class="remove-btn" id="removeImgBtn" title="Αφαίρεση κάτοψης" aria-label="Αφαίρεση κάτοψης">✕</button>
+      </div>
+      <div class="fname" id="fname"></div>
+    </div>
+  </div>
+
+  <!-- STEP 2: STYLE -->
+  <div class="panel">
+    <h2><span class="step-num">2</span> Στυλ διακόσμησης</h2>
+    <div class="styles" id="stylesGrid"></div>
+  </div>
+
+  <!-- STEP 3: OPTIONS -->
+  <div class="panel">
+    <h2><span class="step-num">3</span> Τύπος απόδοσης & επιλογές</h2>
+    <div class="modes" id="modesWrap" style="margin-bottom:16px;">
+      <div class="mode-opt sel" data-mode="topview">
+        <div class="mt">🗺️ Έγχρωμη κάτοψη (κάτοψη από ψηλά)</div>
+        <div class="md">Διατηρεί τη μορφή κάτοψης (top-view), με ρεαλιστική επίπλωση, υλικά δαπέδων, χρώματα και σκιές — ιδανικό για παρουσίαση διαρρύθμισης.</div>
+      </div>
+      <div class="mode-opt" data-mode="exterior">
+        <div class="mt">🏡 Εξωτερική 3D άποψη κτιρίου</div>
+        <div class="md">Φωτορεαλιστική εξωτερική απόδοση του κτιρίου και του περιβάλλοντος χώρου (κήπος, φύτευση, διαδρομές) με βάση το περίγραμμα/όγκο της κάτοψης και το επιλεγμένο αρχιτεκτονικό ύφος.</div>
+      </div>
+    </div>
+    <div class="row">
+      <div id="roomTypeField">
+        <label for="roomType">Χρήση χώρου (προαιρετικό)</label>
+        <select id="roomType">
+          <option value="">Αυτόματο (ολόκληρη κατοικία)</option>
+          <option value="living room">Σαλόνι / Καθιστικό</option>
+          <option value="bedroom">Υπνοδωμάτιο</option>
+          <option value="kitchen">Κουζίνα</option>
+          <option value="open-plan kitchen and living room">Ενιαίο σαλόνι-κουζίνα</option>
+          <option value="bathroom">Μπάνιο</option>
+          <option value="home office">Γραφείο</option>
+          <option value="children's room">Παιδικό δωμάτιο</option>
+        </select>
+      </div>
+      <div>
+        <label for="quality">Ισχύς μετασχηματισμού</label>
+        <select id="quality">
+          <option value="preserve">Πιστή διατήρηση διάταξης — μόνο υλικά/χρώματα · temp 0.1 (προτεινόμενο)</option>
+          <option value="balanced">Ισορροπημένη — επιτρέπεται επίπλωση/ελευθερία · temp 0.5</option>
+          <option value="creative">Πιο δημιουργική ελευθερία · temp 1.0</option>
+        </select>
+      </div>
+    </div>
+    <div style="margin-top:14px;">
+      <label for="notes">Επιπλέον οδηγίες (προαιρετικό)</label>
+      <textarea id="notes" placeholder="π.χ. ξύλινο δάπεδο δρυς, ουδέτερη παλέτα, μεγάλος καναπές, φυτά, ζεστός φωτισμός..."></textarea>
+    </div>
+  </div>
+
+  <!-- GENERATE -->
+  <div class="panel">
+    <button class="btn" id="generateBtn" disabled>✨ Δημιουργία Rendering</button>
+    <label style="display:flex; align-items:center; gap:8px; margin-top:14px; cursor:pointer; color:var(--txt); font-size:13px;">
+      <input type="checkbox" id="allStyles" style="width:auto; flex:none;">
+      Δημιουργία και για τα 6 στυλ ταυτόχρονα (συγκριτικά — καταναλώνει περισσότερο quota)
+    </label>
+    <div class="msg" id="msg"></div>
+  </div>
+
+  <!-- RESULT -->
+  <div class="panel" id="resultPanel">
+    <h2><span class="step-num">✓</span> Αποτέλεσμα</h2>
+    <div class="compare">
+      <div class="box">
+        <h3>Αρχική κάτοψη</h3>
+        <img id="origOut" alt="Αρχική">
+      </div>
+      <div class="box">
+        <h3 id="resTitle">Rendering</h3>
+        <img id="resOut" alt="Αποτέλεσμα">
+      </div>
+    </div>
+    <div class="gallery" id="gallery"></div>
+
+    <div class="refine-box">
+      <label for="refineInput">✏️ Σημειακή τροποποίηση αυτού του αποτελέσματος</label>
+      <textarea id="refineInput" placeholder="Γράψε ΑΚΡΙΒΩΣ τι θέλεις να αλλάξει — π.χ.: κάνε τον καναπέ σκούρο μπλε · βάλε ξύλινο δάπεδο δρυς μόνο στο σαλόνι · αφαίρεσε το χαλί · πιο ζεστό φωτισμό στην κουζίνα"></textarea>
+      <div class="refine-actions">
+        <button class="btn" id="refineBtn">Εφαρμογή τροποποίησης</button>
+        <button class="btn secondary" id="undoRefineBtn" style="display:none;">↩︎ Αναίρεση</button>
+      </div>
+      <div class="hint">Αλλάζει <b>αυστηρά μόνο</b> ό,τι περιγράφεις· όλα τα υπόλοιπα (γεωμετρία, σύνθεση, υλικά) μένουν ίδια. Μπορείς να εφαρμόζεις διαδοχικές τροποποιήσεις.</div>
+      <div class="msg" id="refineMsg"></div>
+    </div>
+
+    <div class="result-actions">
+      <button class="btn" id="downloadBtn">⬇️ Λήψη εικόνας</button>
+      <button class="btn secondary" id="againBtn">🔄 Νέα δημιουργία</button>
+    </div>
+    <div id="modelNote" class="disclaimer"></div>
+  </div>
+
+  <div class="disclaimer">
+    ⚠️ Οι εικόνες παράγονται από AI και προορίζονται για <b>έμπνευση / concept παρουσίαση</b>. Δεν αποτελούν κατασκευαστικά σχέδια ούτε εγγυώνται διαστασιολογική ακρίβεια. Ελέγχετε πάντα τη διάταξη σε σχέση με το πραγματικό αρχιτεκτονικό σχέδιο.
+  </div>
+
+  <footer>ΧΡΗΣΤΟΣ Δ. ΓΕΩΡΓΑΚΟΠΟΥΛΟΣ · ΔΙΠΛ. ΠΟΛΙΤΙΚΟΣ ΜΗΧΑΝΙΚΟΣ Ε.Μ.Π. · ΑΜΑΛΙΑΔΑ ΗΛΕΙΑΣ</footer>
+</div>
+
+<script>
+"use strict";
+
+/* ---------- Style definitions ---------- */
+const STYLES = [
+  { id:"faithful", emoji:"🎯", name:"Πιστό rendering",
+    desc:"Ακριβές πρωτότυπο, μόνο φυσικά χρώματα/υλικά · temp 0.1",
+    faithful:true,
+    prompt:"", ext:"" },
+  { id:"industrial", emoji:"🏭", name:"Βιομηχανικό",
+    desc:"Εμφανές τούβλο, μπετόν, μαύρο μέταλλο",
+    prompt:"industrial loft interior design style: exposed red brick walls, polished concrete or dark reclaimed wood floors, black steel-framed elements, Edison-bulb pendant lighting, distressed leather and raw metal furniture, ductwork accents, a moody dark and warm palette",
+    ext:"industrial architectural style: exposed brick and raw concrete facade, black steel-framed large windows, metal cladding accents, flat roof, minimalist hardscaping with concrete and gravel" },
+  { id:"classic", emoji:"🏛️", name:"Κλασσικό",
+    desc:"Κομψό, συμμετρικό, ξύλο & μάρμαρο",
+    prompt:"classic elegant interior design style: symmetrical layout, ornate crown moldings and wainscoting, rich hardwood and marble floors, upholstered furniture with refined fabrics, warm neutral and cream palette, crystal chandeliers, timeless sophisticated decor",
+    ext:"classic neoclassical architectural style: symmetrical facade, plastered walls in warm cream tones, cornices and moldings, pitched tiled roof, elegant entrance with columns, manicured formal garden and stone pathways" },
+  { id:"hotel", emoji:"🛎️", name:"Ξενοδοχειακό",
+    desc:"Boutique luxury, πλούσια υφή",
+    prompt:"luxury boutique hotel suite interior design style: plush layered textiles, refined contemporary furniture, brass and gold accents, sophisticated layered ambient lighting, rich accent walls, high-end materials, elegant and inviting five-star atmosphere",
+    ext:"luxury boutique-hotel architectural style: refined contemporary facade, warm stone and wood cladding, expansive glazing, brass accents, designer landscape lighting, resort-style garden with a pool, lush planting" },
+  { id:"rustic", emoji:"🪵", name:"Rustic",
+    desc:"Φυσικό ξύλο, πέτρα, ζεστοί τόνοι",
+    prompt:"rustic farmhouse interior design style: exposed natural wood beams, stone and reclaimed timber, warm earthy tones, cozy woven textiles, wrought-iron details, handcrafted furniture, a warm inviting and natural atmosphere",
+    ext:"rustic farmhouse architectural style: natural stone and timber facade, pitched roof with wooden beams, warm earthy tones, shutters, a country garden with dry-stone walls, gravel paths and mature trees" },
+  { id:"minimal", emoji:"⬜", name:"Minimal",
+    desc:"Καθαρές γραμμές, λιτή παλέτα",
+    prompt:"minimalist interior design style: clean simple lines, uncluttered functional layout, neutral white and light palette, light natural oak wood, hidden storage, plenty of negative space, soft diffused natural light, calm and airy Scandinavian-influenced aesthetic",
+    ext:"minimalist modern architectural style: clean rectilinear volumes, smooth white render and light wood accents, flat roof, large frameless glazing, uncluttered landscaped garden with lawn, concrete pavers and architectural planting" },
+  { id:"country", emoji:"🌻", name:"Country",
+    desc:"Cottage, απαλά χρώματα, vintage",
+    prompt:"country cottage interior design style: soft pastel and cream palette, floral and gingham fabrics, vintage painted wood furniture, ceramic and wicker accessories, cozy layered textiles, cheerful homely and charming atmosphere",
+    ext:"country cottage architectural style: charming plastered facade in soft pastel tones, pitched tiled roof, wooden shutters and framed windows, a cottage garden full of flowers, picket fence and winding stone path" }
+];
+
+/* ---------- State ---------- */
+let selectedStyle = "minimal";
+let selectedMode = "topview";
+let uploadedImage = null; // { base64, mimeType, dataUrl }
+let currentResults = [];  // [{ styleId, styleName, dataUrl }]
+let activeResultIndex = 0;
+let pdfDoc = null;        // loaded pdf.js document (when input is a PDF)
+let pdfPage = 1;          // currently rendered PDF page
+
+if(window.pdfjsLib){
+  pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+}
+
+/* ---------- Elements ---------- */
+const $ = id => document.getElementById(id);
+const apiKeyEl = $("apiKey"), savedChip = $("savedChip");
+const drop = $("drop"), fileInput = $("fileInput");
+const previewIn = $("previewIn"), previewImg = $("previewImg"), fname = $("fname");
+const stylesGrid = $("stylesGrid"), modesWrap = $("modesWrap");
+const generateBtn = $("generateBtn"), allStyles = $("allStyles"), msg = $("msg");
+const resultPanel = $("resultPanel"), origOut = $("origOut"), resOut = $("resOut"),
+      resTitle = $("resTitle"), gallery = $("gallery"), modelNote = $("modelNote");
+
+const MODEL = "gemini-2.5-flash-image";
+const ENDPOINT = k => `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent?key=${encodeURIComponent(k)}`;
+
+/* ---------- API key persistence ---------- */
+(function initKey(){
+  try{
+    const k = localStorage.getItem("gemini_api_key");
+    if(k){ apiKeyEl.value = k; savedChip.style.display="block"; }
+  }catch(e){}
+})();
+$("saveKeyBtn").addEventListener("click", ()=>{
+  try{
+    localStorage.setItem("gemini_api_key", apiKeyEl.value.trim());
+    savedChip.style.display = apiKeyEl.value.trim() ? "block" : "none";
+    showMsg("ok","Το κλειδί αποθηκεύτηκε τοπικά.");
+  }catch(e){ showMsg("err","Αδυναμία αποθήκευσης στον browser."); }
+});
+
+/* ---------- Build style cards ---------- */
+STYLES.forEach(s=>{
+  const c = document.createElement("div");
+  c.className = "style-card" + (s.id===selectedStyle ? " sel":"");
+  c.dataset.id = s.id;
+  c.innerHTML = `<div class="se">${s.emoji}</div><div class="sn">${s.name}</div><div class="sd">${s.desc}</div>`;
+  c.addEventListener("click", ()=>{
+    selectedStyle = s.id;
+    document.querySelectorAll(".style-card").forEach(x=>x.classList.toggle("sel", x.dataset.id===s.id));
+    syncStrengthState();
+  });
+  stylesGrid.appendChild(c);
+});
+
+/* "Πιστό rendering" is always geometry-locked, so the strength selector is irrelevant there. */
+function syncStrengthState(){
+  const st = STYLES.find(s=>s.id===selectedStyle);
+  const q = $("quality");
+  if(st && st.faithful){ q.disabled = true; q.style.opacity = ".5"; }
+  else { q.disabled = false; q.style.opacity = "1"; }
+}
+syncStrengthState();
+
+/* ---------- Mode toggle ---------- */
+modesWrap.querySelectorAll(".mode-opt").forEach(m=>{
+  m.addEventListener("click", ()=>{
+    selectedMode = m.dataset.mode;
+    modesWrap.querySelectorAll(".mode-opt").forEach(x=>x.classList.toggle("sel", x===m));
+    // "Χρήση χώρου" applies only to interior renders
+    $("roomTypeField").style.visibility = (selectedMode === "exterior") ? "hidden" : "visible";
+  });
+});
+
+/* ---------- Upload handling ---------- */
+drop.addEventListener("click", ()=>fileInput.click());
+drop.addEventListener("dragover", e=>{ e.preventDefault(); drop.classList.add("over"); });
+drop.addEventListener("dragleave", ()=>drop.classList.remove("over"));
+drop.addEventListener("drop", e=>{
+  e.preventDefault(); drop.classList.remove("over");
+  if(e.dataTransfer.files && e.dataTransfer.files[0]) handleFile(e.dataTransfer.files[0]);
+});
+fileInput.addEventListener("change", e=>{ if(e.target.files[0]) handleFile(e.target.files[0]); });
+$("removeImgBtn").addEventListener("click", e=>{ e.stopPropagation(); resetForNew(); });
+
+/* Paste an image from the clipboard (Ctrl+V) anywhere on the page */
+window.addEventListener("paste", e=>{
+  const items = (e.clipboardData && e.clipboardData.items) || [];
+  for(const it of items){
+    if(it.type && it.type.indexOf("image/") === 0){
+      const f = it.getAsFile();
+      if(f){ e.preventDefault(); handleFile(f); return; }
+    }
+  }
+});
+
+/* PDF page navigation */
+$("pdfPrev").addEventListener("click", ()=>{ if(pdfDoc && pdfPage > 1){ pdfPage--; renderPdfPage(); } });
+$("pdfNext").addEventListener("click", ()=>{ if(pdfDoc && pdfPage < pdfDoc.numPages){ pdfPage++; renderPdfPage(); } });
+
+function handleFile(file){
+  const isPdf = file.type === "application/pdf" || /\.pdf$/i.test(file.name || "");
+  const isImg = /^image\/(png|jpe?g|webp)$/.test(file.type);
+  if(!isPdf && !isImg){
+    showMsg("err","Δεκτά αρχεία: PNG, JPG, WEBP ή PDF."); return;
+  }
+  if(file.size > 25*1024*1024){
+    showMsg("err","Το αρχείο είναι πολύ μεγάλο (μέγιστο ~25MB)."); return;
+  }
+  clearPreviousResult();
+  if(isPdf) handlePdf(file);
+  else handleImage(file);
+}
+
+function handleImage(file){
+  pdfDoc = null; $("pdfNav").style.display = "none";
+  const reader = new FileReader();
+  reader.onload = ev=>{
+    setUploaded(ev.target.result, file.type, file.name + "  ·  " + Math.round(file.size/1024) + " KB");
+  };
+  reader.onerror = ()=>showMsg("err","Αποτυχία ανάγνωσης του αρχείου εικόνας.");
+  reader.readAsDataURL(file);
+}
+
+async function handlePdf(file){
+  if(!window.pdfjsLib){ showMsg("err","Η βιβλιοθήκη PDF δεν φόρτωσε (έλεγξε τη σύνδεση στο διαδίκτυο)."); return; }
+  showMsg("ok","Φόρτωση PDF…");
+  try{
+    const buf = await file.arrayBuffer();
+    pdfDoc = await pdfjsLib.getDocument({ data: buf }).promise;
+    pdfPage = 1;
+    pdfDoc._srcName = file.name;
+    await renderPdfPage();
+    hideMsg();
+  }catch(err){
+    pdfDoc = null; $("pdfNav").style.display = "none";
+    showMsg("err","Αποτυχία ανοίγματος PDF: " + (err && err.message ? err.message : err));
+  }
+}
+
+async function renderPdfPage(){
+  if(!pdfDoc) return;
+  const page = await pdfDoc.getPage(pdfPage);
+  const base = page.getViewport({ scale: 1 });
+  // Target ~2000px on the longest side for good rendering quality
+  const scale = Math.min(4, Math.max(1, 2000 / Math.max(base.width, base.height)));
+  const viewport = page.getViewport({ scale });
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.round(viewport.width);
+  canvas.height = Math.round(viewport.height);
+  const ctx = canvas.getContext("2d");
+  ctx.fillStyle = "#ffffff"; ctx.fillRect(0, 0, canvas.width, canvas.height); // white bg for transparent PDFs
+  await page.render({ canvasContext: ctx, viewport }).promise;
+  const dataUrl = canvas.toDataURL("image/png");
+  const n = pdfDoc.numPages;
+  $("pdfNav").style.display = n > 1 ? "flex" : "none";
+  $("pdfPageLabel").textContent = pdfPage + " / " + n;
+  $("pdfPrev").disabled = pdfPage <= 1;
+  $("pdfNext").disabled = pdfPage >= n;
+  setUploaded(dataUrl, "image/png", (pdfDoc._srcName || "PDF") + "  ·  σελ. " + pdfPage + "/" + n);
+}
+
+/* Commit a data URL as the active plan image */
+function setUploaded(dataUrl, mimeType, label){
+  uploadedImage = { dataUrl, base64: dataUrl.split(",")[1], mimeType };
+  previewImg.src = dataUrl;
+  fname.textContent = label;
+  previewIn.style.display = "block";
+  generateBtn.disabled = false;
+}
+
+/* A new plan invalidates any previous result */
+function clearPreviousResult(){
+  currentResults = [];
+  activeResultIndex = 0;
+  gallery.innerHTML = "";
+  resultPanel.style.display = "none";
+  $("refineInput").value = "";
+  showRefineMsg("", "");
+  hideMsg();
+}
+
+/* ---------- Prompt builder ---------- */
+function buildPrompt(styleObj){
+  const notes = $("notes").value.trim();
+  const notesText = notes ? ` Additional client requirements: ${notes}.` : "";
+  const strength = $("quality").value;
+  const isFaithful = !!styleObj.faithful;
+  // "Faithful" style, or "preserve" strength for any style, means: geometry-locked.
+  const geometryLocked = isFaithful || strength === "preserve";
+
+  const noText = "Output a single high-quality, photorealistic image. Do not add any text, labels, dimensions, watermarks or borders.";
+
+  // Absolute, non-negotiable geometry lock shared by every style in "preserve" mode.
+  const LOCK = "ABSOLUTE TOP-PRIORITY RULE, overriding the chosen style and everything else: the original architectural design MUST be preserved with 100% fidelity. Every wall, partition, door, window and other opening, roof, staircase, column, balcony and fixed structural element must keep the EXACT same position, size, shape, count, thickness, angle and proportions as in the input image. You may NOT add, remove, move, resize, rotate, straighten, redraw, merge, split or reinterpret ANY architectural element, and you may NOT change the layout or geometry in any way. Treat the input as a locked, immutable template: keep its lines and framing pixel-for-pixel and change ONLY surface colors, textures and material finishes. If the style would imply any architectural change, ignore that part of the style — geometry always wins.";
+
+  /* --- Exterior 3D view of the building & surroundings --- */
+  if(selectedMode === "exterior"){
+    if(geometryLocked){
+      const styleClause = isFaithful
+        ? "Do NOT restyle the building; render its existing surfaces with natural, realistic colors and materials only."
+        : `Apply ONLY the surface materials, finishes and color palette of a ${styleObj.ext} onto the unchanged surfaces; take nothing structural or architectural from that style.`;
+      return `You are performing a STRICT in-place material/color edit of the provided architectural drawing of a residential building, keeping it exactly as drawn. ${LOCK} ${styleClause} You may add a realistic landscaped ground context (garden, lawn, planting, pathways) around the building only, without touching the building itself, under natural daylight with soft shadows and a clear sky. Output a photorealistic image at the same viewpoint and framing as the input. ${noText}`;
+    }
+    const fidelity = strength === "creative"
+      ? "Use the plan's footprint as loose inspiration for the massing."
+      : "Respect the building's footprint shape, proportions and approximate number of storeys as implied by the plan.";
+    return `You are an expert architectural visualization AI. The provided image is a 2D architectural drawing (floor plan / site plan) of a residential building. Generate a photorealistic exterior 3D architectural rendering of the finished building and its surroundings, viewed from an eye-level three-quarter perspective from the garden. ${fidelity} Design the building in a ${styleObj.ext}. Include a realistic facade, roof, windows, entrance, and a landscaped surrounding area (garden, lawn, planting, pathways, driveway) with natural daylight, soft shadows, a clear sky and professional real-estate composition.${notesText} ${noText}`;
+  }
+
+  /* --- Interior top-down (bird's-eye) --- */
+  if(geometryLocked){
+    const styleClause = isFaithful
+      ? "Do NOT redecorate or restyle. Render the existing surfaces and any drawn elements with natural, realistic colors, textures and lighting only."
+      : `Apply ONLY the surface finishes, materials and color palette of a ${styleObj.prompt} onto the existing floors, walls and drawn elements; do NOT add, remove, move or redesign any wall, opening, furniture or object.`;
+    return `You are performing a STRICT in-place material/color edit of the provided 2D architectural floor plan (top-down view) of a residential interior, keeping it exactly as drawn. ${LOCK} ${styleClause} Output a photorealistic top-down (bird's-eye) image at the same orientation and framing as the input, with realistic materials, soft shadows and ambient occlusion.${notesText} ${noText}`;
+  }
+
+  const preserveText = strength === "creative"
+    ? "You may reinterpret finishes and furniture freely, but keep the overall room count and general layout recognizable."
+    : "Keep the wall layout, room boundaries, doors and windows and proportions of the original floor plan; you may choose finishes and furniture freely within each room.";
+  const room = $("roomType").value;
+  const roomText = room ? ` The space is primarily a ${room}; furnish it accordingly.` : " Furnish every room appropriately for its function (living room, bedrooms, kitchen, bathroom, hallways).";
+  const modeText = "Render it as a fully furnished, richly colored top-down (bird's-eye) floor plan visualization: keep the same top-view orientation but show realistic furniture seen from above, textured flooring per room, rugs, plants, realistic materials, soft shadows and ambient occlusion, like a high-end 2D interior presentation board.";
+
+  return `You are an expert interior design visualization AI. The provided image is a 2D architectural floor plan (top-down view) of a residential interior. ${preserveText}${roomText} Decorate the interior in a ${styleObj.prompt}. ${modeText}${notesText} ${noText}`;
+}
+
+/* ---------- Temperature per fidelity level ---------- */
+/* Lower temperature = closer to the original (less invention). */
+function getTemperature(styleObj){
+  if(styleObj && styleObj.faithful) return 0.1;   // Πιστό rendering
+  const s = $("quality").value;
+  if(s === "preserve") return 0.1;                // Πιστή διατήρηση διάταξης
+  if(s === "balanced") return 0.5;                // Ισορροπημένη
+  return 1.0;                                     // Πιο δημιουργική ελευθερία
+}
+
+/* ---------- Gemini call (generic image edit/generate) ---------- */
+async function generateImage(inMime, inBase64, promptText, temperature){
+  const key = apiKeyEl.value.trim();
+  if(!key) throw new Error("NO_KEY");
+
+  const reqParts = [
+    { inlineData: { mimeType: inMime, data: inBase64 } },
+    { text: promptText }
+  ];
+
+  // Try with a temperature; if the API rejects generationConfig, retry once without it.
+  let res, data;
+  for(const withTemp of [true, false]){
+    const body = { contents: [{ role: "user", parts: reqParts }] };
+    if(withTemp) body.generationConfig = { temperature };
+    res = await fetch(ENDPOINT(key), {
+      method:"POST",
+      headers:{ "Content-Type":"application/json" },
+      body: JSON.stringify(body)
+    });
+    data = await res.json().catch(()=>({}));
+    const em0 = (data && data.error && data.error.message) ? data.error.message : "";
+    if(res.ok) break;
+    if(withTemp && res.status === 400 && /temperature|generation_?config/i.test(em0)) continue; // retry without temp
+    break;
+  }
+
+  if(!res.ok){
+    const em = (data && data.error && data.error.message) ? data.error.message : ("HTTP " + res.status);
+    if(res.status === 400 && /API key not valid|API_KEY_INVALID/i.test(em)) throw new Error("BAD_KEY");
+    if(res.status === 429) throw new Error("QUOTA");
+    throw new Error(em);
+  }
+
+  const cand = data.candidates && data.candidates[0];
+  if(!cand){
+    if(data.promptFeedback && data.promptFeedback.blockReason) throw new Error("BLOCKED:"+data.promptFeedback.blockReason);
+    throw new Error("Κενή απάντηση από το μοντέλο.");
+  }
+  const parts = (cand.content && cand.content.parts) || [];
+  const imgPart = parts.find(p => p.inlineData && p.inlineData.data);
+  if(!imgPart){
+    if(cand.finishReason && cand.finishReason !== "STOP") throw new Error("BLOCKED:"+cand.finishReason);
+    const txt = parts.find(p=>p.text);
+    throw new Error("Δεν επιστράφηκε εικόνα" + (txt ? (": " + txt.text.slice(0,140)) : "."));
+  }
+  const mt = imgPart.inlineData.mimeType || "image/png";
+  return `data:${mt};base64,${imgPart.inlineData.data}`;
+}
+
+/* Initial render from the uploaded plan */
+function callGemini(styleObj){
+  return generateImage(uploadedImage.mimeType, uploadedImage.base64, buildPrompt(styleObj), getTemperature(styleObj));
+}
+
+/* Strict, point-edit of an existing result image */
+function buildRefinePrompt(instruction){
+  return `You are performing a STRICT, minimal, localized edit of the provided image. Apply ONLY the following change(s), exactly as described, and nothing else: "${instruction}". ABSOLUTE RULE: every other part of the image must stay pixel-identical to the input — keep the same composition, framing, camera/viewpoint, geometry, walls, openings, roofs, layout, all other objects, materials, colors and lighting completely unchanged. Do NOT restyle, re-render, re-light, reframe, move, add or remove anything that the instruction does not explicitly mention. Make the requested change blend in photorealistically and consistently with the surrounding image. Output a single high-quality image at the exact same dimensions and framing as the input. Do not add any text, labels, watermarks or borders.`;
+}
+function refineImage(dataUrl, instruction){
+  const comma = dataUrl.indexOf(",");
+  const mime = (dataUrl.slice(5, dataUrl.indexOf(";")) || "image/png");
+  const b64 = dataUrl.slice(comma + 1);
+  return generateImage(mime, b64, buildRefinePrompt(instruction), 0.1); // low temp = tight, localized edit
+}
+
+/* ---------- Generate flow ---------- */
+generateBtn.addEventListener("click", async ()=>{
+  if(!uploadedImage){ showMsg("err","Ανέβασε πρώτα μια κάτοψη."); return; }
+  if(!apiKeyEl.value.trim()){ showMsg("err","Καταχώρησε το Gemini API key σου (Βήμα 🔑)."); return; }
+
+  const targets = allStyles.checked ? STYLES.slice() : [STYLES.find(s=>s.id===selectedStyle)];
+  currentResults = [];
+  setLoading(true, targets.length);
+
+  let done = 0, firstErr = null;
+  for(const st of targets){
+    try{
+      updateLoading(`Δημιουργία: ${st.name} (${done+1}/${targets.length})…`);
+      const dataUrl = await callGemini(st);
+      currentResults.push({ styleId:st.id, styleName:st.name, dataUrl });
+      done++;
+      renderResults(); // progressive
+    }catch(err){
+      if(!firstErr) firstErr = err;
+      // continue with remaining styles
+    }
+  }
+
+  setLoading(false);
+  if(currentResults.length === 0){
+    showMsg("err", friendlyError(firstErr));
+  }else{
+    if(firstErr) showMsg("err","Ορισμένα στυλ απέτυχαν: " + friendlyError(firstErr));
+    else showMsg("ok","Ολοκληρώθηκε! " + currentResults.length + " εικόνα(ες).");
+    resultPanel.scrollIntoView({behavior:"smooth", block:"start"});
+  }
+});
+
+function renderResults(){
+  if(currentResults.length === 0) return;
+  resultPanel.style.display = "block";
+  origOut.src = uploadedImage.dataUrl;
+  activeResultIndex = Math.min(activeResultIndex, currentResults.length-1);
+  showResult(activeResultIndex);
+  modelNote.textContent = "Μοντέλο: Google " + MODEL + " · Στυλ: " +
+    currentResults.map(r=>r.styleName).join(", ");
+
+  gallery.innerHTML = "";
+  if(currentResults.length > 1){
+    currentResults.forEach((r, i)=>{
+      const g = document.createElement("div");
+      g.className = "g";
+      g.innerHTML = `<img src="${r.dataUrl}" alt="${r.styleName}"><div class="gl">${r.styleName}</div>`;
+      g.addEventListener("click", ()=>{ showResult(i); });
+      gallery.appendChild(g);
+    });
+  }
+}
+function showResult(i){
+  activeResultIndex = i;
+  const r = currentResults[i];
+  resOut.src = r.dataUrl;
+  resTitle.textContent = "Rendering · " + r.styleName + (r.edited ? " (τροποποιημένο)" : "");
+  $("undoRefineBtn").style.display = (r.history && r.history.length) ? "inline-flex" : "none";
+  showRefineMsg("", "");
+}
+
+/* ---------- Point edit (refine) of the active result ---------- */
+$("refineBtn").addEventListener("click", async ()=>{
+  const r = currentResults[activeResultIndex];
+  if(!r){ return; }
+  const instruction = $("refineInput").value.trim();
+  if(!instruction){ showRefineMsg("err","Γράψε τι θέλεις να αλλάξει."); return; }
+  if(!apiKeyEl.value.trim()){ showRefineMsg("err","Λείπει το API key (Βήμα 🔑)."); return; }
+
+  const btn = $("refineBtn");
+  btn.disabled = true; btn.innerHTML = `<span class="spinner"></span> Εφαρμογή…`;
+  showRefineMsg("ok","Εφαρμογή τροποποίησης…");
+  try{
+    const newUrl = await refineImage(r.dataUrl, instruction);
+    (r.history = r.history || []).push(r.dataUrl); // for undo
+    r.dataUrl = newUrl;
+    r.edited = true;
+    showResult(activeResultIndex);
+    updateGalleryThumb(activeResultIndex);
+    $("refineInput").value = "";
+    showRefineMsg("ok","Έτοιμο. Μπορείς να εφαρμόσεις κι άλλη τροποποίηση ή να κάνεις Αναίρεση.");
+  }catch(err){
+    showRefineMsg("err", friendlyError(err));
+  }finally{
+    btn.disabled = false; btn.innerHTML = "Εφαρμογή τροποποίησης";
+  }
+});
+
+$("undoRefineBtn").addEventListener("click", ()=>{
+  const r = currentResults[activeResultIndex];
+  if(!r || !r.history || !r.history.length) return;
+  r.dataUrl = r.history.pop();
+  if(!r.history.length) r.edited = false;
+  showResult(activeResultIndex);
+  updateGalleryThumb(activeResultIndex);
+  showRefineMsg("ok","Η τελευταία τροποποίηση αναιρέθηκε.");
+});
+
+function updateGalleryThumb(i){
+  const imgs = gallery.querySelectorAll(".g img");
+  if(imgs[i]) imgs[i].src = currentResults[i].dataUrl;
+}
+function showRefineMsg(type, text){ const m=$("refineMsg"); m.className="msg "+type; m.textContent=text; }
+
+$("downloadBtn").addEventListener("click", ()=>{
+  const r = currentResults[activeResultIndex];
+  if(!r) return;
+  const a = document.createElement("a");
+  a.href = r.dataUrl;
+  a.download = "katopsi_render_" + r.styleId + ".png";
+  a.click();
+});
+$("againBtn").addEventListener("click", ()=>{
+  resetForNew();
+  window.scrollTo({top:0, behavior:"smooth"});
+});
+
+/* Clear the uploaded plan, results and inputs so a new plan starts fresh (keeps API key). */
+function resetForNew(){
+  uploadedImage = null;
+  pdfDoc = null; pdfPage = 1;
+  $("pdfNav").style.display = "none";
+  currentResults = [];
+  activeResultIndex = 0;
+  fileInput.value = "";
+  previewImg.removeAttribute("src");
+  fname.textContent = "";
+  previewIn.style.display = "none";
+  origOut.removeAttribute("src");
+  resOut.removeAttribute("src");
+  gallery.innerHTML = "";
+  resultPanel.style.display = "none";
+  generateBtn.disabled = true;
+  hideMsg();
+}
+
+/* ---------- UI helpers ---------- */
+function setLoading(on, n){
+  generateBtn.disabled = on;
+  if(on){
+    generateBtn.innerHTML = `<span class="spinner"></span> Επεξεργασία…`;
+    hideMsg();
+  }else{
+    generateBtn.innerHTML = "✨ Δημιουργία Rendering";
+  }
+}
+function updateLoading(t){
+  generateBtn.innerHTML = `<span class="spinner"></span> ${t}`;
+}
+function showMsg(type, text){ msg.className = "msg " + type; msg.textContent = text; }
+function hideMsg(){ msg.className = "msg"; msg.textContent = ""; }
+
+function friendlyError(err){
+  const m = err ? (err.message || String(err)) : "Άγνωστο σφάλμα.";
+  if(m === "NO_KEY") return "Λείπει το API key.";
+  if(m === "BAD_KEY") return "Μη έγκυρο API key. Έλεγξε το κλειδί στο Google AI Studio.";
+  if(m === "QUOTA") return "Το μοντέλο παραγωγής εικόνας δεν είναι διαθέσιμο στο ΔΩΡΕΑΝ tier (όριο 0). Ενεργοποίησε χρέωση (billing) στο Google AI Studio / Cloud για το project του κλειδιού — κόστος ~4 λεπτά ($) ανά εικόνα. Δες: aistudio.google.com/apikey → Set up billing. (Αν μόλις το ενεργοποίησες, δοκίμασε ξανά σε λίγο.)";
+  if(m.startsWith("BLOCKED:")) return "Η δημιουργία μπλοκαρίστηκε από τα φίλτρα ασφαλείας (" + m.slice(8) + "). Δοκίμασε άλλη εικόνα ή οδηγίες.";
+  if(/Failed to fetch|NetworkError/i.test(m)) return "Πρόβλημα δικτύου κατά την κλήση του API.";
+  return m;
+}
+</script>
+</body>
+</html>

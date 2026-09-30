@@ -7,8 +7,7 @@ const CACHE = 'maps-pin-v2';
 const ASSETS = [
   './maps-pin.html',
   './maps-pin.webmanifest',
-  './maps-pin-icon.svg',
-  './topografika-data.json'
+  './maps-pin-icon.svg'
 ];
 
 self.addEventListener('install', event => {
@@ -33,16 +32,21 @@ self.addEventListener('fetch', event => {
   if (req.method !== 'GET') return;
 
   const url = new URL(req.url);
-  // Μόνο το app shell (ίδιο origin) σερβίρεται από cache· τα υπόλοιπα (ArcGIS,
-  // fonts) πάνε στο δίκτυο.
   if (url.origin !== self.location.origin) return;
 
+  // ΜΟΝΟ το app shell της Πινέζας διαχειρίζεται ο SW. Οτιδήποτε άλλο ίδιου
+  // origin (index.html / dashboard, τα υπόλοιπα εργαλεία) πάει ΚΑΤΕΥΘΕΙΑΝ στο
+  // δίκτυο — ώστε να μη «μένει» ποτέ παλιά έκδοση από cache.
+  const isShell = /\/(maps-pin\.html|maps-pin\.webmanifest|maps-pin-icon\.svg)$/.test(url.pathname);
+  if (!isShell) return; // default network handling από τον browser
+
+  // Network-first για το shell: πάντα η φρέσκια έκδοση όταν υπάρχει δίκτυο,
+  // με fallback στο cache όταν είμαστε offline.
   event.respondWith(
-    caches.match(req).then(cached => cached || fetch(req).then(res => {
-      // Ενημέρωση cache για μελλοντική offline χρήση
+    fetch(req).then(res => {
       const copy = res.clone();
       caches.open(CACHE).then(c => c.put(req, copy)).catch(() => {});
       return res;
-    }).catch(() => cached))
+    }).catch(() => caches.match(req))
   );
 });

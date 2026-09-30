@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#161b22"/>
+      <stop offset="1" stop-color="#0e1116"/>
+    </linearGradient>
+    <linearGradient id="acc" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#ff9a3c"/>
+      <stop offset="1" stop-color="#ff7a18"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="96" fill="url(#bg)"/>
+  <!-- business card -->
+  <rect x="96" y="150" width="320" height="212" rx="20" fill="#1c232d" stroke="#2a323d" stroke-width="4"/>
+  <circle cx="158" cy="212" r="26" fill="url(#acc)"/>
+  <rect x="200" y="196" width="150" height="16" rx="8" fill="#e6edf3"/>
+  <rect x="200" y="224" width="110" height="12" rx="6" fill="#8b97a7"/>
+  <rect x="128" y="272" width="256" height="10" rx="5" fill="#3a4552"/>
+  <rect x="128" y="298" width="200" height="10" rx="5" fill="#3a4552"/>
+  <rect x="128" y="324" width="160" height="10" rx="5" fill="#3a4552"/>
+  <!-- scan line -->
+  <rect x="76" y="246" width="360" height="8" rx="4" fill="url(#acc)" opacity="0.95"/>
+  <!-- scanner corners -->
+  <g stroke="url(#acc)" stroke-width="10" stroke-linecap="round" fill="none">
+    <path d="M96 132 v-26 a10 10 0 0 1 10 -10 h26"/>
+    <path d="M416 132 v-26 a10 10 0 0 0 -10 -10 h-26"/>
+    <path d="M96 380 v26 a10 10 0 0 0 10 10 h26"/>
+    <path d="M416 380 v26 a10 10 0 0 1 -10 10 h-26"/>
+  </g>
+</svg>

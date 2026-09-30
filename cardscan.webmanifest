@@ -1,0 +1,22 @@
+{
+  "name": "CardScan — Σαρωτής Επαγγελματικών Καρτών",
+  "short_name": "CardScan",
+  "description": "Φωτογράφισε τις δύο όψεις μιας επαγγελματικής κάρτας, διάβασε αυτόματα τα στοιχεία (όνομα, email, τηλέφωνο, διεύθυνση) και αποθήκευσέ τα ανά κατηγορία επαγγέλματος μαζί με τις φωτογραφίες.",
+  "lang": "el",
+  "dir": "ltr",
+  "start_url": "./cardscan.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "theme_color": "#0e1116",
+  "background_color": "#0e1116",
+  "categories": ["business", "productivity", "utilities"],
+  "icons": [
+    {
+      "src": "cardscan-icon.svg",
+      "sizes": "192x192 512x512 any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

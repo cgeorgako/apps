@@ -1,0 +1,1617 @@
+<!DOCTYPE html>
+<html lang="el">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#0e1116">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="CardScan">
+<title>CardScan — Σαρωτής Επαγγελματικών Καρτών</title>
+<link rel="manifest" href="cardscan.webmanifest">
+<link rel="apple-touch-icon" href="cardscan-icon.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0e1116; --panel:#161b22; --panel-2:#1c232d; --line:#2a323d;
+    --txt:#e6edf3; --txt-dim:#8b97a7;
+    --acc:#ff7a18; --acc-2:#ff9a3c; --acc-soft:rgba(255,122,24,.12);
+    --ok:#10b981; --ok-soft:rgba(16,185,129,.15);
+    --danger:#ef4444; --danger-soft:rgba(239,68,68,.14);
+    --info:#3b82f6; --info-soft:rgba(59,130,246,.15);
+    --mono:'IBM Plex Mono',monospace; --sans:'IBM Plex Sans',sans-serif;
+    --radius:14px;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+  html,body{height:100%;}
+  body{
+    font-family:var(--sans); background:var(--bg); color:var(--txt);
+    background-image:
+      radial-gradient(circle at 15% 0%,rgba(255,122,24,.06),transparent 42%),
+      linear-gradient(#1b212b 1px,transparent 1px),
+      linear-gradient(90deg,#1b212b 1px,transparent 1px);
+    background-size:auto,30px 30px,30px 30px;
+    min-height:100vh; padding-bottom:calc(84px + env(safe-area-inset-bottom));
+    -webkit-font-smoothing:antialiased;
+  }
+  .app{max-width:720px; margin:0 auto; padding:0 16px;}
+
+  /* Header */
+  header.topbar{
+    position:sticky; top:0; z-index:20;
+    background:rgba(14,17,22,.86); backdrop-filter:blur(10px);
+    border-bottom:1px solid var(--line);
+    padding:calc(12px + env(safe-area-inset-top)) 16px 12px;
+    margin:0 -16px 18px; display:flex; align-items:center; gap:12px;
+  }
+  .topbar .logo{width:38px;height:38px;border-radius:10px;flex-shrink:0;}
+  .topbar .titles{flex:1; min-width:0;}
+  .topbar h1{font-size:18px;font-weight:700;letter-spacing:-.02em;line-height:1.1;}
+  .topbar .maker{font-family:var(--mono);font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--acc);}
+  .iconbtn{
+    width:40px;height:40px;border-radius:10px;border:1px solid var(--line);
+    background:var(--panel);color:var(--txt);font-size:18px;cursor:pointer;
+    display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:.15s;
+  }
+  .iconbtn:hover{border-color:var(--acc);color:var(--acc);}
+
+  /* Back button row */
+  .backrow{display:flex;align-items:center;gap:10px;margin-bottom:16px;}
+  .backbtn{background:none;border:none;color:var(--acc);font-size:15px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px;font-family:var(--sans);}
+  .viewtitle{font-size:22px;font-weight:700;letter-spacing:-.02em;margin:2px 0 4px;}
+  .viewsub{color:var(--txt-dim);font-size:13px;margin-bottom:18px;line-height:1.5;}
+
+  /* Search */
+  .search{position:relative;margin-bottom:18px;}
+  .search input{
+    width:100%;background:var(--panel);border:1px solid var(--line);border-radius:12px;
+    padding:13px 14px 13px 42px;color:var(--txt);font-size:15px;font-family:var(--sans);
+  }
+  .search input:focus{outline:none;border-color:var(--acc);}
+  .search::before{content:"🔍";position:absolute;left:14px;top:50%;transform:translateY(-50%);font-size:15px;opacity:.7;}
+
+  /* Category grid */
+  .cat-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;}
+  @media(min-width:520px){.cat-grid{grid-template-columns:repeat(3,1fr);}}
+  .cat{
+    background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);
+    padding:16px;cursor:pointer;transition:.16s;text-align:left;color:var(--txt);
+    display:flex;flex-direction:column;gap:8px;min-height:104px;position:relative;overflow:hidden;
+  }
+  .cat:hover,.cat:active{border-color:rgba(255,122,24,.4);background:var(--panel-2);transform:translateY(-2px);}
+  .cat .emoji{font-size:24px;}
+  .cat .name{font-size:14px;font-weight:600;line-height:1.25;}
+  .cat .count{
+    font-family:var(--mono);font-size:11px;color:var(--acc);margin-top:auto;
+    background:var(--acc-soft);padding:2px 8px;border-radius:20px;align-self:flex-start;
+  }
+
+  /* Section label */
+  .section-label{
+    font-family:var(--mono);font-size:12px;font-weight:600;text-transform:uppercase;
+    letter-spacing:.1em;color:var(--txt-dim);margin:26px 0 12px;display:flex;align-items:center;gap:8px;
+  }
+  .section-label::after{content:"";flex:1;height:1px;background:var(--line);}
+
+  /* Card list rows */
+  .clist{display:flex;flex-direction:column;gap:10px;}
+  .crow{
+    background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px;
+    display:flex;gap:12px;align-items:center;cursor:pointer;transition:.15s;text-align:left;color:var(--txt);width:100%;
+  }
+  .crow:hover,.crow:active{border-color:var(--acc);background:var(--panel-2);}
+  .crow .thumb{
+    width:56px;height:40px;border-radius:8px;flex-shrink:0;background:var(--panel-2);
+    border:1px solid var(--line);object-fit:cover;display:flex;align-items:center;justify-content:center;font-size:18px;color:var(--txt-dim);
+  }
+  .crow .cinfo{flex:1;min-width:0;}
+  .crow .cname{font-size:15px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .crow .cmeta{font-size:12px;color:var(--txt-dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px;}
+  .crow .cbadge{font-family:var(--mono);font-size:9.5px;text-transform:uppercase;letter-spacing:.08em;color:var(--acc);background:var(--acc-soft);padding:2px 7px;border-radius:20px;flex-shrink:0;}
+
+  .empty{text-align:center;color:var(--txt-dim);padding:48px 20px;font-size:14px;line-height:1.6;}
+  .empty .big{font-size:44px;display:block;margin-bottom:12px;opacity:.6;}
+
+  /* Buttons */
+  .btn{
+    display:inline-flex;align-items:center;justify-content:center;gap:8px;
+    padding:14px 18px;border-radius:12px;font-size:15px;font-weight:600;font-family:var(--sans);
+    border:1px solid var(--line);background:var(--panel);color:var(--txt);cursor:pointer;transition:.15s;width:100%;
+  }
+  .btn:hover{border-color:var(--acc);}
+  .btn-primary{background:linear-gradient(135deg,var(--acc-2),var(--acc));border:none;color:#1a0e02;}
+  .btn-primary:hover{filter:brightness(1.06);}
+  .btn-danger{background:var(--danger-soft);border-color:rgba(239,68,68,.4);color:#ff9b9b;}
+  .btn-danger:hover{border-color:var(--danger);}
+  .btn-ghost{background:transparent;}
+  .btn:disabled{opacity:.5;cursor:not-allowed;}
+  .btn-row{display:flex;gap:10px;margin-top:8px;}
+
+  /* Scan side capture */
+  .sides{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px;}
+  @media(max-width:420px){.sides{grid-template-columns:1fr;}}
+  .side{
+    background:var(--panel);border:1.5px dashed var(--line);border-radius:var(--radius);
+    aspect-ratio:1.6/1;position:relative;overflow:hidden;display:flex;flex-direction:column;
+    align-items:center;justify-content:center;gap:8px;cursor:pointer;transition:.15s;color:var(--txt-dim);
+  }
+  .side:hover{border-color:var(--acc);color:var(--acc);}
+  .side.filled{border-style:solid;border-color:var(--line);color:var(--txt);}
+  .side img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;}
+  .side .side-emoji{font-size:30px;}
+  .side .side-label{font-size:12.5px;font-weight:600;}
+  .side .side-hint{font-family:var(--mono);font-size:9.5px;text-transform:uppercase;letter-spacing:.1em;}
+  .side .retake{
+    position:absolute;bottom:8px;right:8px;background:rgba(14,17,22,.85);border:1px solid var(--line);
+    color:var(--txt);font-size:11px;padding:5px 10px;border-radius:20px;z-index:2;backdrop-filter:blur(4px);
+  }
+  .side .rotbtn{
+    position:absolute;bottom:8px;left:8px;background:rgba(14,17,22,.85);border:1px solid var(--line);
+    color:var(--txt);font-size:15px;width:32px;height:32px;line-height:1;border-radius:50%;z-index:3;
+    cursor:pointer;backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center;
+  }
+  .side .rotbtn:hover{border-color:var(--acc);color:var(--acc);}
+  .side .side-proc{
+    position:absolute;inset:0;z-index:4;background:rgba(14,17,22,.72);backdrop-filter:blur(2px);
+    display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;
+    font-size:12px;color:var(--txt);
+  }
+  .side .tag-side{
+    position:absolute;top:8px;left:8px;background:rgba(14,17,22,.8);color:var(--acc);
+    font-family:var(--mono);font-size:9px;text-transform:uppercase;letter-spacing:.1em;padding:3px 8px;border-radius:20px;z-index:2;
+  }
+
+  /* OCR progress */
+  .ocr-box{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px;margin-bottom:16px;}
+  .ocr-box .ocr-status{display:flex;align-items:center;gap:10px;font-size:13px;color:var(--txt-dim);margin-bottom:10px;}
+  .spinner{width:18px;height:18px;border:2px solid var(--line);border-top-color:var(--acc);border-radius:50%;animation:spin .8s linear infinite;flex-shrink:0;}
+  @keyframes spin{to{transform:rotate(360deg);}}
+  .bar{height:6px;background:var(--panel-2);border-radius:6px;overflow:hidden;}
+  .bar > i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--acc-2),var(--acc));transition:width .3s;}
+
+  /* Form */
+  .form{display:flex;flex-direction:column;gap:14px;}
+  .field label{display:block;font-size:12px;font-weight:600;color:var(--txt-dim);margin-bottom:6px;text-transform:uppercase;letter-spacing:.05em;}
+  .field input,.field textarea,.field select{
+    width:100%;background:var(--panel);border:1px solid var(--line);border-radius:10px;
+    padding:12px 13px;color:var(--txt);font-size:15px;font-family:var(--sans);
+  }
+  .field textarea{resize:vertical;min-height:70px;line-height:1.5;}
+  .field input:focus,.field textarea:focus,.field select:focus{outline:none;border-color:var(--acc);}
+  .field select{appearance:none;background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%238b97a7' stroke-width='2'><path d='M6 9l6 6 6-6'/></svg>");background-repeat:no-repeat;background-position:right 13px center;padding-right:36px;}
+  .multi{display:flex;flex-direction:column;gap:8px;}
+  .multi .mrow{display:flex;gap:8px;}
+  .multi .mrow input{flex:1;}
+  .multi .mrow button{width:44px;flex-shrink:0;background:var(--panel);border:1px solid var(--line);color:var(--txt-dim);border-radius:10px;font-size:18px;cursor:pointer;}
+  .multi .mrow button:hover{border-color:var(--danger);color:var(--danger);}
+  .addmini{background:none;border:1px dashed var(--line);color:var(--acc);border-radius:10px;padding:9px;font-size:13px;font-weight:600;cursor:pointer;font-family:var(--sans);}
+  .addmini:hover{border-color:var(--acc);}
+
+  /* Detail */
+  .detail-imgs{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:18px;}
+  .detail-imgs img{width:100%;border-radius:12px;border:1px solid var(--line);aspect-ratio:1.6/1;object-fit:cover;background:var(--panel);cursor:zoom-in;}
+  .dfield{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:13px 14px;margin-bottom:10px;display:flex;align-items:center;gap:12px;}
+  .dfield .dico{font-size:18px;width:24px;text-align:center;flex-shrink:0;}
+  .dfield .dwrap{flex:1;min-width:0;}
+  .dfield .dlabel{font-size:11px;color:var(--txt-dim);text-transform:uppercase;letter-spacing:.05em;}
+  .dfield .dval{font-size:15px;font-weight:500;margin-top:2px;word-break:break-word;}
+  .dfield a.dval{color:var(--info);text-decoration:none;}
+  .dfield .callbtn{background:var(--ok-soft);border:1px solid rgba(16,185,129,.35);color:var(--ok);width:38px;height:38px;border-radius:10px;font-size:16px;display:flex;align-items:center;justify-content:center;flex-shrink:0;text-decoration:none;}
+
+  /* FAB */
+  .fab{
+    position:fixed;left:50%;transform:translateX(-50%);
+    bottom:calc(18px + env(safe-area-inset-bottom));z-index:30;
+    background:linear-gradient(135deg,var(--acc-2),var(--acc));color:#1a0e02;
+    border:none;border-radius:30px;padding:15px 26px;font-size:15px;font-weight:700;font-family:var(--sans);
+    box-shadow:0 8px 24px rgba(255,122,24,.35);cursor:pointer;display:flex;align-items:center;gap:8px;
+  }
+  .fab:active{transform:translateX(-50%) scale(.97);}
+
+  /* Modal / lightbox */
+  .lightbox{position:fixed;inset:0;background:rgba(0,0,0,.92);z-index:60;display:none;align-items:center;justify-content:center;padding:20px;}
+  .lightbox.open{display:flex;}
+  .lightbox img{max-width:100%;max-height:90vh;border-radius:10px;}
+  .lightbox .close{position:absolute;top:calc(14px + env(safe-area-inset-top));right:16px;font-size:30px;color:#fff;background:none;border:none;cursor:pointer;}
+
+  /* Toast */
+  .toast{
+    position:fixed;left:50%;transform:translateX(-50%);bottom:calc(90px + env(safe-area-inset-bottom));
+    background:var(--panel-2);border:1px solid var(--line);color:var(--txt);
+    padding:12px 18px;border-radius:12px;font-size:14px;z-index:70;box-shadow:0 8px 24px rgba(0,0,0,.4);
+    opacity:0;pointer-events:none;transition:.25s;max-width:90%;text-align:center;
+  }
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+  .toast.err{border-color:rgba(239,68,68,.5);}
+
+  .chip-row{display:flex;flex-wrap:wrap;gap:8px;margin:6px 0 4px;}
+  .chip{background:var(--panel);border:1px solid var(--line);color:var(--txt-dim);border-radius:20px;padding:6px 12px;font-size:12.5px;cursor:pointer;transition:.15s;}
+  .chip:hover{border-color:var(--acc);}
+  .chip.active{background:var(--acc-soft);border-color:var(--acc);color:var(--acc);}
+
+  .ai-banner{display:flex;align-items:center;gap:10px;background:var(--panel);border:1px solid rgba(255,122,24,.35);
+    border-radius:12px;padding:11px 12px;margin-bottom:12px;font-size:12.5px;line-height:1.45;color:var(--txt-dim);}
+  .ai-banner.ok{border-color:rgba(16,185,129,.35);}
+  .ai-banner span{flex:1;}
+  .ai-banner button{background:var(--panel-2);border:1px solid var(--line);color:var(--txt);border-radius:8px;
+    padding:7px 11px;font-size:12px;font-weight:600;cursor:pointer;font-family:var(--sans);flex-shrink:0;}
+  .ai-banner button:hover{border-color:var(--acc);color:var(--acc);}
+  .hidden{display:none!important;}
+  .hint-inline{font-size:12px;color:var(--txt-dim);margin-top:6px;line-height:1.5;}
+  footer.credit{margin-top:34px;text-align:center;font-family:var(--mono);font-size:11px;color:#5c6675;letter-spacing:.5px;padding:16px 0;border-top:1px solid var(--line);}
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="topbar">
+    <img src="cardscan-icon.svg" alt="CardScan" class="logo">
+    <div class="titles">
+      <h1>CardScan</h1>
+      <div class="maker">CG apps</div>
+    </div>
+    <button class="iconbtn" id="menuBtn" title="Επιλογές" aria-label="Επιλογές">⋯</button>
+  </header>
+
+  <main id="view"><!-- views render here --></main>
+
+  <footer class="credit">CardScan · CG apps · τοπική αποθήκευση στη συσκευή σου</footer>
+</div>
+
+<!-- Floating action button -->
+<button class="fab" id="fab" aria-label="Νέα σάρωση">📷 Σάρωση κάρτας</button>
+
+<!-- Lightbox -->
+<div class="lightbox" id="lightbox">
+  <button class="close" id="lightboxClose" aria-label="Κλείσιμο">×</button>
+  <img id="lightboxImg" alt="">
+</div>
+
+<div class="toast" id="toast"></div>
+
+<!-- Tesseract.js OCR από CDN -->
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js"></script>
+<script>
+'use strict';
+
+/* ============================================================
+   CardScan — CG apps
+   Single-file PWA: φωτογράφιση 2 όψεων κάρτας → OCR (ell+eng)
+   → αυτόματη αναγνώριση στοιχείων → αποθήκευση ανά κατηγορία
+   σε IndexedDB (μαζί με τις φωτογραφίες).
+   ============================================================ */
+
+/* ---------- Κατηγορίες ---------- */
+const DEFAULT_CATEGORIES = [
+  'Πισίνες','Μπετατζής/Σιδεράς','Χτίστης','Επιχρίσματα/Σοβάδες','Γυψοσανίδες',
+  'Δάπεδα/Πλακάκια/Μάρμαρα','Χρωματισμοί','Σκεπές','Μονώσεις','Υδρορροές','Πετράς',
+  'Αλουμίνια','Σιδηρικά','Ηλεκτρολόγος','Υδραυλικός','Τέντες-Πέργκολες','Συναγερμοί',
+  'Δικηγόρος','Μηχανικός'
+];
+const CATEGORY_EMOJI = {
+  'Πισίνες':'🏊','Μπετατζής/Σιδεράς':'🏗️','Χτίστης':'🧱','Επιχρίσματα/Σοβάδες':'🪣',
+  'Γυψοσανίδες':'⬜','Δάπεδα/Πλακάκια/Μάρμαρα':'🪨','Χρωματισμοί':'🎨','Σκεπές':'🏠',
+  'Μονώσεις':'🧊','Υδρορροές':'🌧️','Πετράς':'⛏️','Αλουμίνια':'🪟','Σιδηρικά':'🔩',
+  'Ηλεκτρολόγος':'⚡','Υδραυλικός':'🚰','Τέντες-Πέργκολες':'⛱️','Συναγερμοί':'🚨',
+  'Δικηγόρος':'⚖️','Μηχανικός':'📐','Άλλο':'📁'
+};
+const OTHER = 'Άλλο';
+
+function catEmoji(c){ return CATEGORY_EMOJI[c] || '📁'; }
+
+function getCategories(){
+  let extra=[];
+  try{ extra = JSON.parse(localStorage.getItem('cardscan.categories')||'[]'); }catch(e){}
+  const set=[];
+  [...DEFAULT_CATEGORIES, ...extra].forEach(c=>{ if(c && !set.includes(c)) set.push(c); });
+  set.push(OTHER);
+  return set;
+}
+function addCustomCategory(name){
+  name=(name||'').trim(); if(!name) return;
+  let extra=[]; try{ extra=JSON.parse(localStorage.getItem('cardscan.categories')||'[]'); }catch(e){}
+  if(!DEFAULT_CATEGORIES.includes(name) && !extra.includes(name) && name!==OTHER){
+    extra.push(name); localStorage.setItem('cardscan.categories', JSON.stringify(extra));
+  }
+}
+
+/* Λέξεις-κλειδιά για αυτόματη αναγνώριση κατηγορίας (accent-insensitive) */
+const CATEGORY_KEYWORDS = {
+  'Πισίνες':['πισιν','pool','spa','τζακουζι','jacuzzi','υδρομασαζ'],
+  'Μπετατζής/Σιδεράς':['μπετατζ','μπετον','μπετο','σκυροδεμ','beton','σιδερα','σιδηρωσ','οπλισμ','καλουπ','αρματουρ','οικοδομ','εργολαβ'],
+  'Χτίστης':['χτιστ','κτιστ','χτισιμ','κτισιμ','τοιχοποι','τουβλ','τουβλα','λιθοπετρα'],
+  'Επιχρίσματα/Σοβάδες':['σοβα','επιχρισμ','plaster','μαρμαροκονι','σπατουλαρισμ'],
+  'Γυψοσανίδες':['γυψοσανιδ','ξηρα δομ','ξηρα δομηση','gypsum','knauf'],
+  'Δάπεδα/Πλακάκια/Μάρμαρα':['πλακακ','δαπεδ','μαρμαρ','πλακοστρωσ','granite','γρανιτ','tile','ceramic','κεραμικ','πλακιδ','ψηφιδ','flooring'],
+  'Χρωματισμοί':['χρωματ','βαφ','μπογι','ελαιοχρωμ','paint','ριπολιν','βερνικ'],
+  'Σκεπές':['σκεπ','στεγ','κεραμιδ','roof','ταρατσ','ασφαλτοπαν','ξυλινη στεγη'],
+  'Μονώσεις':['μονωσ','θερμομονωσ','υγρομονωσ','στεγανοποι','insulation','θερμοπροσοψ'],
+  'Υδρορροές':['υδρορρο','ομβρι','λουκι','νεροσταλακτ'],
+  'Πετράς':['λιθοδομ','πετρας','πετρα ','stone','λιθος','λιθικ','πετρωμ'],
+  'Αλουμίνια':['αλουμιν','κουφωματ','κουφωμα','aluminium','aluminum','συνθετικα κουφ','pvc'],
+  'Σιδηρικά':['σιδηρικ','κιγκαλ','κιγκαλερι','εργαλει','ματζορ'],
+  'Ηλεκτρολόγος':['ηλεκτρολογ','ηλεκτρικ','electrician','ηλεκτρολ','ηλεκτρ εγκατ'],
+  'Υδραυλικός':['υδραυλικ','plumber','θερμανσ','αποχετευσ','θερμοϋδραυλ','καλοριφερ','λεβητ'],
+  'Τέντες-Πέργκολες':['τεντ','περγκολ','σκιαστρ','awning','pergola','σκιαση','ομπρελ'],
+  'Συναγερμοί':['συναγερμ','alarm','cctv','καμερ','security','συστηματα ασφαλει'],
+  'Δικηγόρος':['δικηγορ','νομικ','lawyer',' law ','δικαστ','αδεια ασκησεως'],
+  'Μηχανικός':['μηχανικ','engineer','αρχιτεκτ','architect','τοπογραφ','μηχανολογ','πολιτικος μηχ','διπλ. μηχ','τεχνικο γραφειο']
+};
+/* διόρθωση κλειδιού με τόνο ώστε να ταιριάζει με πραγματική κατηγορία */
+const KEYMAP_FIX = {};
+
+function normalizeGr(s){
+  return (s||'').toString().toLowerCase()
+    .normalize('NFD').replace(/[̀-ͯ]/g,'') // αφαίρεση τόνων
+    .replace(/ς/g,'σ');
+}
+function detectCategory(text){
+  const t=normalizeGr(text);
+  let best=null,bestScore=0;
+  for(const [cat,words] of Object.entries(CATEGORY_KEYWORDS)){
+    let score=0;
+    for(const w of words){ if(t.includes(normalizeGr(w))) score++; }
+    if(score>bestScore){ bestScore=score; best=cat; }
+  }
+  if(!best) return '';
+  return KEYMAP_FIX[best] || best;
+}
+
+/* ---------- IndexedDB ---------- */
+const DB_NAME='cardscan', DB_VER=2, STORE='cards';
+let _db=null;
+function openDB(){
+  return new Promise((res,rej)=>{
+    if(_db) return res(_db);
+    const req=indexedDB.open(DB_NAME,DB_VER);
+    req.onupgradeneeded=e=>{
+      const db=e.target.result;
+      if(!db.objectStoreNames.contains(STORE)){
+        const os=db.createObjectStore(STORE,{keyPath:'id'});
+        os.createIndex('category','category',{unique:false});
+        os.createIndex('createdAt','createdAt',{unique:false});
+      }
+      if(!db.objectStoreNames.contains('kv')){ db.createObjectStore('kv'); }
+    };
+    req.onsuccess=e=>{ _db=e.target.result; res(_db); };
+    req.onerror=e=>rej(e.target.error);
+  });
+}
+function tx(mode){ return openDB().then(db=>db.transaction(STORE,mode).objectStore(STORE)); }
+function kvGet(key){ return openDB().then(db=>new Promise((res,rej)=>{ const r=db.transaction('kv','readonly').objectStore('kv').get(key); r.onsuccess=()=>res(r.result); r.onerror=e=>rej(e.target.error); })); }
+function kvSet(key,val){ return openDB().then(db=>new Promise((res,rej)=>{ const r=db.transaction('kv','readwrite').objectStore('kv').put(val,key); r.onsuccess=()=>res(); r.onerror=e=>rej(e.target.error); })); }
+function dbAll(){ return tx('readonly').then(os=>new Promise((res,rej)=>{
+  const out=[]; const c=os.openCursor();
+  c.onsuccess=e=>{ const cur=e.target.result; if(cur){ out.push(cur.value); cur.continue(); } else res(out); };
+  c.onerror=e=>rej(e.target.error);
+})); }
+function dbGet(id){ return tx('readonly').then(os=>new Promise((res,rej)=>{ const r=os.get(id); r.onsuccess=()=>res(r.result); r.onerror=e=>rej(e.target.error); })); }
+function dbPut(rec){ return tx('readwrite').then(os=>new Promise((res,rej)=>{ const r=os.put(rec); r.onsuccess=()=>res(rec); r.onerror=e=>rej(e.target.error); })); }
+function dbDel(id){ return tx('readwrite').then(os=>new Promise((res,rej)=>{ const r=os.delete(id); r.onsuccess=()=>res(); r.onerror=e=>rej(e.target.error); })); }
+
+/* ---------- Βοηθητικά UI ---------- */
+const $=(s,el=document)=>el.querySelector(s);
+const $$=(s,el=document)=>[...el.querySelectorAll(s)];
+const viewEl=$('#view');
+function esc(s){ return (s==null?'':String(s)).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
+let toastT=null;
+function toast(msg,isErr){
+  const t=$('#toast'); t.textContent=msg; t.className='toast show'+(isErr?' err':'');
+  clearTimeout(toastT); toastT=setTimeout(()=>t.className='toast',2600);
+}
+function openLightbox(src){ $('#lightboxImg').src=src; $('#lightbox').classList.add('open'); }
+$('#lightboxClose').onclick=()=>$('#lightbox').classList.remove('open');
+$('#lightbox').onclick=e=>{ if(e.target.id==='lightbox') $('#lightbox').classList.remove('open'); };
+
+/* ============================================================
+   Επεξεργασία εικόνας κάρτας:
+   EXIF προσανατολισμός → αυτόματο crop/ίσιωμα (OpenCV) → προεπεξεργασία OCR
+   ============================================================ */
+
+// Φόρτωση εικόνας με σωστό EXIF προσανατολισμό
+async function loadBitmap(file){
+  if('createImageBitmap' in window){
+    try{ return await createImageBitmap(file,{imageOrientation:'from-image'}); }catch(e){}
+    try{ return await createImageBitmap(file); }catch(e){}
+  }
+  const url=URL.createObjectURL(file);
+  try{ return await new Promise((res,rej)=>{ const i=new Image(); i.onload=()=>res(i); i.onerror=rej; i.src=url; }); }
+  finally{ setTimeout(()=>URL.revokeObjectURL(url),2000); }
+}
+function drawToCanvas(bmp,maxDim){
+  let w=bmp.width||bmp.naturalWidth, h=bmp.height||bmp.naturalHeight;
+  const scale=Math.min(1, maxDim/Math.max(w,h));
+  const cw=Math.max(1,Math.round(w*scale)), ch=Math.max(1,Math.round(h*scale));
+  const cv=document.createElement('canvas'); cv.width=cw; cv.height=ch;
+  const ctx=cv.getContext('2d'); ctx.imageSmoothingQuality='high'; ctx.drawImage(bmp,0,0,cw,ch);
+  return cv;
+}
+function canvasToJpeg(canvas,maxW,q){
+  let w=canvas.width,h=canvas.height;
+  if(w>maxW){ h=Math.round(h*maxW/w); w=maxW;
+    const t=document.createElement('canvas'); t.width=w; t.height=h;
+    const c=t.getContext('2d'); c.imageSmoothingQuality='high'; c.drawImage(canvas,0,0,w,h); canvas=t; }
+  return canvas.toDataURL('image/jpeg',q||0.85);
+}
+function rotateCanvas(canvas,deg){
+  const rad=deg*Math.PI/180, s=Math.abs(Math.sin(rad)), c=Math.abs(Math.cos(rad));
+  const w=canvas.width, h=canvas.height;
+  const nw=Math.round(w*c+h*s), nh=Math.round(w*s+h*c);
+  const out=document.createElement('canvas'); out.width=nw; out.height=nh;
+  const ctx=out.getContext('2d'); ctx.imageSmoothingQuality='high';
+  ctx.translate(nw/2,nh/2); ctx.rotate(rad); ctx.drawImage(canvas,-w/2,-h/2); return out;
+}
+function ensureLandscape(canvas){
+  return (canvas.height>canvas.width*1.15) ? rotateCanvas(canvas,90) : canvas;
+}
+
+// ---- OpenCV.js lazy load ----
+let _cvPromise=null;
+function loadOpenCV(){
+  if(window.cv && window.cv.Mat) return Promise.resolve(window.cv);
+  if(_cvPromise) return _cvPromise;
+  _cvPromise=new Promise((resolve,reject)=>{
+    const s=document.createElement('script');
+    s.src='https://docs.opencv.org/4.10.0/opencv.js'; s.async=true;
+    s.onload=()=>{
+      const t=setInterval(()=>{ if(window.cv && window.cv.Mat){ clearInterval(t); resolve(window.cv); } },60);
+      setTimeout(()=>{ clearInterval(t); if(!(window.cv&&window.cv.Mat)) reject(new Error('opencv init timeout')); },20000);
+    };
+    s.onerror=()=>reject(new Error('opencv load failed'));
+    document.head.appendChild(s);
+  }).catch(e=>{ _cvPromise=null; throw e; });
+  return _cvPromise;
+}
+function _orderCorners(pts){
+  const bySum=[...pts].sort((a,b)=>(a.x+a.y)-(b.x+b.y));
+  const byDiff=[...pts].sort((a,b)=>(a.x-a.y)-(b.x-b.y));
+  return [bySum[0], byDiff[3], bySum[3], byDiff[0]]; // tl, tr, br, bl
+}
+// Εντοπισμός μεγαλύτερου τετράπλευρου (κάρτα) και perspective warp -> canvas ή null
+function warpLargestQuad(canvas){
+  const cv=window.cv; if(!cv||!cv.Mat) return null;
+  let src=cv.imread(canvas), gray=new cv.Mat(), blur=new cv.Mat(), edges=new cv.Mat();
+  let best=null;
+  try{
+    cv.cvtColor(src,gray,cv.COLOR_RGBA2GRAY);
+    cv.GaussianBlur(gray,blur,new cv.Size(5,5),0);
+    cv.Canny(blur,edges,50,150);
+    const k=cv.getStructuringElement(cv.MORPH_RECT,new cv.Size(5,5));
+    cv.dilate(edges,edges,k); k.delete();
+    const contours=new cv.MatVector(), hierarchy=new cv.Mat();
+    cv.findContours(edges,contours,hierarchy,cv.RETR_EXTERNAL,cv.CHAIN_APPROX_SIMPLE);
+    const imgArea=canvas.width*canvas.height; let bestArea=0;
+    for(let i=0;i<contours.size();i++){
+      const c=contours.get(i); const area=cv.contourArea(c);
+      if(area>imgArea*0.18){
+        const peri=cv.arcLength(c,true); const approx=new cv.Mat();
+        cv.approxPolyDP(c,approx,0.02*peri,true);
+        if(approx.rows===4 && area>bestArea){ if(best) best.delete(); best=approx; bestArea=area; }
+        else approx.delete();
+      }
+      c.delete();
+    }
+    contours.delete(); hierarchy.delete();
+    if(!best) return null;
+    const pts=[]; for(let i=0;i<4;i++) pts.push({x:best.data32S[i*2], y:best.data32S[i*2+1]});
+    const [tl,tr,br,bl]=_orderCorners(pts);
+    const outW=Math.round(Math.max(Math.hypot(br.x-bl.x,br.y-bl.y),Math.hypot(tr.x-tl.x,tr.y-tl.y)));
+    const outH=Math.round(Math.max(Math.hypot(tr.x-br.x,tr.y-br.y),Math.hypot(tl.x-bl.x,tl.y-bl.y)));
+    if(outW<60||outH<60) return null;
+    const srcTri=cv.matFromArray(4,1,cv.CV_32FC2,[tl.x,tl.y,tr.x,tr.y,br.x,br.y,bl.x,bl.y]);
+    const dstTri=cv.matFromArray(4,1,cv.CV_32FC2,[0,0,outW,0,outW,outH,0,outH]);
+    const M=cv.getPerspectiveTransform(srcTri,dstTri);
+    const dst=new cv.Mat();
+    cv.warpPerspective(src,dst,M,new cv.Size(outW,outH),cv.INTER_LINEAR,cv.BORDER_CONSTANT,new cv.Scalar(255,255,255,255));
+    const out=document.createElement('canvas'); out.width=outW; out.height=outH; cv.imshow(out,dst);
+    srcTri.delete(); dstTri.delete(); M.delete(); dst.delete();
+    return out;
+  }catch(e){ return null; }
+  finally{ if(best) try{best.delete();}catch(e){} src.delete(); gray.delete(); blur.delete(); edges.delete(); }
+}
+
+// Προεπεξεργασία για OCR: μεγέθυνση + grayscale + τέντωμα αντίθεσης (min-max)
+function preprocessOCR(canvas,targetW){
+  targetW=targetW||1800;
+  let w=canvas.width,h=canvas.height;
+  const scale=Math.min(3, Math.max(1, targetW/w));
+  const cw=Math.round(w*scale), ch=Math.round(h*scale);
+  const cv2=document.createElement('canvas'); cv2.width=cw; cv2.height=ch;
+  const ctx=cv2.getContext('2d'); ctx.imageSmoothingQuality='high'; ctx.drawImage(canvas,0,0,cw,ch);
+  let im; try{ im=ctx.getImageData(0,0,cw,ch); }catch(e){ return cv2.toDataURL('image/png'); }
+  const d=im.data; const n=cw*ch; const g=new Uint8ClampedArray(n);
+  let min=255,max=0;
+  for(let i=0,p=0;i<d.length;i+=4,p++){ const v=(d[i]*0.299+d[i+1]*0.587+d[i+2]*0.114)|0; g[p]=v; if(v<min)min=v; if(v>max)max=v; }
+  const range=Math.max(1,max-min);
+  for(let i=0,p=0;i<d.length;i+=4,p++){ let v=((g[p]-min)/range)*255; v=v<0?0:v>255?255:v; d[i]=d[i+1]=d[i+2]=v; }
+  ctx.putImageData(im,0,0);
+  return cv2.toDataURL('image/png');
+}
+
+// Πλήρης επεξεργασία μιας όψης: επιστρέφει {display, ocr}
+async function processCardImage(file){
+  const bmp=await loadBitmap(file);
+  const base=drawToCanvas(bmp,2000);
+  let cropped=null;
+  try{
+    // Guard: αν το OpenCV αργήσει να φορτώσει, συνέχισε χωρίς auto-crop.
+    const timeout=new Promise((_,rej)=>setTimeout(()=>rej(new Error('cv timeout')),18000));
+    await Promise.race([loadOpenCV(),timeout]);
+    cropped=warpLargestQuad(base);
+  }catch(e){ cropped=null; }
+  let card=ensureLandscape(cropped||base);
+  return { display:canvasToJpeg(card,1400,0.85), ocr:preprocessOCR(card,1800), cropped:!!cropped };
+}
+
+// Περιστροφή αποθηκευμένης όψης (dataURLs) κατά 90°
+async function rotateSide(side){
+  const load=src=>new Promise((res,rej)=>{ const i=new Image(); i.onload=()=>res(i); i.onerror=rej; i.src=src; });
+  const rot=async src=>{ const img=await load(src); const c=document.createElement('canvas'); c.width=img.naturalWidth; c.height=img.naturalHeight; c.getContext('2d').drawImage(img,0,0); const r=rotateCanvas(c,90); return r; };
+  const rd=await rot(side.display); const ro=await rot(side.ocr);
+  return { display:canvasToJpeg(rd,1400,0.85), ocr:ro.toDataURL('image/png'), cropped:side.cropped };
+}
+
+/* ---------- OCR ---------- */
+let _worker=null, _workerLang=null;
+async function ensureWorker(onProgress){
+  if(typeof Tesseract==='undefined') throw new Error('Η βιβλιοθήκη OCR δεν φορτώθηκε (έλεγξε τη σύνδεση στο διαδίκτυο).');
+  if(_worker) return _worker;
+  _worker=await Tesseract.createWorker('ell+eng',1,{
+    logger:m=>{ if(onProgress) onProgress(m); }
+  });
+  try{
+    await _worker.setParameters({
+      preserve_interword_spaces:'1',
+      tessedit_pageseg_mode: (Tesseract.PSM && Tesseract.PSM.AUTO) || '3'
+    });
+  }catch(e){}
+  _workerLang='ell+eng';
+  return _worker;
+}
+async function runOCR(dataURL,onProgress){
+  const w=await ensureWorker(onProgress);
+  const {data}=await w.recognize(dataURL);
+  return data.text||'';
+}
+
+/* ---------- Parser στοιχείων ---------- */
+function parseCard(text){
+  const raw=(text||'').replace(/\r/g,'');
+  const lines=raw.split('\n').map(l=>l.trim()).filter(Boolean);
+
+  // Email
+  const emails=[...new Set((raw.match(/[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}/g)||[])
+    .map(e=>e.toLowerCase()))];
+
+  // Website (χωρίς να πιάνει τα emails ή σκέτα domain παρόχων email)
+  const emailDomains=emails.map(e=>(e.split('@')[1]||'').toLowerCase());
+  const freeProviders=['gmail.com','googlemail.com','yahoo.com','yahoo.gr','hotmail.com','hotmail.gr',
+    'outlook.com','outlook.gr','live.com','icloud.com','gmx.com','me.com','aol.com','windowslive.com'];
+  const siteCands=(raw.match(/\b((https?:\/\/)?(www\.)[^\s]+|https?:\/\/[^\s]+|[A-Za-z0-9\-]+\.(gr|com|net|eu|org|info|io|co)(\.[a-z]{2})?)\b/gi)||[])
+    .map(s=>s.replace(/[.,;)]+$/,''))
+    .filter(s=>!s.includes('@'))
+    .filter(s=>!/^\d/.test(s));
+  const seenHost=new Set(); const sites=[];
+  for(const s of siteCands){
+    const host=s.replace(/^https?:\/\//i,'').replace(/^www\./i,'').toLowerCase().split('/')[0];
+    if(freeProviders.includes(host)) continue;                 // gmail.com κ.λπ. δεν είναι ιστοσελίδα
+    const wasUrl=/^https?:\/\//i.test(s)||/^www\./i.test(s);
+    if(!wasUrl && emailDomains.includes(host)) continue;       // σκέτο domain ίδιο με το email
+    if(seenHost.has(host)) continue; seenHost.add(host);
+    sites.push(s);
+  }
+
+  // Τηλέφωνα (Ελλάδα): εντοπισμός υποψηφίων ακολουθιών ψηφίων
+  const phoneCands=raw.match(/(\+?[ \t]?30[ \t.\-]?)?(\(?\d{2,4}\)?[ \t.\-]?){2,5}\d{2,4}/g)||[];
+  const phones=[];
+  for(let c of phoneCands){
+    const hasPlus=/\+\s?30/.test(c);
+    let digits=c.replace(/\D/g,'');
+    if(hasPlus && digits.startsWith('30')) digits=digits.slice(2);
+    if(digits.length===10 && /^[2-9]/.test(digits)){
+      const prefix=hasPlus?'+30 ':'';
+      // Κινητά (69xxxxxxxx): 4-3-3 · Σταθερά: 3-3-4
+      const grouped = digits.startsWith('69')
+        ? digits.replace(/(\d{4})(\d{3})(\d{3})/,'$1 $2 $3')
+        : digits.replace(/(\d{3})(\d{3})(\d{4})/,'$1 $2 $3');
+      const val=prefix+grouped;
+      if(!phones.some(p=>p.replace(/\D/g,'').endsWith(digits))) phones.push(val);
+    }
+  }
+
+  // Διεύθυνση: γραμμές με λέξεις-κλειδιά ή ταχ. κώδικα, εξαιρώντας γραμμές τηλεφώνου
+  const addrKeys=/(οδος|οδ\.|λεωφ|λεωφορος|πλατεια|αριθμ|αρ\.|τ\.?κ|τ\.?θ|τκ|street|str\.|ave|avenue|address|διευθυνση|περιοχη)/i;
+  const phoneLineRe=/(τηλ|κιν|tel|fax|φαξ|mob|mobile)/i;
+  const tkRe=/(?<!\d)\d{3}\s\d{2}(?!\d)|\b\d{5}\b/; // Τ.Κ. τύπου "271 00" ή "27100"
+  const addrLines=lines.filter(l=>{
+    if(/@/.test(l) || /www\.|https?:\/\//i.test(l)) return false;
+    if(phoneLineRe.test(l)) return false;
+    const hasKey=addrKeys.test(l);
+    const hasTK=tkRe.test(l);
+    if(!hasKey && !hasTK) return false;
+    if(!hasKey && (l.replace(/\D/g,'').length>=8)) return false; // πολλά ψηφία -> μάλλον τηλέφωνο
+    return true;
+  });
+  const address=addrLines.join(', ').replace(/\s{2,}/g,' ').trim();
+
+  // Όνομα / Εταιρεία: υποψήφιες γραμμές (χωρίς email/site/τηλ/διευθυνση)
+  const isNoise=l=>{
+    if(/@/.test(l)) return true;
+    if(/www\.|https?:\/\//i.test(l)) return true;
+    if(addrKeys.test(l)) return true;
+    const d=(l.match(/\d/g)||[]).length;
+    if(d>=6) return true; // πιθανό τηλέφωνο/αριθμός
+    if(l.replace(/[^A-Za-zΑ-Ωα-ωΆ-Ώά-ώ]/g,'').length<3) return true;
+    return false;
+  };
+  const nameCands=lines.filter(l=>!isNoise(l));
+  // Το πρώτο "καθαρό" -> όνομα/εταιρεία, το δεύτερο -> το άλλο
+  let name = nameCands[0]||'';
+  let company = nameCands[1]||'';
+  // Αν μία γραμμή είναι ΟΛΟ κεφαλαία (συχνά εταιρεία) και η άλλη όχι, βάλε εταιρεία στα κεφαλαία
+  const upperRatio=s=>{ const L=s.replace(/[^A-Za-zΑ-Ωα-ω]/g,''); if(!L) return 0; const U=s.replace(/[^A-ZΑ-Ω]/g,'').length; return U/L.length; };
+  if(company && upperRatio(company)>0.7 && upperRatio(name)<0.7){ /* κράτα ως έχει: name=άτομο, company=εταιρεία */ }
+  else if(upperRatio(name)>0.7 && company && upperRatio(company)<0.7){ const t=name; name=company; company=t; }
+
+  return { name, company, emails, phones, sites, address, rawText:raw,
+           suggestedCategory: detectCategory(raw) };
+}
+
+/* ---------- State ροής σάρωσης ---------- */
+let scanState={front:null,back:null}; // dataURLs
+let editDraft=null; // αντικείμενο υπό επεξεργασία
+
+/* ============================================================
+   VIEWS
+   ============================================================ */
+function nav(hash){ location.hash=hash; }
+window.addEventListener('hashchange', router);
+
+async function router(){
+  const h=location.hash.replace(/^#/,'')||'/';
+  const [route,arg]=h.split('/').filter(x=>x!==''); // e.g. cat/Πισίνες
+  $('#fab').classList.toggle('hidden', h.startsWith('scan')||h.startsWith('edit'));
+  if(!route){ return renderHome(); }
+  if(route==='cat'){ return renderCategory(decodeURIComponent(arg||'')); }
+  if(route==='card'){ return renderDetail(decodeURIComponent(arg||'')); }
+  if(route==='scan'){ return renderScan(); }
+  if(route==='edit'){ return renderEditForm(); }
+  if(route==='all'){ return renderAll(); }
+  return renderHome();
+}
+
+/* ---- HOME ---- */
+async function renderHome(){
+  const cards=await dbAll();
+  const cats=getCategories();
+  const counts={}; cards.forEach(c=>{ counts[c.category]=(counts[c.category]||0)+1; });
+  const total=cards.length;
+  const recent=[...cards].sort((a,b)=>b.createdAt-a.createdAt).slice(0,5);
+
+  viewEl.innerHTML=`
+    <div class="search"><input id="q" type="search" placeholder="Αναζήτηση σε όλες τις κάρτες…" autocomplete="off"></div>
+    <button class="btn btn-ghost" id="manualBtn" style="margin-bottom:4px">✍️ Χειροκίνητη εισαγωγή (χωρίς κάρτα)</button>
+    <div class="section-label">Κατηγορίες</div>
+    <div class="cat-grid">
+      ${cats.map(c=>`
+        <button class="cat" data-cat="${esc(c)}">
+          <span class="emoji">${catEmoji(c)}</span>
+          <span class="name">${esc(c)}</span>
+          <span class="count">${counts[c]||0} κάρτες</span>
+        </button>`).join('')}
+    </div>
+    <div class="section-label">Πρόσφατες${total?` · ${total} σύνολο`:''}</div>
+    ${recent.length? `<div class="clist">${recent.map(cardRow).join('')}</div>
+      ${total>5?`<button class="btn btn-ghost" style="margin-top:12px" onclick="location.hash='all'">Προβολή όλων (${total})</button>`:''}`
+    : `<div class="empty"><span class="big">📇</span>Δεν υπάρχουν κάρτες ακόμη.<br>Πάτησε <b>«Σάρωση κάρτας»</b> ή <b>«Χειροκίνητη εισαγωγή»</b> για να ξεκινήσεις.</div>`}
+  `;
+  $$('.cat').forEach(b=>b.onclick=()=>nav('cat/'+encodeURIComponent(b.dataset.cat)));
+  $('#manualBtn').onclick=manualEntry;
+  bindRows();
+  $('#q').oninput=e=>{
+    const q=normalizeGr(e.target.value.trim());
+    if(!q){ renderHome(); return; }
+    const res=cards.filter(c=>normalizeGr(cardSearchText(c)).includes(q));
+    renderSearchResults(res,e.target.value);
+  };
+}
+function renderSearchResults(res,term){
+  // Διατήρησε το πεδίο αναζήτησης, αντικατέστησε μόνο τα αποτελέσματα
+  let host=$('#searchResults');
+  if(!host){
+    const div=document.createElement('div'); div.id='searchResults';
+    $('.search').after(div);
+    // κρύψε τα υπόλοιπα
+    $$('#view > .section-label, #view > .cat-grid, #view > .clist, #view > .btn, #view > .empty').forEach(el=>el.classList.add('hidden'));
+    host=div;
+  }
+  host.innerHTML=`<div class="section-label">Αποτελέσματα «${esc(term)}» · ${res.length}</div>`+
+    (res.length? `<div class="clist">${res.map(cardRow).join('')}</div>` : `<div class="empty">Καμία κάρτα δεν ταιριάζει.</div>`);
+  bindRows();
+}
+function cardSearchText(c){
+  return [c.name,c.company,c.title,c.category,(c.emails||[]).join(' '),(c.phones||[]).join(' '),
+          (c.sites||[]).join(' '),c.address,c.notes,c.rawText].filter(Boolean).join(' ');
+}
+
+/* ---- ALL ---- */
+async function renderAll(){
+  const cards=(await dbAll()).sort((a,b)=>b.createdAt-a.createdAt);
+  viewEl.innerHTML=`
+    <div class="backrow"><button class="backbtn" onclick="location.hash=''">‹ Αρχική</button></div>
+    <div class="viewtitle">Όλες οι κάρτες</div>
+    <div class="viewsub">${cards.length} καταχωρήσεις συνολικά</div>
+    ${cards.length?`<div class="clist">${cards.map(cardRow).join('')}</div>`:`<div class="empty"><span class="big">📇</span>Καμία κάρτα.</div>`}
+  `;
+  bindRows();
+}
+
+/* ---- CATEGORY ---- */
+async function renderCategory(cat){
+  const cards=(await dbAll()).filter(c=>c.category===cat).sort((a,b)=>b.createdAt-a.createdAt);
+  viewEl.innerHTML=`
+    <div class="backrow"><button class="backbtn" onclick="location.hash=''">‹ Αρχική</button></div>
+    <div class="viewtitle">${catEmoji(cat)} ${esc(cat)}</div>
+    <div class="viewsub">${cards.length} ${cards.length===1?'κάρτα':'κάρτες'} σε αυτή την κατηγορία</div>
+    ${cards.length?`<div class="clist">${cards.map(cardRow).join('')}</div>`
+      :`<div class="empty"><span class="big">${catEmoji(cat)}</span>Καμία κάρτα εδώ ακόμη.</div>`}
+  `;
+  bindRows();
+}
+
+function cardRow(c){
+  const sub=[c.company, (c.phones&&c.phones[0])||'', (c.emails&&c.emails[0])||''].filter(Boolean).join(' · ');
+  const thumb=c.imageFront? `<img class="thumb" src="${c.imageFront}" alt="">` : `<div class="thumb">🪪</div>`;
+  return `<button class="crow" data-id="${esc(c.id)}">
+    ${thumb}
+    <div class="cinfo">
+      <div class="cname">${esc(c.name||c.company||'Χωρίς όνομα')}</div>
+      <div class="cmeta">${esc(sub||'—')}</div>
+    </div>
+    <span class="cbadge">${catEmoji(c.category)} ${esc(c.category||'')}</span>
+  </button>`;
+}
+function bindRows(){ $$('.crow').forEach(r=>r.onclick=()=>nav('card/'+encodeURIComponent(r.dataset.id))); }
+
+/* ---- SCAN ---- */
+function renderScan(){
+  viewEl.innerHTML=`
+    <div class="backrow"><button class="backbtn" onclick="cancelScan()">‹ Ακύρωση</button></div>
+    <div class="viewtitle">Σάρωση κάρτας</div>
+    <div class="viewsub">Φωτογράφισε ή διάλεξε τις δύο όψεις της κάρτας. Η κάρτα εντοπίζεται, <b>κόβεται και ισιώνει αυτόματα</b>, και το κείμενο διαβάζεται (OCR) τοπικά στη συσκευή. Με το ⟳ μπορείς να περιστρέψεις αν χρειάζεται.</div>
+
+    <div class="sides">
+      <label class="side" id="sideFront">
+        <span class="tag-side">Μπροστά</span>
+        <span class="side-emoji">📷</span>
+        <span class="side-label">Μπροστινή όψη</span>
+        <span class="side-hint">Πάτησε για λήψη</span>
+        <input type="file" accept="image/*" capture="environment" class="hidden" id="inpFront">
+      </label>
+      <label class="side" id="sideBack">
+        <span class="tag-side">Πίσω</span>
+        <span class="side-emoji">📷</span>
+        <span class="side-label">Πίσω όψη</span>
+        <span class="side-hint">Προαιρετικό</span>
+        <input type="file" accept="image/*" capture="environment" class="hidden" id="inpBack">
+      </label>
+    </div>
+
+    <div id="ocrArea"></div>
+
+    <div id="aiBanner"></div>
+    <button class="btn btn-primary" id="readBtn" disabled>🔎 Ανάγνωση στοιχείων</button>
+    <button class="btn btn-ghost" id="manualFromScan" style="margin-top:10px">✍️ Εισαγωγή χωρίς κάρτα</button>
+    <div class="hint-inline">💡 Συμβουλή: καλός φωτισμός και σταθερό χέρι δίνουν καλύτερη ανάγνωση. Μπορείς να διορθώσεις όλα τα στοιχεία στο επόμενο βήμα.</div>
+  `;
+  const fillSide=(sideId,which)=>{
+    const el=$('#'+sideId); const side=scanState[which];
+    el.classList.add('filled');
+    el.querySelector('.side-emoji')?.remove();
+    el.querySelector('.side-label')?.remove();
+    el.querySelector('.side-hint')?.remove();
+    el.querySelector('.side-proc')?.remove();
+    let img=el.querySelector('img');
+    if(!img){ img=document.createElement('img'); el.appendChild(img); }
+    img.src=side.display;
+    if(!el.querySelector('.retake')){
+      const r=document.createElement('span'); r.className='retake'; r.textContent='Αλλαγή'; el.appendChild(r);
+    }
+    if(!el.querySelector('.rotbtn')){
+      const rot=document.createElement('button'); rot.type='button'; rot.className='rotbtn'; rot.textContent='⟳';
+      rot.title='Περιστροφή 90°';
+      rot.onclick=async ev=>{ ev.preventDefault(); ev.stopPropagation();
+        try{ scanState[which]=await rotateSide(scanState[which]); fillSide(sideId,which); }
+        catch(e){ toast('Σφάλμα περιστροφής',true); } };
+      el.appendChild(rot);
+    }
+    $('#readBtn').disabled = !scanState.front;
+  };
+  const showProcessing=(sideId)=>{
+    const el=$('#'+sideId); el.classList.add('filled');
+    if(!el.querySelector('.side-proc')){
+      const p=document.createElement('div'); p.className='side-proc';
+      p.innerHTML='<span class="spinner"></span><span>Επεξεργασία…</span>'; el.appendChild(p);
+    }
+  };
+  const handle=(input,which,sideId)=>{
+    input.onchange=async e=>{
+      const f=e.target.files&&e.target.files[0]; if(!f) return;
+      showProcessing(sideId);
+      try{
+        scanState[which]=await processCardImage(f);
+        fillSide(sideId,which);
+        if(!scanState[which].cropped && which==='front')
+          toast('Δεν εντοπίστηκε αυτόματα η κάρτα — αν χρειάζεται, χρησιμοποίησε ⟳ ή «Αλλαγή».');
+      }catch(err){ console.error(err); toast('Σφάλμα φόρτωσης εικόνας',true);
+        $('#'+sideId+' .side-proc')?.remove(); }
+    };
+  };
+  // Επαναφορά αν επιστρέψαμε
+  if(scanState.front) fillSide('sideFront','front');
+  if(scanState.back) fillSide('sideBack','back');
+  $('#readBtn').disabled = !scanState.front;
+
+  handle($('#inpFront'),'front','sideFront');
+  handle($('#inpBack'),'back','sideBack');
+  $('#readBtn').onclick=doRead;
+  $('#manualFromScan').onclick=manualEntry;
+  renderAiBanner();
+}
+function renderAiBanner(){
+  const el=$('#aiBanner'); if(!el) return;
+  const has=!!getGeminiKey();
+  el.innerHTML = has
+    ? `<div class="ai-banner ok">🤖 <span>Ανάγνωση με <b>AI (Gemini)</b> ενεργή — υψηλή ακρίβεια.</span><button type="button" id="aiKeyBtn">Κλειδί</button></div>`
+    : `<div class="ai-banner">⚠️ <span>Χωρίς AI η ανάγνωση γίνεται με απλό OCR και έχει λάθη. Πρόσθεσε ένα δωρεάν <b>Gemini API key</b> για ακριβή αναγνώριση.</span><button type="button" id="aiKeyBtn">Προσθήκη</button></div>`;
+  $('#aiKeyBtn').onclick=()=>{ if(askGeminiKey()) renderAiBanner(); };
+}
+function cancelScan(){ scanState={front:null,back:null}; nav(''); }
+
+/* ---- Χειροκίνητη εισαγωγή (χωρίς κάρτα) ---- */
+function manualEntry(){
+  scanState={front:null,back:null};
+  editDraft={ id:'', manual:true, category:'', name:'', company:'', title:'',
+    phones:[''], emails:[''], sites:[], address:'', notes:'', rawText:'',
+    imageFront:null, imageBack:null, createdAt:0, updatedAt:0 };
+  nav('edit');
+}
+
+/* Δημιουργεί μια απλή λευκή «κάρτα» (εικόνα JPEG) από τα στοιχεία,
+   ώστε κάθε χειροκίνητη εγγραφή να έχει και εικόνα στη βάση. */
+function _roundRect(ctx,x,y,w,h,r){
+  ctx.beginPath(); ctx.moveTo(x+r,y);
+  ctx.arcTo(x+w,y,x+w,y+h,r); ctx.arcTo(x+w,y+h,x,y+h,r);
+  ctx.arcTo(x,y+h,x,y,r); ctx.arcTo(x,y,x+w,y,r); ctx.closePath();
+}
+async function generateCardImage(d){
+  try{ if(document.fonts&&document.fonts.ready) await document.fonts.ready; }catch(e){}
+  const W=1000;
+  const cv=document.createElement('canvas'); const ctx=cv.getContext('2d');
+  const FONT=(w,s)=>`${w} ${s}px 'IBM Plex Sans', Arial, Helvetica, sans-serif`;
+  const PADL=70, PADR=60, maxW=W-PADL-PADR;
+  const fit=(txt,mw)=>{ if(!txt) return ''; let t=String(txt);
+    if(ctx.measureText(t).width<=mw) return t;
+    while(t.length>1 && ctx.measureText(t+'…').width>mw) t=t.slice(0,-1); return t+'…'; };
+  const wrapLines=(txt,font,mw)=>{ ctx.font=font; const words=String(txt).split(/\s+/); const out=[]; let line='';
+    for(const w of words){ const t=line?line+' '+w:w;
+      if(ctx.measureText(t).width>mw && line){ out.push(line); line=w; } else line=t; }
+    if(line) out.push(line); return out.slice(0,3); };
+
+  // Λίστα πεδίων προς σχεδίαση
+  const fields=[];
+  (d.phones||[]).filter(Boolean).forEach(p=>fields.push(['Τηλέφωνο',p]));
+  (d.emails||[]).filter(Boolean).forEach(e=>fields.push(['Email',e]));
+  (d.sites||[]).filter(Boolean).forEach(s=>fields.push(['Ιστοσελίδα',s]));
+  if(d.address) fields.push(['Διεύθυνση',d.address]);
+  if(d.notes) fields.push(['Σημειώσεις',d.notes]);
+
+  // Προϋπολογισμός ύψους
+  const head=d.company||d.name||'Χωρίς όνομα';
+  const second=d.company? d.name : d.title;
+  let headH=110 + 8;
+  if(second) headH+=48;
+  if(d.company && d.title) headH+=38;
+  headH+=46+44; // διαχωριστικό + κενό
+  const rowLines=fields.map(([,val])=>wrapLines(val,FONT(500,27),maxW));
+  let rowsH=0; rowLines.forEach(ls=>{ rowsH += 32 + ls.length*36 + 16; });
+  const H=Math.max(600, Math.round(headH + rowsH + 70));
+
+  cv.width=W; cv.height=H; // ορισμός μεγέθους (μηδενίζει το ctx)
+  // Φόντο + πλαίσιο
+  ctx.fillStyle='#ffffff'; ctx.fillRect(0,0,W,H);
+  ctx.strokeStyle='#e7e9ec'; ctx.lineWidth=2; ctx.strokeRect(1,1,W-2,H-2);
+  const grad=ctx.createLinearGradient(0,0,W,0); grad.addColorStop(0,'#ff9a3c'); grad.addColorStop(1,'#ff7a18');
+  ctx.fillStyle=grad; ctx.fillRect(0,0,W,16); ctx.fillRect(0,0,12,H);
+
+  // Chip κατηγορίας πάνω δεξιά
+  if(d.category){
+    ctx.font=FONT(600,20); const label=catEmoji(d.category)+' '+d.category;
+    const tw=ctx.measureText(label).width; const chipW=Math.min(tw+34,420), chipH=42, cx=W-PADR-chipW, cy=42;
+    ctx.fillStyle='#fff4ea'; _roundRect(ctx,cx,cy,chipW,chipH,21); ctx.fill();
+    ctx.strokeStyle='#ffd2a6'; ctx.lineWidth=1.5; _roundRect(ctx,cx,cy,chipW,chipH,21); ctx.stroke();
+    ctx.fillStyle='#c2560a'; ctx.textBaseline='middle'; ctx.fillText(fit(label,chipW-30),cx+17,cy+chipH/2+1);
+    ctx.textBaseline='alphabetic';
+  }
+
+  // Κεφαλίδα
+  let y=118;
+  ctx.fillStyle='#12161c'; ctx.font=FONT(700,48); ctx.fillText(fit(head,maxW-200),PADL,y);
+  if(second){ y+=48; ctx.fillStyle='#c2560a'; ctx.font=FONT(600,30); ctx.fillText(fit(second,maxW-200),PADL,y); }
+  if(d.company && d.title){ y+=38; ctx.fillStyle='#6b7580'; ctx.font=FONT(500,26); ctx.fillText(fit(d.title,maxW-200),PADL,y); }
+
+  // Διαχωριστικό
+  y+=42; ctx.strokeStyle='#ececec'; ctx.lineWidth=2; ctx.beginPath(); ctx.moveTo(PADL,y); ctx.lineTo(W-PADR,y); ctx.stroke();
+  y+=48;
+
+  // Πεδία
+  fields.forEach(([lbl],idx)=>{
+    const lblUp=lbl.toUpperCase().normalize('NFD').replace(/[̀-ͯ]/g,''); // κεφαλαία χωρίς τόνους
+    ctx.fillStyle='#ff7a18'; ctx.font=FONT(600,17); ctx.fillText(lblUp,PADL,y);
+    ctx.fillStyle='#20262e'; ctx.font=FONT(500,27);
+    let ly=y+32; for(const line of rowLines[idx]){ ctx.fillText(line,PADL,ly); ly+=36; }
+    y=ly+16;
+  });
+
+  // Υποσέλιδο
+  ctx.fillStyle='#9aa3ad'; ctx.font=FONT(500,18); ctx.textAlign='right';
+  ctx.fillText('Δημιουργήθηκε με CardScan · CG apps', W-PADR, H-26); ctx.textAlign='left';
+
+  return cv.toDataURL('image/jpeg',0.92);
+}
+
+/* ---------- Ανάγνωση με AI (Google Gemini Vision) ----------
+   Το κλειδί είναι κοινό με το εργαλείο «AI Rendering» (ίδιο domain, ίδιο localStorage).
+   Οι φωτογραφίες στέλνονται απευθείας στο Google· τίποτα δεν περνά από άλλο server. */
+const GEMINI_KEY_LS='gemini_api_key';
+const GEMINI_MODELS=['gemini-2.5-flash','gemini-flash-latest','gemini-2.0-flash'];
+function getGeminiKey(){ try{ return (localStorage.getItem(GEMINI_KEY_LS)||'').trim(); }catch(e){ return ''; } }
+function setGeminiKey(k){ try{ k=(k||'').trim(); if(k) localStorage.setItem(GEMINI_KEY_LS,k); else localStorage.removeItem(GEMINI_KEY_LS); }catch(e){} }
+function askGeminiKey(){
+  const k=prompt('Gemini API key\n\nΔωρεάν από: aistudio.google.com/apikey\nΑποθηκεύεται μόνο τοπικά σε αυτή τη συσκευή.\nΆφησε κενό για διαγραφή.', getGeminiKey());
+  if(k===null) return false;
+  setGeminiKey(k); toast(k.trim()?'🔑 Το κλειδί αποθηκεύτηκε':'Το κλειδί διαγράφηκε'); return true;
+}
+async function aiExtract(front,back){
+  const key=getGeminiKey(); if(!key) throw new Error('NO_KEY');
+  const cats=getCategories();
+  const instr=`Είσαι σύστημα ανάγνωσης επαγγελματικών καρτών. Σου δίνω φωτογραφία της μπροστινής${back?' και της πίσω':''} όψης μιας κάρτας (μπορεί να είναι στραβή, περιστραμμένη ή με λογότυπα / χρωματιστό φόντο).
+Διάβασε προσεκτικά ΟΛΟ το κείμενο (ελληνικά και λατινικά) και συμπλήρωσε:
+- name: ονοματεπώνυμο του ατόμου (όχι η επωνυμία της επιχείρησης)
+- company: επωνυμία επιχείρησης
+- title: ιδιότητα / επάγγελμα / δραστηριότητα (π.χ. «Πολιτικός Μηχανικός», «Κατασκευές πισινών»)
+- phones: όλα τα τηλέφωνα (σταθερά, κινητά, fax) όπως γράφονται, με +30 αν υπάρχει
+- emails, websites
+- address: πλήρης διεύθυνση σε μία γραμμή (οδός, αριθμός, Τ.Κ., πόλη)
+- category: η πιο ταιριαστή από: ${cats.join(' | ')}. Αν καμία δεν ταιριάζει: «${OTHER}».
+- notes: άλλες χρήσιμες πληροφορίες (π.χ. ΑΦΜ, υπηρεσίες), σύντομα
+- rawText: όλο το κείμενο της κάρτας αυτούσιο, γραμμή-γραμμή
+Μην επινοείς στοιχεία· ό,τι δεν υπάρχει μένει κενό.`;
+  const img=d=>({inline_data:{mime_type:d.slice(5,d.indexOf(';')),data:d.slice(d.indexOf(',')+1)}});
+  const parts=[{text:instr},{text:'Μπροστινή όψη:'},img(front)];
+  if(back) parts.push({text:'Πίσω όψη:'},img(back));
+  const S={type:'STRING'}, A={type:'ARRAY',items:{type:'STRING'}};
+  const body={contents:[{role:'user',parts}],generationConfig:{temperature:0,responseMimeType:'application/json',
+    responseSchema:{type:'OBJECT',properties:{name:S,company:S,title:S,phones:A,emails:A,websites:A,address:S,
+      category:{type:'STRING',enum:cats},notes:S,rawText:S},
+      required:['name','company','title','phones','emails','websites','address','category','notes','rawText']}}};
+  let lastErr=null;
+  for(const model of GEMINI_MODELS){
+    const ctrl=new AbortController(); const t=setTimeout(()=>ctrl.abort(),60000);
+    try{
+      const res=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(key)}`,
+        {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body),signal:ctrl.signal});
+      const data=await res.json().catch(()=>({}));
+      if(!res.ok){
+        const msg=(data.error&&data.error.message)||('HTTP '+res.status);
+        if(res.status===404){ lastErr=new Error(msg); continue; } // μοντέλο μη διαθέσιμο -> επόμενο
+        if(/API key not valid|API_KEY_INVALID/i.test(msg)||res.status===401||res.status===403) throw new Error('BAD_KEY');
+        throw new Error(msg);
+      }
+      const txt=((data.candidates&&data.candidates[0]&&data.candidates[0].content&&data.candidates[0].content.parts)||[]).map(p=>p.text||'').join('');
+      if(!txt) throw new Error('Κενή απάντηση από το AI');
+      return JSON.parse(txt);
+    }catch(e){
+      if(e.name==='AbortError') throw new Error('Λήξη χρόνου απάντησης AI');
+      throw e;
+    }finally{ clearTimeout(t); }
+  }
+  throw lastErr||new Error('Κανένα διαθέσιμο μοντέλο Gemini');
+}
+
+async function doRead(){
+  if(!scanState.front){ toast('Φωτογράφισε τουλάχιστον τη μπροστινή όψη',true); return; }
+  const area=$('#ocrArea'); const btn=$('#readBtn'); btn.disabled=true;
+  area.innerHTML=`<div class="ocr-box">
+      <div class="ocr-status"><span class="spinner"></span><span id="ocrMsg">Προετοιμασία OCR…</span></div>
+      <div class="bar"><i id="ocrBar"></i></div>
+    </div>`;
+  const setMsg=(m,p)=>{ const el=$('#ocrMsg'); if(el) el.textContent=m; if(p!=null){ const b=$('#ocrBar'); if(b) b.style.width=Math.round(p*100)+'%'; } };
+  const prog=m=>{
+    if(m.status==='recognizing text') setMsg('Ανάγνωση κειμένου… '+Math.round(m.progress*100)+'%', m.progress);
+    else if(m.status==='loading tesseract core'||m.status==='initializing tesseract') setMsg('Φόρτωση μηχανής OCR…',0.05);
+    else if(/language|traineddata/i.test(m.status||'')) setMsg('Λήψη ελληνικού λεξικού (μία φορά)…',0.1);
+    else if(m.status) setMsg(m.status+'…');
+  };
+  const baseDraft={ id:'', title:'', notes:'', createdAt:0, updatedAt:0,
+    imageFront:scanState.front.display, imageBack:scanState.back?scanState.back.display:null };
+  try{
+    // 1) Ακριβής ανάγνωση με AI (Gemini), αν υπάρχει κλειδί και σύνδεση
+    if(getGeminiKey() && navigator.onLine!==false){
+      try{
+        setMsg('🤖 Ανάγνωση με AI (Gemini)…',0.35);
+        const r=await aiExtract(scanState.front.display, scanState.back?scanState.back.display:null);
+        const clean=a=>(Array.isArray(a)?a:[]).map(x=>String(x).trim()).filter(Boolean);
+        let cat=getCategories().includes(r.category)?r.category:'';
+        if(!cat||cat===OTHER){ const d=detectCategory([r.title,r.company,r.rawText].join(' ')); if(d) cat=d; }
+        const phones=clean(r.phones), emails=clean(r.emails).map(e=>e.toLowerCase());
+        editDraft={...baseDraft, aiRead:true, category:cat,
+          name:(r.name||'').trim(), company:(r.company||'').trim(), title:(r.title||'').trim(),
+          phones:phones.length?phones:[''], emails:emails.length?emails:[''], sites:clean(r.websites),
+          address:(r.address||'').trim(), notes:(r.notes||'').trim(), rawText:r.rawText||'' };
+        setMsg('Ολοκληρώθηκε',1);
+        nav('edit');
+        return;
+      }catch(err){
+        console.error(err);
+        toast(err.message==='BAD_KEY'?'Μη έγκυρο Gemini API key — συνέχεια με τοπικό OCR'
+                                     :'AI: '+err.message+' — συνέχεια με τοπικό OCR',true);
+      }
+    }
+    // 2) Εφεδρικά: τοπικό OCR (Tesseract)
+    let text='';
+    setMsg('Ανάγνωση μπροστινής όψης…',0.02);
+    text += await runOCR(scanState.front.ocr,prog);
+    if(scanState.back){
+      setMsg('Ανάγνωση πίσω όψης…',0.02);
+      text += '\n'+await runOCR(scanState.back.ocr,prog);
+    }
+    const parsed=parseCard(text);
+    editDraft={
+      id:'', category:parsed.suggestedCategory||'',
+      name:parsed.name, company:parsed.company, title:'',
+      phones:parsed.phones.length?parsed.phones:[''],
+      emails:parsed.emails.length?parsed.emails:[''],
+      sites:parsed.sites, address:parsed.address, notes:'',
+      rawText:parsed.rawText,
+      imageFront:scanState.front.display, imageBack:scanState.back?scanState.back.display:null,
+      createdAt:0, updatedAt:0
+    };
+    nav('edit');
+  }catch(err){
+    console.error(err);
+    area.innerHTML='';
+    toast(err.message||'Σφάλμα OCR. Μπορείς να συμπληρώσεις τα στοιχεία χειροκίνητα.',true);
+    // Επίτρεψε χειροκίνητη καταχώρηση ακόμη κι αν αποτύχει το OCR
+    editDraft={ id:'',category:'',name:'',company:'',title:'',phones:[''],emails:[''],sites:[],
+      address:'',notes:'',rawText:'',
+      imageFront:scanState.front?scanState.front.display:null,
+      imageBack:scanState.back?scanState.back.display:null,createdAt:0,updatedAt:0 };
+    setTimeout(()=>nav('edit'),400);
+  }finally{ btn.disabled=false; }
+}
+
+/* ---- EDIT FORM ---- */
+function renderEditForm(){
+  if(!editDraft){ nav(''); return; }
+  const d=editDraft;
+  const cats=getCategories();
+  const isNew=!d.id;
+  viewEl.innerHTML=`
+    <div class="backrow"><button class="backbtn" id="cancelEdit">‹ ${isNew?'Ακύρωση':'Πίσω'}</button></div>
+    <div class="viewtitle">${isNew?'Στοιχεία κάρτας':'Επεξεργασία'}</div>
+    <div class="viewsub">${d.aiRead?'🤖 Τα στοιχεία διαβάστηκαν με AI. ':''}Έλεγξε και διόρθωσε τα στοιχεία που διαβάστηκαν. Επίλεξε κατηγορία και αποθήκευσε.</div>
+
+    ${(d.imageFront||d.imageBack)?`<div class="detail-imgs">
+      ${d.imageFront?`<img src="${d.imageFront}" alt="Μπροστά" data-zoom>`:''}
+      ${d.imageBack?`<img src="${d.imageBack}" alt="Πίσω" data-zoom>`:''}
+    </div>`
+    : `<div class="ocr-box" style="display:flex;align-items:center;gap:10px;font-size:13px;color:var(--txt-dim)"><span style="font-size:20px">🪪</span><span>Θα δημιουργηθεί αυτόματα μια απλή <b>λευκή κάρτα</b> ως εικόνα από τα στοιχεία που θα συμπληρώσεις και θα αποθηκευτεί στη βάση.</span></div>`}
+
+    <div class="form">
+      <div class="field">
+        <label>Κατηγορία *</label>
+        <select id="fCategory">
+          <option value="">— Επίλεξε κατηγορία —</option>
+          ${cats.map(c=>`<option value="${esc(c)}" ${c===d.category?'selected':''}>${catEmoji(c)} ${esc(c)}</option>`).join('')}
+        </select>
+        ${d.category?`<div class="hint-inline">✨ Προτεινόμενη αυτόματα από το κείμενο. Άλλαξέ την αν χρειάζεται.</div>`:''}
+        <button class="addmini" id="addCatBtn" style="margin-top:8px">＋ Νέα κατηγορία</button>
+      </div>
+      <div class="field"><label>Ονοματεπώνυμο</label><input id="fName" value="${esc(d.name)}" placeholder="π.χ. Γιώργος Παπαδόπουλος"></div>
+      <div class="field"><label>Εταιρεία</label><input id="fCompany" value="${esc(d.company)}" placeholder="Επωνυμία επιχείρησης"></div>
+      <div class="field"><label>Ιδιότητα / Επάγγελμα</label><input id="fTitle" value="${esc(d.title)}" placeholder="π.χ. Πολιτικός Μηχανικός"></div>
+
+      <div class="field"><label>Τηλέφωνα</label>
+        <div class="multi" id="phones"></div>
+        <button class="addmini" id="addPhone" style="margin-top:8px">＋ Τηλέφωνο</button>
+      </div>
+      <div class="field"><label>Email</label>
+        <div class="multi" id="emails"></div>
+        <button class="addmini" id="addEmail" style="margin-top:8px">＋ Email</button>
+      </div>
+      <div class="field"><label>Ιστοσελίδα</label>
+        <div class="multi" id="sites"></div>
+        <button class="addmini" id="addSite" style="margin-top:8px">＋ Ιστοσελίδα</button>
+      </div>
+      <div class="field"><label>Διεύθυνση</label><textarea id="fAddress" placeholder="Οδός, αριθμός, Τ.Κ., πόλη">${esc(d.address)}</textarea></div>
+      <div class="field"><label>Σημειώσεις</label><textarea id="fNotes" placeholder="Ελεύθερες σημειώσεις">${esc(d.notes)}</textarea></div>
+
+      <details class="field" style="background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:12px 14px">
+        <summary style="cursor:pointer;color:var(--txt-dim);font-size:13px">📄 Ακατέργαστο κείμενο OCR</summary>
+        <textarea id="fRaw" style="margin-top:10px;min-height:110px;font-family:var(--mono);font-size:12px">${esc(d.rawText)}</textarea>
+      </details>
+
+      <div class="btn-row">
+        <button class="btn btn-primary" id="saveBtn">💾 Αποθήκευση</button>
+      </div>
+    </div>
+  `;
+
+  const buildMulti=(hostId,arr,ph)=>{
+    const host=$('#'+hostId);
+    const add=(val='')=>{
+      const row=document.createElement('div'); row.className='mrow';
+      row.innerHTML=`<input value="${esc(val)}" placeholder="${ph}"><button type="button" title="Αφαίρεση">×</button>`;
+      row.querySelector('button').onclick=()=>row.remove();
+      host.appendChild(row);
+    };
+    (arr&&arr.length?arr:['']).forEach(v=>add(v));
+    return add;
+  };
+  const addPhone=buildMulti('phones',d.phones,'π.χ. 6971234567');
+  const addEmail=buildMulti('emails',d.emails,'name@example.gr');
+  const addSite =buildMulti('sites', d.sites,'www.example.gr');
+  $('#addPhone').onclick=()=>addPhone('');
+  $('#addEmail').onclick=()=>addEmail('');
+  $('#addSite').onclick=()=>addSite('');
+
+  $('#addCatBtn').onclick=()=>{
+    const name=prompt('Όνομα νέας κατηγορίας:');
+    if(name && name.trim()){ addCustomCategory(name.trim());
+      const sel=$('#fCategory'); const o=document.createElement('option');
+      o.value=name.trim(); o.textContent='📁 '+name.trim(); o.selected=true; sel.appendChild(o);
+    }
+  };
+  $$('[data-zoom]').forEach(img=>img.onclick=()=>openLightbox(img.src));
+  $('#cancelEdit').onclick=()=>{ if(d.manual){ nav(''); } else if(isNew){ nav('scan'); } else { nav('card/'+encodeURIComponent(d.id)); } };
+  $('#saveBtn').onclick=saveCard;
+}
+
+async function saveCard(){
+  const getMulti=id=>$$('#'+id+' input').map(i=>i.value.trim()).filter(Boolean);
+  const cat=$('#fCategory').value;
+  if(!cat){ toast('Επίλεξε κατηγορία',true); $('#fCategory').focus(); return; }
+  const d=editDraft;
+  const now=Date.now();
+  const rec={
+    id: d.id || ('c_'+now+'_'+Math.random().toString(36).slice(2,7)),
+    category:cat,
+    name:$('#fName').value.trim(),
+    company:$('#fCompany').value.trim(),
+    title:$('#fTitle').value.trim(),
+    phones:getMulti('phones'),
+    emails:getMulti('emails'),
+    sites:getMulti('sites'),
+    address:$('#fAddress').value.trim(),
+    notes:$('#fNotes').value.trim(),
+    rawText:$('#fRaw')?$('#fRaw').value:d.rawText,
+    imageFront:d.imageFront||null,
+    imageBack:d.imageBack||null,
+    generated:!!d.generated,
+    createdAt:d.createdAt||now,
+    updatedAt:now
+  };
+  try{
+    // Χωρίς φωτογραφία (χειροκίνητη εγγραφή) ή επεξεργασία παραγόμενης κάρτας
+    // -> (ανα)δημιούργησε τη λευκή κάρτα ως εικόνα.
+    if(!rec.imageFront || rec.generated){
+      const sb=$('#saveBtn'); if(sb){ sb.disabled=true; sb.textContent='🖼️ Δημιουργία κάρτας…'; }
+      rec.imageFront=await generateCardImage(rec);
+      rec.generated=true;
+    }
+    await dbPut(rec);
+    try{ await fsAutoSaveCard(rec); }catch(e){ console.warn('md autosave',e); }
+    scanState={front:null,back:null}; editDraft=null;
+    toast('✅ Αποθηκεύτηκε στην κατηγορία «'+cat+'»');
+    nav('card/'+encodeURIComponent(rec.id));
+  }catch(err){ console.error(err); toast('Σφάλμα αποθήκευσης',true);
+    const sb=$('#saveBtn'); if(sb){ sb.disabled=false; sb.textContent='💾 Αποθήκευση'; } }
+}
+
+/* ---- DETAIL ---- */
+async function renderDetail(id){
+  const c=await dbGet(id);
+  if(!c){ toast('Η κάρτα δεν βρέθηκε',true); nav(''); return; }
+  const dfield=(ico,label,val,opts={})=>{
+    if(!val) return '';
+    const inner = opts.href ? `<a class="dval" href="${esc(opts.href)}" ${opts.blank?'target="_blank" rel="noopener"':''}>${esc(val)}</a>` : `<div class="dval">${esc(val)}</div>`;
+    const call = opts.call ? `<a class="callbtn" href="${esc(opts.call)}" aria-label="Κλήση">${opts.callIco||'📞'}</a>` : '';
+    return `<div class="dfield"><span class="dico">${ico}</span><div class="dwrap"><div class="dlabel">${esc(label)}</div>${inner}</div>${call}</div>`;
+  };
+  const phones=(c.phones||[]).map(p=>dfield('📞','Τηλέφωνο',p,{href:'tel:'+p.replace(/\s/g,''),call:'tel:'+p.replace(/\s/g,''),callIco:'📞'})).join('');
+  const emails=(c.emails||[]).map(e=>dfield('✉️','Email',e,{href:'mailto:'+e,call:'mailto:'+e,callIco:'✉️'})).join('');
+  const sites=(c.sites||[]).map(s=>{ const href=/^https?:\/\//i.test(s)?s:'https://'+s; return dfield('🌐','Ιστοσελίδα',s,{href,blank:true}); }).join('');
+  const mapHref = c.address? 'https://www.google.com/maps/search/?api=1&query='+encodeURIComponent(c.address):'';
+
+  viewEl.innerHTML=`
+    <div class="backrow"><button class="backbtn" id="backD">‹ Πίσω</button></div>
+    ${(c.imageFront||c.imageBack)?`<div class="detail-imgs">
+      ${c.imageFront?`<img src="${c.imageFront}" alt="Μπροστά" data-zoom>`:''}
+      ${c.imageBack?`<img src="${c.imageBack}" alt="Πίσω" data-zoom>`:''}
+    </div>`:''}
+    <div class="viewtitle">${esc(c.name||c.company||'Χωρίς όνομα')}</div>
+    <div class="chip-row">
+      <span class="chip active" onclick="location.hash='cat/'+encodeURIComponent('${esc(c.category)}')">${catEmoji(c.category)} ${esc(c.category)}</span>
+      ${c.title?`<span class="chip">${esc(c.title)}</span>`:''}
+    </div>
+    <div style="margin-top:14px">
+      ${c.company&&c.company!==c.name?dfield('🏢','Εταιρεία',c.company):''}
+      ${phones}${emails}${sites}
+      ${dfield('📍','Διεύθυνση',c.address,{href:mapHref,blank:true})}
+      ${dfield('📝','Σημειώσεις',c.notes)}
+    </div>
+    <div class="btn-row" style="margin-top:20px">
+      <button class="btn" id="editBtn">✏️ Επεξεργασία</button>
+      <button class="btn" id="vcardBtn">📤 Εξαγωγή vCard</button>
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-danger" id="delBtn">🗑️ Διαγραφή</button>
+    </div>
+    <div class="hint-inline">Καταχωρήθηκε: ${new Date(c.createdAt).toLocaleString('el-GR')}${c.updatedAt&&c.updatedAt!==c.createdAt?' · Ενημερώθηκε: '+new Date(c.updatedAt).toLocaleString('el-GR'):''}</div>
+  `;
+  $('#backD').onclick=()=>history.length>1?history.back():nav('');
+  $$('[data-zoom]').forEach(img=>img.onclick=()=>openLightbox(img.src));
+  $('#editBtn').onclick=()=>{ editDraft={...c, phones:c.phones&&c.phones.length?[...c.phones]:[''], emails:c.emails&&c.emails.length?[...c.emails]:[''], sites:c.sites?[...c.sites]:[]}; nav('edit'); };
+  $('#vcardBtn').onclick=()=>exportVCard(c);
+  $('#delBtn').onclick=async()=>{
+    if(confirm('Διαγραφή αυτής της κάρτας; Η ενέργεια δεν αναιρείται.')){
+      try{ await fsDeleteCardFile(c); }catch(e){}
+      await dbDel(c.id); toast('Διαγράφηκε'); nav('cat/'+encodeURIComponent(c.category));
+    }
+  };
+}
+
+/* ---- vCard export ---- */
+function exportVCard(c){
+  const lines=['BEGIN:VCARD','VERSION:3.0'];
+  if(c.name) lines.push('FN:'+c.name);
+  if(c.name){ const parts=c.name.split(/\s+/); lines.push('N:'+(parts.slice(1).join(' ')||'')+';'+(parts[0]||'')+';;;'); }
+  if(c.company) lines.push('ORG:'+c.company);
+  if(c.title) lines.push('TITLE:'+c.title);
+  (c.phones||[]).forEach(p=>lines.push('TEL;TYPE=CELL:'+p.replace(/\s/g,'')));
+  (c.emails||[]).forEach(e=>lines.push('EMAIL:'+e));
+  (c.sites||[]).forEach(s=>lines.push('URL:'+(/^https?:\/\//i.test(s)?s:'https://'+s)));
+  if(c.address) lines.push('ADR:;;'+c.address.replace(/\n/g,' ')+';;;;');
+  if(c.notes) lines.push('NOTE:'+c.notes.replace(/\n/g,'\\n'));
+  lines.push('CATEGORIES:'+(c.category||''));
+  lines.push('END:VCARD');
+  const blob=new Blob([lines.join('\r\n')],{type:'text/vcard'});
+  const url=URL.createObjectURL(blob); const a=document.createElement('a');
+  a.href=url; a.download=(c.name||c.company||'card').replace(/[^\wͰ-Ͽ]+/g,'_')+'.vcf';
+  document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+  toast('Εξήχθη vCard (.vcf)');
+}
+
+/* ---- Menu (backup / restore) ---- */
+$('#menuBtn').onclick=async()=>{
+  const mdOn = FS_SUPPORTED ? (await fsAutoOn()) : false;
+  const choice=prompt('CardScan · Επιλογές\n\n1 = Εξαγωγή αντιγράφου ασφαλείας (JSON)\n2 = Εισαγωγή αντιγράφου (JSON)\n3 = Gemini API key (ανάγνωση με AI)'+(getGeminiKey()?' ✓':'')+'\n4 = Εξαγωγή για Obsidian (.md / ZIP)\n5 = Φάκελος αυτόματης αποθήκευσης .md (Markor)'+(mdOn?' ✓':'')+'\n6 = Αποθήκευση όλων των .md τώρα\n\nΓράψε 1–6:');
+  if(choice==='1') await exportBackup();
+  else if(choice==='2') importBackup();
+  else if(choice==='3'){ askGeminiKey(); renderAiBanner(); }
+  else if(choice==='4') await exportObsidian();
+  else if(choice==='5') await fsSetupFolder();
+  else if(choice==='6') await fsSyncAllMd();
+};
+// ---------- Εξαγωγή για Obsidian (ZIP με σημειώσεις .md) ----------
+let _jszipPromise=null;
+function loadJSZip(){
+  if(window.JSZip) return Promise.resolve(window.JSZip);
+  if(_jszipPromise) return _jszipPromise;
+  _jszipPromise=new Promise((resolve,reject)=>{
+    const sc=document.createElement('script');
+    sc.src='https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js';
+    sc.onload=()=>window.JSZip?resolve(window.JSZip):reject(new Error('JSZip δεν φορτώθηκε'));
+    sc.onerror=()=>reject(new Error('Αποτυχία λήψης JSZip (έλεγξε τη σύνδεση)'));
+    document.head.appendChild(sc);
+  }).catch(e=>{ _jszipPromise=null; throw e; });
+  return _jszipPromise;
+}
+function _sanitizeFile(s){
+  return String(s||'').replace(/[\\/:*?"<>|#\^\[\]]/g,' ').replace(/[\r\n\t]+/g,' ')
+    .replace(/\s{2,}/g,' ').trim().slice(0,80) || 'Καρτα';
+}
+function _slug(s){
+  return String(s||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'')
+    .replace(/[^a-z0-9Ͱ-Ͽ]+/g,'-').replace(/^-+|-+$/g,'') || 'allo';
+}
+const _ystr=s=>JSON.stringify(String(s==null?'':s));
+const _yarr=a=>'['+(a||[]).map(x=>JSON.stringify(String(x))).join(', ')+']';
+function _dataUrlToBytes(dataURL){
+  const b64=dataURL.slice(dataURL.indexOf(',')+1); const bin=atob(b64);
+  const len=bin.length; const bytes=new Uint8Array(len);
+  for(let i=0;i<len;i++) bytes[i]=bin.charCodeAt(i);
+  return bytes;
+}
+function _cardMarkdown(c,includeImages){
+  if(includeImages===undefined) includeImages=true;
+  const phones=(c.phones||[]).filter(Boolean), emails=(c.emails||[]).filter(Boolean), sites=(c.sites||[]).filter(Boolean);
+  const created=c.createdAt?new Date(c.createdAt).toISOString():'';
+  const fm=['---',
+    'title: '+_ystr(c.name||c.company||'Χωρίς όνομα'),
+    'name: '+_ystr(c.name||''),
+    'company: '+_ystr(c.company||''),
+    'role: '+_ystr(c.title||''),
+    'category: '+_ystr(c.category||''),
+    'phones: '+_yarr(phones),
+    'emails: '+_yarr(emails),
+    'websites: '+_yarr(sites),
+    'address: '+_ystr(c.address||''),
+    'created: '+_ystr(created),
+    'tags: [cardscan, '+_slug(c.category)+']',
+    '---',''].join('\n');
+  const L=[]; L.push('# '+(c.name||c.company||'Χωρίς όνομα'));
+  if(c.company && c.company!==c.name) L.push('**Εταιρεία:** '+c.company);
+  if(c.title) L.push('**Ιδιότητα:** '+c.title);
+  L.push('**Κατηγορία:** #cardscan/'+_slug(c.category)+' ('+(c.category||'')+')');
+  if(phones.length) L.push('**Τηλέφωνα:** '+phones.join(' · '));
+  if(emails.length) L.push('**Email:** '+emails.join(' · '));
+  if(sites.length) L.push('**Ιστοσελίδα:** '+sites.join(' · '));
+  if(c.address) L.push('**Διεύθυνση:** '+c.address);
+  if(c.notes) L.push('**Σημειώσεις:** '+c.notes);
+  if(includeImages){
+    const imgs=[];
+    if(c.imageFront) imgs.push('![['+'attachments/'+c.id+'-front.jpg]]');
+    if(c.imageBack)  imgs.push('![['+'attachments/'+c.id+'-back.jpg]]');
+    if(imgs.length){ L.push('','## Όψεις κάρτας',imgs.join('\n')); }
+  }
+  L.push('','---','*CardScan · CG apps'+(created?' · '+new Date(c.createdAt).toLocaleDateString('el-GR'):'')+'*');
+  return fm+L.join('\n')+'\n';
+}
+// ---------- Αυτόματη αποθήκευση .md σε φάκελο συσκευής (π.χ. Markor) ----------
+const FS_SUPPORTED = (typeof window!=='undefined') && ('showDirectoryPicker' in window);
+let _dirHandle=null;
+async function fsAutoOn(){ try{ return !!(await kvGet('mdAuto')); }catch(e){ return false; } }
+async function fsLoadHandle(){
+  if(_dirHandle) return _dirHandle;
+  try{ _dirHandle=(await kvGet('mdDir'))||null; }catch(e){ _dirHandle=null; }
+  return _dirHandle;
+}
+async function fsVerifyPermission(handle,write){
+  if(!handle) return false;
+  const opts={mode: write?'readwrite':'read'};
+  try{
+    if((await handle.queryPermission(opts))==='granted') return true;
+    if((await handle.requestPermission(opts))==='granted') return true; // εντός χειρονομίας (κουμπί)
+  }catch(e){}
+  return false;
+}
+async function fsUniqueName(handle,base){
+  base=String(base).replace(/\.md$/i,''); let name=base+'.md', i=2;
+  while(true){
+    try{ await handle.getFileHandle(name,{create:false}); name=base+' ('+i+').md'; i++; }
+    catch(e){ return name; } // NotFoundError => ελεύθερο όνομα
+  }
+}
+async function fsWriteFile(handle,name,text){
+  const fh=await handle.getFileHandle(name,{create:true});
+  const w=await fh.createWritable(); await w.write(text); await w.close();
+}
+// ---- Ένα ενιαίο αρχείο .md με όλες τις κάρτες + φωτογραφίες στον ίδιο φάκελο ----
+const MD_ALL='oles_oi_kartes.md';
+function _imgLink(alt,fname){ return '!['+alt+'](<'+fname+'>)'; } // angle-brackets: επιτρέπουν κενά/παρενθέσεις
+function _allCardsMarkdown(cards){
+  const byCat={};
+  cards.forEach(c=>{ (byCat[c.category||'Άλλο']=byCat[c.category||'Άλλο']||[]).push(c); });
+  const L=['# CardScan — Όλες οι κάρτες','',
+    '> Ενημερώθηκε '+new Date().toLocaleString('el-GR')+' · '+cards.length+' επαφές','',''];
+  Object.keys(byCat).sort((a,b)=>a.localeCompare(b,'el')).forEach(cat=>{
+    L.push('# '+cat,'');
+    byCat[cat].sort((a,b)=>(a.name||a.company||'').localeCompare(b.name||b.company||'','el')).forEach(c=>{
+      L.push('## '+(c.name||c.company||'Χωρίς όνομα'));
+      if(c.company && c.company!==c.name) L.push('- **Εταιρεία:** '+c.company);
+      if(c.title) L.push('- **Ιδιότητα:** '+c.title);
+      const ph=(c.phones||[]).filter(Boolean), em=(c.emails||[]).filter(Boolean), si=(c.sites||[]).filter(Boolean);
+      if(ph.length) L.push('- **Τηλέφωνα:** '+ph.join(' · '));
+      if(em.length) L.push('- **Email:** '+em.join(' · '));
+      if(si.length) L.push('- **Ιστοσελίδα:** '+si.join(' · '));
+      if(c.address) L.push('- **Διεύθυνση:** '+c.address);
+      if(c.notes) L.push('- **Σημειώσεις:** '+c.notes);
+      if(c.imgBase){
+        L.push('');
+        if(c.imageFront) L.push(_imgLink((c.name||c.company||'')+' (μπροστά)', c.imgBase+'.jpg'));
+        if(c.imageBack)  L.push(_imgLink((c.name||c.company||'')+' (πίσω)',    c.imgBase+'-πισω.jpg'));
+      }
+      L.push('');
+    });
+  });
+  return L.join('\n')+'\n';
+}
+async function fsWriteBytes(h,name,bytes){ const fh=await h.getFileHandle(name,{create:true}); const w=await fh.createWritable(); await w.write(bytes); await w.close(); }
+async function _fsExists(h,name){ try{ await h.getFileHandle(name,{create:false}); return true; }catch(e){ return false; } }
+async function fsImgBaseUnique(h,base){
+  base=_sanitizeFile(base); let cand=base, i=2;
+  while(await _fsExists(h,cand+'.jpg')){ cand=base+' ('+i+')'; i++; }
+  return cand;
+}
+// Γράφει τις φωτογραφίες μιας κάρτας στον φάκελο, με όνομα βάσει ονοματεπώνυμου
+async function fsWriteCardImages(h,card){
+  const desired=_sanitizeFile(card.name||card.company||'Καρτα');
+  let changed=false;
+  if(card.imgBase){
+    const cur=card.imgBase.replace(/ \(\d+\)$/,'');
+    if(cur!==desired){
+      try{ await h.removeEntry(card.imgBase+'.jpg'); }catch(e){}
+      try{ await h.removeEntry(card.imgBase+'-πισω.jpg'); }catch(e){}
+      card.imgBase=await fsImgBaseUnique(h,desired); changed=true;
+    }
+  } else { card.imgBase=await fsImgBaseUnique(h,desired); changed=true; }
+  try{ if(card.imageFront) await fsWriteBytes(h,card.imgBase+'.jpg',_dataUrlToBytes(card.imageFront)); }catch(e){}
+  try{
+    if(card.imageBack) await fsWriteBytes(h,card.imgBase+'-πισω.jpg',_dataUrlToBytes(card.imageBack));
+    else { try{ await h.removeEntry(card.imgBase+'-πισω.jpg'); }catch(e){} }
+  }catch(e){}
+  return changed;
+}
+async function fsRegenIndex(h){ let cards; try{ cards=await dbAll(); }catch(e){ return; } await fsWriteFile(h,MD_ALL,_allCardsMarkdown(cards)); }
+// Καθάρισε τυχόν παλιό ατομικό .md από προηγούμενη έκδοση
+async function _fsCleanupOldMd(h,rec){ if(rec.mdFile){ try{ await h.removeEntry(rec.mdFile); }catch(e){} rec.mdFile=null; return true; } return false; }
+
+async function fsAutoSaveCard(rec){
+  if(!FS_SUPPORTED || !(await fsAutoOn())) return;
+  const h=await fsLoadHandle(); if(!h) return;
+  if(!(await fsVerifyPermission(h,true))) return;
+  await _fsCleanupOldMd(h,rec);
+  await fsWriteCardImages(h,rec);
+  try{ await dbPut(rec); }catch(e){}
+  await fsRegenIndex(h);
+}
+async function fsDeleteCardFile(rec){
+  if(!FS_SUPPORTED || !rec || !(await fsAutoOn())) return;
+  const h=await fsLoadHandle(); if(!h) return;
+  if(!(await fsVerifyPermission(h,true))) return;
+  if(rec.mdFile){ try{ await h.removeEntry(rec.mdFile); }catch(e){} }
+  if(rec.imgBase){ try{ await h.removeEntry(rec.imgBase+'.jpg'); }catch(e){} try{ await h.removeEntry(rec.imgBase+'-πισω.jpg'); }catch(e){} }
+  await fsRegenIndex(h);
+}
+// Γράψε ΟΛΕΣ τις κάρτες: ένα oles_oi_kartes.md + φωτογραφίες στον ίδιο φάκελο
+async function fsSyncAllMd(){
+  if(!FS_SUPPORTED){ toast('Δεν υποστηρίζεται εδώ — άνοιξε την εφαρμογή σε Chrome (Android).',true); return; }
+  const h=await fsLoadHandle();
+  if(!h){ toast('Όρισε πρώτα φάκελο (μενού ⋯ → 5).',true); return; }
+  if(!(await fsVerifyPermission(h,true))){ toast('Δεν δόθηκε άδεια εγγραφής στον φάκελο',true); return; }
+  let cards; try{ cards=await dbAll(); }catch(e){ toast('Σφάλμα βάσης',true); return; }
+  if(!cards.length){ toast('Δεν υπάρχουν κάρτες',true); return; }
+  toast('Αποθήκευση σε φάκελο…'); let n=0;
+  for(const c of cards){
+    try{ await _fsCleanupOldMd(h,c); await fsWriteCardImages(h,c); await dbPut(c); n++; }catch(e){}
+  }
+  await fsRegenIndex(h);
+  toast('✅ Αποθηκεύτηκαν '+n+' κάρτες + φωτογραφίες ('+MD_ALL+')');
+}
+async function fsPickFolder(){
+  if(!FS_SUPPORTED){ alert('Η άμεση αποθήκευση σε φάκελο δεν υποστηρίζεται εδώ.\n\nΆνοιξε την εφαρμογή με Chrome σε Android (ως εγκατεστημένη PWA).'); return false; }
+  try{
+    const h=await window.showDirectoryPicker({mode:'readwrite',id:'cardscan-md',startIn:'documents'});
+    if(!(await fsVerifyPermission(h,true))){ toast('Δεν δόθηκε άδεια εγγραφής',true); return false; }
+    _dirHandle=h; await kvSet('mdDir',h); await kvSet('mdAuto',true);
+    toast('✅ Ορίστηκε φάκελος — αποθήκευση όλων…');
+    await fsSyncAllMd();
+    return true;
+  }catch(e){ if(e && e.name!=='AbortError') toast('Σφάλμα επιλογής φακέλου: '+(e.message||e.name),true); return false; }
+}
+async function fsSetupFolder(){
+  if(!FS_SUPPORTED){ alert('Η άμεση αποθήκευση σε φάκελο δεν υποστηρίζεται σε αυτόν τον browser.\n\nΓια να αποθηκεύεις αυτόματα .md στον φάκελο Documents/markor, άνοιξε την εφαρμογή με Google Chrome σε Android.\n\n(Εναλλακτικά, χρησιμοποίησε την «Εξαγωγή για Obsidian».)'); return; }
+  if(await fsAutoOn()){
+    const a=prompt('Αυτόματη αποθήκευση .md: ΕΝΕΡΓΗ ✓\n\n1 = Αλλαγή φακέλου\n2 = Απενεργοποίηση\n\n(κενό = άκυρο)');
+    if(a==='2'){ await kvSet('mdAuto',false); toast('Απενεργοποιήθηκε η αυτόματη αποθήκευση .md'); return; }
+    if(a!=='1') return;
+  } else {
+    alert('Επίλεξε τον φάκελο αποθήκευσης.\n\nΓια το Markor: Documents ▸ markor\n(διαδρομή: /storage/emulated/0/Documents/markor)\n\nΘα αποθηκεύονται ΟΛΕΣ οι κάρτες σε ένα αρχείο "'+MD_ALL+'" και οι φωτογραφίες (με όνομα βάσει ονόματος) στον ίδιο φάκελο.\n\nΘα ζητηθεί άδεια εγγραφής μία φορά.');
+  }
+  await fsPickFolder();
+}
+
+async function exportObsidian(){
+  let cards; try{ cards=await dbAll(); }catch(e){ toast('Σφάλμα ανάγνωσης βάσης',true); return; }
+  if(!cards.length){ toast('Δεν υπάρχουν κάρτες για εξαγωγή',true); return; }
+  let JSZip; try{ toast('Προετοιμασία εξαγωγής…'); JSZip=await loadJSZip(); }
+  catch(e){ toast(e.message||'Αποτυχία φόρτωσης JSZip',true); return; }
+  const zip=new JSZip(); const root=zip.folder('CardScan');
+  const used=new Set(); const indexLines=['# CardScan — Όλες οι επαφές','',
+    '> Εξαγωγή '+new Date().toLocaleString('el-GR')+' · '+cards.length+' επαφές','',''];
+  const byCat={};
+  cards.sort((a,b)=>(a.category||'').localeCompare(b.category||'','el')|| (a.name||'').localeCompare(b.name||'','el'));
+  for(const c of cards){
+    // αρχείο ανά κατηγορία
+    const catFolder=_sanitizeFile(c.category||'Άλλο');
+    let base=_sanitizeFile(c.name||c.company||'Καρτα');
+    let fname=catFolder+'/'+base; let n=2;
+    while(used.has(fname.toLowerCase())){ fname=catFolder+'/'+base+' ('+n+')'; n++; }
+    used.add(fname.toLowerCase());
+    root.file(fname+'.md', _cardMarkdown(c));
+    // φωτογραφίες
+    try{ if(c.imageFront) root.file('attachments/'+c.id+'-front.jpg', _dataUrlToBytes(c.imageFront),{binary:true}); }catch(e){}
+    try{ if(c.imageBack)  root.file('attachments/'+c.id+'-back.jpg',  _dataUrlToBytes(c.imageBack),{binary:true}); }catch(e){}
+    // συγκεντρωτικό
+    (byCat[c.category||'Άλλο']=byCat[c.category||'Άλλο']||[]).push(c);
+  }
+  // Συγκεντρωτικό αρχείο (ιδανικό για ανέβασμα σε Claude Project)
+  for(const cat of Object.keys(byCat).sort((a,b)=>a.localeCompare(b,'el'))){
+    indexLines.push('## '+cat);
+    for(const c of byCat[cat]){
+      const parts=[];
+      if(c.company && c.company!==c.name) parts.push(c.company);
+      if(c.title) parts.push(c.title);
+      if((c.phones||[]).filter(Boolean).length) parts.push('☎ '+c.phones.filter(Boolean).join(', '));
+      if((c.emails||[]).filter(Boolean).length) parts.push('✉ '+c.emails.filter(Boolean).join(', '));
+      if((c.sites||[]).filter(Boolean).length) parts.push('🌐 '+c.sites.filter(Boolean).join(', '));
+      if(c.address) parts.push('📍 '+c.address);
+      if(c.notes) parts.push('📝 '+c.notes);
+      indexLines.push('- **'+(c.name||c.company||'Χωρίς όνομα')+'** — '+parts.join(' · '));
+    }
+    indexLines.push('');
+  }
+  root.file('_Ολες-οι-επαφες.md', indexLines.join('\n')+'\n');
+  let blob; try{ blob=await zip.generateAsync({type:'blob'}); }
+  catch(e){ toast('Σφάλμα δημιουργίας ZIP',true); return; }
+  const url=URL.createObjectURL(blob); const a=document.createElement('a');
+  a.href=url; a.download='CardScan-Obsidian-'+new Date().toISOString().slice(0,10)+'.zip';
+  document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(url),4000);
+  toast('✅ Εξήχθη ZIP για Obsidian ('+cards.length+' σημειώσεις)');
+}
+
+async function exportBackup(){
+  const cards=await dbAll();
+  const data={app:'CardScan',maker:'CG apps',exportedAt:new Date().toISOString(),categories:getCategories(),cards};
+  const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
+  const url=URL.createObjectURL(blob); const a=document.createElement('a');
+  a.href=url; a.download='cardscan-backup-'+new Date().toISOString().slice(0,10)+'.json';
+  document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+  toast('Εξήχθη αντίγραφο ('+cards.length+' κάρτες)');
+}
+function importBackup(){
+  const inp=document.createElement('input'); inp.type='file'; inp.accept='application/json,.json';
+  inp.onchange=async e=>{
+    const f=e.target.files[0]; if(!f) return;
+    try{
+      const data=JSON.parse(await f.text());
+      const cards=Array.isArray(data)?data:(data.cards||[]);
+      if(data.categories) data.categories.filter(c=>!DEFAULT_CATEGORIES.includes(c)&&c!==OTHER).forEach(addCustomCategory);
+      let n=0; for(const c of cards){ if(c&&c.id){ await dbPut(c); n++; } }
+      toast('Εισήχθησαν '+n+' κάρτες'); router();
+    }catch(err){ toast('Μη έγκυρο αρχείο',true); }
+  };
+  inp.click();
+}
+
+/* ---- FAB ---- */
+$('#fab').onclick=()=>{ scanState={front:null,back:null}; nav('scan'); };
+
+/* ---- Service worker ---- */
+if('serviceWorker' in navigator){
+  window.addEventListener('load',()=>navigator.serviceWorker.register('cardscan-sw.js').catch(()=>{}));
+}
+
+/* Μετονομασία παλιάς κατηγορίας «Οικοδόμος» -> «Μπετατζής/Σιδεράς» (μία φορά) */
+async function migrateCategories(){
+  try{ if(localStorage.getItem('cardscan.catMigratedV2')) return; }catch(e){}
+  const RENAMES={'Οικοδόμος':'Μπετατζής/Σιδεράς'};
+  try{
+    let changed=false;
+    const cards=await dbAll();
+    for(const c of cards){ if(RENAMES[c.category]){ c.category=RENAMES[c.category]; try{ await dbPut(c); }catch(e){} changed=true; } }
+    try{ let ex=JSON.parse(localStorage.getItem('cardscan.categories')||'[]'); const ne=ex.filter(x=>!RENAMES[x]); if(ne.length!==ex.length) localStorage.setItem('cardscan.categories',JSON.stringify(ne)); }catch(e){}
+    try{ localStorage.setItem('cardscan.catMigratedV2','1'); }catch(e){}
+    if(changed && FS_SUPPORTED && await fsAutoOn()){ const h=await fsLoadHandle(); if(h){ try{ if((await h.queryPermission({mode:'readwrite'}))==='granted') await fsRegenIndex(h); }catch(e){} } }
+  }catch(e){ try{ localStorage.setItem('cardscan.catMigratedV2','1'); }catch(_){} }
+}
+
+/* ---- Boot ---- */
+migrateCategories().finally(router);
+</script>
+</body>
+</html>
