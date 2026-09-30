@@ -3,11 +3,12 @@
    ArcGIS του Κτηματολογίου πάνε πάντα στο δίκτυο (network-first-για-τρίτους). */
 'use strict';
 
-const CACHE = 'maps-pin-v1';
+const CACHE = 'maps-pin-v2';
 const ASSETS = [
   './maps-pin.html',
   './maps-pin.webmanifest',
-  './maps-pin-icon.svg'
+  './maps-pin-icon.svg',
+  './topografika-data.json'
 ];
 
 self.addEventListener('install', event => {

@@ -230,6 +230,27 @@
   .kaek-box{margin-top:1rem;padding-top:1rem;border-top:1px dashed var(--border);}
   .kaek-box .coords{font-size:1.1rem;font-weight:600;}
 
+  .dxf-status{
+    display:flex;align-items:center;justify-content:space-between;gap:0.6rem;
+    margin-top:0.75rem;padding:0.55rem 0.7rem;
+    background:var(--surface-2);border:1px solid var(--border);border-radius:9px;
+    font-size:0.76rem;color:var(--text-muted);
+  }
+  .dxf-status.ok{border-color:var(--green);}
+  .dxf-status.warn{border-color:var(--gold-dim);}
+  .dxf-status.drag{border-color:var(--gold);background:#252a1a;}
+  #dxfStatusText{flex:1;line-height:1.35;}
+
+  .folder-rec{
+    background:var(--surface-2);border:1px solid var(--border);border-radius:9px;
+    padding:0.6rem 0.75rem;margin-top:0.55rem;
+  }
+  .folder-rec .fr-owner{font-size:1.02rem;font-weight:700;color:var(--text);}
+  .folder-rec .fr-line{font-size:0.85rem;color:var(--text-muted);margin-top:0.2rem;}
+  .folder-rec .fr-line b{color:var(--gold);font-weight:600;}
+  .folder-note{font-size:0.82rem;color:var(--text-muted);}
+  .folder-tag{font-family:'IBM Plex Mono',monospace;color:var(--gold);}
+
   /* ── Ιστορικό ── */
   .history-head{
     display:flex;justify-content:space-between;align-items:center;margin-bottom:0.75rem;
@@ -325,6 +346,11 @@
     </div>
     <button id="swapBtn" class="swap-btn" type="button">⇄ Εναλλαγή Χ ↔ Υ</button>
     <div id="xyHint" class="hint"></div>
+    <div id="dxfStatus" class="dxf-status">
+      <span id="dxfStatusText">SYNOLIKO-12.dxf: έλεγχος…</span>
+      <button id="dxfLoadBtn" class="swap-btn" type="button" style="margin-top:0;">Φόρτωση DXF</button>
+      <input type="file" id="dxfFileInput" accept=".dxf,text/plain" style="display:none">
+    </div>
     <div class="note-field field">
       <label for="xyNote">Σημείωση (προαιρετικό)</label>
       <input id="xyNote" type="text" placeholder="π.χ. Στάση Α1">
@@ -350,6 +376,10 @@
           <button id="xyKaekCopyBtn" class="act btn-secondary">Αντιγραφή ΚΑΕΚ</button>
           <button id="xyKaekOpenBtn" class="act btn-secondary">Δες γεωτεμάχιο →</button>
         </div>
+      </div>
+      <div class="kaek-box" id="xyFolderBox" style="display:none;">
+        <div class="rlabel">Στοιχεία φακέλου (SYNOLIKO-12)</div>
+        <div id="xyFolderVal"></div>
       </div>
     </div>
   </div>
@@ -680,6 +710,7 @@ $('xyConvertBtn').addEventListener('click', () => {
   $('xyResult').classList.add('show');
   addToHistory({ type:'xy', label:'Χ,Υ ' + Math.round(X) + ',' + Math.round(Y), note:$('xyNote').value.trim(), lat, lon });
   findKaekAtPoint(X, Y);
+  findFolderAtPoint(X, Y);
 });
 
 $('xyKaekCopyBtn').addEventListener('click', async () => {
@@ -702,6 +733,226 @@ $('xyKaekOpenBtn').addEventListener('click', () => {
 $('xyMapsBtn').addEventListener('click', () => { if(xyPoint) openGoogleMaps(xyPoint.lat, xyPoint.lon); });
 $('xyGeoBtn').addEventListener('click',  () => { if(xyPoint) openGeoApp(xyPoint.lat, xyPoint.lon, $('xyNote').value.trim()); });
 $('xyCopyBtn').addEventListener('click', () => { if(xyPoint) copyCoords(xyPoint.lat, xyPoint.lon); });
+
+/* ═══════════════ SYNOLIKO-12.dxf + λίστα ιδιοκτητών ═══════════════
+   Το DXF (γεωτεμάχια σε ΕΓΣΑ87 με TEXT = όνομα φακέλου) φορτώνεται είτε
+   από το repo (synoliko-12.dxf) είτε με χειροκίνητο άνοιγμα/σύρσιμο.
+   Το σημείο Χ,Υ ελέγχεται point-in-polygon· το TEXT του πολυγώνου
+   αντιστοιχίζεται στη λίστα (όνομα φακέλου = στήλη K) για Ιδιοκτήτη/Θέση/Περιγραφή. */
+const DXF_FILE = 'synoliko-12.dxf';
+const DATA_FILE = 'topografika-data.json';
+
+let dxfPolys = null;    // [{pts:[[x,y]...], text, layer, area, cx, cy}]
+let topoIndex = null;   // {byFolder:Map, records:[]}
+
+/* Κανονικοποίηση ονόματος φακέλου/TEXT για αντιστοίχιση */
+function normFolder(s){ return String(s||'').trim().toUpperCase(); }
+function normAlnum(s){ return normFolder(s).replace(/[^0-9A-ZΑ-ΩΆΈΉΊΌΎΏΪΫ]/gu, ''); }
+
+/* ---- Φόρτωση λίστας ιδιοκτητών ---- */
+async function loadTopoData(){
+  if(topoIndex) return topoIndex;
+  const res = await fetch(DATA_FILE, {cache:'force-cache'});
+  if(!res.ok) throw new Error('data ' + res.status);
+  const data = await res.json();
+  const byFolder = new Map(), byAlnum = new Map();
+  for(const r of data.records){
+    const f = normFolder(r.f), a = normAlnum(r.f);
+    if(f){ (byFolder.get(f) || byFolder.set(f, []).get(f)).push(r); }
+    if(a){ (byAlnum.get(a) || byAlnum.set(a, []).get(a)).push(r); }
+  }
+  topoIndex = { byFolder, byAlnum, records: data.records };
+  return topoIndex;
+}
+
+function lookupFolder(text){
+  if(!topoIndex) return [];
+  const f = normFolder(text), a = normAlnum(text);
+  if(topoIndex.byFolder.has(f)) return topoIndex.byFolder.get(f);
+  if(topoIndex.byAlnum.has(a))  return topoIndex.byAlnum.get(a);
+  return [];
+}
+
+/* ---- Ελάχιστος parser DXF: LWPOLYLINE, POLYLINE/VERTEX, TEXT, MTEXT ---- */
+function parseDxf(txt){
+  const lines = txt.split(/\r\n|\r|\n/);
+  const ents = []; const texts = [];
+  const N = lines.length;
+  let i = 0;
+  function next(){
+    if(i+1 >= N) return null;
+    const code = parseInt(lines[i].trim(), 10);
+    const val = lines[i+1];
+    i += 2;
+    return [code, val];
+  }
+  // Το LWPOLYLINE είναι αυτοτελές· το παλιό POLYLINE απλώνεται σε πολλές οντότητες
+  // VERTEX μέχρι το SEQEND, οπότε το parent poly πρέπει να μένει «ζωντανό».
+  let poly = null, tx = null, mode = null;
+  const finPoly = () => { if(poly && poly.pts.length >= 3) ents.push(poly); poly = null; };
+  const finText = () => { if(tx && tx.text && isFinite(tx.x)) texts.push(tx); tx = null; };
+
+  while(i+1 < N){
+    const p = next(); if(!p) break;
+    const [code, raw] = p; const val = (raw||'').trim();
+    if(code === 0){
+      if(val === 'LWPOLYLINE'){ finText(); finPoly(); poly = {pts:[], layer:'', text:''}; mode='lw'; }
+      else if(val === 'POLYLINE'){ finText(); finPoly(); poly = {pts:[], layer:'', text:''}; mode='vseq'; }
+      else if(val === 'VERTEX'){ mode='vertex'; }         // παιδί — κρατάμε το poly
+      else if(val === 'SEQEND'){ mode='idle'; }           // τέλος κορυφών — κρατάμε το poly
+      else if(val === 'TEXT' || val === 'MTEXT'){ finText(); finPoly(); tx = {text:'', layer:'', x:NaN, y:NaN}; mode='text'; }
+      else { finText(); finPoly(); mode='idle'; }         // άλλη οντότητα
+      continue;
+    }
+    if(mode === 'lw' && poly){
+      if(code === 8) poly.layer = val;
+      else if(code === 10) poly.pts.push([parseFloat(val), NaN]);
+      else if(code === 20){ const last=poly.pts[poly.pts.length-1]; if(last) last[1]=parseFloat(val); }
+    }else if(mode === 'vseq' && poly){
+      if(code === 8) poly.layer = val;                    // αγνοούμε το dummy 10/20/30 του POLYLINE
+    }else if(mode === 'vertex' && poly){
+      if(code === 10) poly.pts.push([parseFloat(val), NaN]);
+      else if(code === 20){ const last=poly.pts[poly.pts.length-1]; if(last) last[1]=parseFloat(val); }
+    }else if(mode === 'text' && tx){
+      if(code === 8) tx.layer = val;
+      else if(code === 10) tx.x = parseFloat(val);
+      else if(code === 20) tx.y = parseFloat(val);
+      else if(code === 1) tx.text = mtextClean(val);
+      else if(code === 3) tx.text = mtextClean(val + (tx.text||'')); // συνέχεια MTEXT
+    }
+  }
+  finText(); finPoly();
+
+  // Υπολογισμός εμβαδού/κέντρου κάθε πολυγώνου
+  for(const e of ents){
+    let A=0, cx=0, cy=0;
+    const pts = e.pts;
+    for(let k=0;k<pts.length;k++){
+      const [x0,y0]=pts[k], [x1,y1]=pts[(k+1)%pts.length];
+      const cr = x0*y1 - x1*y0; A+=cr; cx+=(x0+x1)*cr; cy+=(y0+y1)*cr;
+    }
+    A*=0.5; e.area=Math.abs(A);
+    if(Math.abs(A)>1e-9){ e.cx=cx/(6*A); e.cy=cy/(6*A); }
+    else { e.cx=pts[0][0]; e.cy=pts[0][1]; }
+  }
+  // Αντιστοίχιση TEXT → πολύγωνο που το περιέχει (το TEXT μπαίνει μέσα στο γεωτεμάχιο)
+  for(const t of texts){
+    let best=null, bestArea=Infinity;
+    for(const e of ents){
+      if(pointInPoly(t.x, t.y, e.pts) && e.area < bestArea){ best=e; bestArea=e.area; }
+    }
+    if(best && !best.text) best.text = t.text;
+  }
+  return ents;
+}
+
+function mtextClean(s){
+  // Αφαίρεση βασικών κωδικών μορφοποίησης MTEXT
+  return String(s||'')
+    .replace(/\\P/g,' ').replace(/\\~/g,' ')
+    .replace(/\{[^;]*;/g,'').replace(/[{}]/g,'')
+    .replace(/\\[A-Za-z][^\\;]*;?/g,'')
+    .trim();
+}
+
+function pointInPoly(x, y, pts){
+  let inside=false;
+  for(let k=0, j=pts.length-1; k<pts.length; j=k++){
+    const xi=pts[k][0], yi=pts[k][1], xj=pts[j][0], yj=pts[j][1];
+    if(((yi>y)!==(yj>y)) && (x < (xj-xi)*(y-yi)/((yj-yi)||1e-12)+xi)) inside=!inside;
+  }
+  return inside;
+}
+
+/* ---- Κατάσταση/φόρτωση DXF ---- */
+function setDxfStatus(msg, cls){
+  $('dxfStatusText').textContent = msg;
+  const el = $('dxfStatus');
+  el.classList.remove('ok','warn');
+  if(cls) el.classList.add(cls);
+}
+
+async function ingestDxfText(txt, sourceLabel){
+  try{
+    setDxfStatus('SYNOLIKO-12.dxf: ανάλυση…');
+    const ents = parseDxf(txt);
+    dxfPolys = ents;
+    const withText = ents.filter(e => e.text).length;
+    setDxfStatus(`SYNOLIKO-12: ${ents.length} πολύγωνα (${withText} με όνομα)${sourceLabel ? ' · '+sourceLabel : ''}`, 'ok');
+    try{ await loadTopoData(); }catch(e){ /* δείχνεται στο lookup */ }
+  }catch(err){
+    console.error(err);
+    setDxfStatus('Σφάλμα ανάγνωσης DXF.', 'warn');
+    dxfPolys = null;
+  }
+}
+
+async function tryLoadBundledDxf(){
+  try{
+    const res = await fetch(DXF_FILE, {cache:'force-cache'});
+    if(!res.ok){ throw new Error(String(res.status)); }
+    const txt = await res.text();
+    await ingestDxfText(txt, 'από repo');
+  }catch(err){
+    setDxfStatus('SYNOLIKO-12.dxf: δεν βρέθηκε — πάτα «Φόρτωση DXF» για χειροκίνητο άνοιγμα.', 'warn');
+  }
+}
+
+$('dxfLoadBtn').addEventListener('click', () => $('dxfFileInput').click());
+$('dxfFileInput').addEventListener('change', () => {
+  const f = $('dxfFileInput').files && $('dxfFileInput').files[0];
+  if(!f) return;
+  const reader = new FileReader();
+  reader.onload = e => ingestDxfText(e.target.result, f.name);
+  reader.readAsText(f);
+  $('dxfFileInput').value='';
+});
+// Σύρσιμο DXF πάνω στη γραμμή κατάστασης
+const dxfStatusEl = $('dxfStatus');
+['dragover','dragenter'].forEach(ev => dxfStatusEl.addEventListener(ev, e => { e.preventDefault(); dxfStatusEl.classList.add('drag'); }));
+['dragleave','dragend'].forEach(ev => dxfStatusEl.addEventListener(ev, () => dxfStatusEl.classList.remove('drag')));
+dxfStatusEl.addEventListener('drop', e => {
+  e.preventDefault(); dxfStatusEl.classList.remove('drag');
+  const f = e.dataTransfer.files && e.dataTransfer.files[0];
+  if(f){ const r=new FileReader(); r.onload=ev=>ingestDxfText(ev.target.result, f.name); r.readAsText(f); }
+});
+
+/* ---- Εύρεση φακέλου/ιδιοκτήτη στο σημείο ---- */
+function esc(s){ return String(s==null?'':s).replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])); }
+
+async function findFolderAtPoint(X, Y){
+  const box = $('xyFolderBox'), val = $('xyFolderVal');
+  if(!dxfPolys){ box.style.display='none'; return; }
+  box.style.display='block';
+  // Πολύγωνα που περιέχουν το σημείο (μικρότερο εμβαδόν πρώτο)
+  const hits = dxfPolys.filter(e => pointInPoly(X, Y, e.pts)).sort((a,b)=>a.area-b.area);
+  if(hits.length === 0){
+    val.innerHTML = '<div class="folder-note">Το σημείο δεν εμπίπτει σε γεωτεμάχιο του SYNOLIKO-12.</div>';
+    return;
+  }
+  const poly = hits[0];
+  const text = (poly.text||'').trim();
+  if(!text){
+    val.innerHTML = '<div class="folder-note">Βρέθηκε γεωτεμάχιο στο SYNOLIKO-12 χωρίς όνομα φακέλου (TEXT).</div>';
+    return;
+  }
+  try{ await loadTopoData(); }
+  catch(e){ val.innerHTML = `<div class="folder-note">Φάκελος: <span class="folder-tag">${esc(text)}</span> — δεν φορτώθηκε η λίστα ιδιοκτητών.</div>`; return; }
+
+  const recs = lookupFolder(text);
+  if(recs.length === 0){
+    val.innerHTML = `<div class="folder-note">Φάκελος: <span class="folder-tag">${esc(text)}</span> — δεν βρέθηκε στη λίστα.</div>`;
+    return;
+  }
+  val.innerHTML = recs.map(r => `
+    <div class="folder-rec">
+      <div class="fr-owner">${esc(r.o) || '—'}</div>
+      <div class="fr-line"><b>Θέση:</b> ${esc(r.l) || '—'}</div>
+      <div class="fr-line"><b>Περιγραφή:</b> ${esc(r.d) || '—'}</div>
+      <div class="fr-line">Φάκελος: <span class="folder-tag">${esc(r.p || r.f)}</span>${r.a ? ' · Α/Α '+esc(r.a) : ''}</div>
+    </div>`).join('') +
+    (recs.length > 1 ? `<div class="folder-note" style="margin-top:0.4rem;">${recs.length} εγγραφές με το ίδιο όνομα φακέλου.</div>` : '');
+}
 
 /* ═══════════════ Ιστορικό (localStorage) ═══════════════ */
 function loadHistory(){ try{ return JSON.parse(localStorage.getItem(STORAGE_KEY)) || []; }catch(e){ return []; } }
@@ -771,6 +1022,7 @@ if('serviceWorker' in navigator){
 
 /* ═══════════════ Αρχικοποίηση ═══════════════ */
 renderHistory();
+tryLoadBundledDxf();
 kaekInput.focus();
 </script>
 
