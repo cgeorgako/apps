@@ -419,6 +419,10 @@
       <div class="rlabel">Επιλεγμένο γεωτεμάχιο</div>
       <div id="mapKaek" class="map-kaek">—</div>
       <div id="mapSub" class="map-sub"></div>
+      <div class="kaek-box" id="mapFolder" style="display:none;">
+        <div class="rlabel">Στοιχεία φακέλου (SYNOLIKO-12)</div>
+        <div id="mapFolderVal"></div>
+      </div>
       <div class="actions">
         <button id="mapUseBtn" class="act btn-primary">✓ Χρήση ΚΑΕΚ στην εφαρμογή</button>
         <div class="btn-mini-row">
@@ -526,6 +530,45 @@ function egsa87ToWgs84(E, N){
   }
   const lonW = Math.atan2(Y, X);
   return { lat: latW*180/Math.PI, lon: lonW*180/Math.PI };
+}
+
+/* ═══════════════ Αντίστροφη: WGS84 → ΕΓΣΑ87 (EPSG:2100) ═══════════════
+   WGS84 γεωδαιτικές → γεωκεντρικές → αντίστροφη μετάθεση δεδομένου → GGRS87/GRS80
+   → ευθεία Εγκάρσια Μερκατορική (Snyder). Για κλικ στον χάρτη (lat/lon) → X,Y. */
+function wgs84ToEgsa87(lat, lon){
+  const aw = 6378137.0, fw = 1/298.257223563, e2w = fw*(2-fw);  // WGS84
+  const latR = lat*Math.PI/180, lonR = lon*Math.PI/180;
+  const s = Math.sin(latR), c = Math.cos(latR);
+  const Nw = aw/Math.sqrt(1 - e2w*s*s);
+  let X = Nw*c*Math.cos(lonR), Y = Nw*c*Math.sin(lonR), Z = Nw*(1-e2w)*s;
+  /* WGS84 → GGRS87: αντίστροφη της (−199.87, 74.79, 246.62) */
+  X += 199.87; Y -= 74.79; Z -= 246.62;
+  /* γεωκεντρικές → γεωδαιτικές σε GRS80 */
+  const a = 6378137.0, f = 1/298.257222101, e2 = f*(2-f);
+  const p = Math.hypot(X, Y);
+  let phi = Math.atan2(Z, p*(1 - e2));
+  for(let i=0;i<8;i++){
+    const sn = Math.sin(phi);
+    const Nn = a/Math.sqrt(1 - e2*sn*sn);
+    const h = p/Math.cos(phi) - Nn;
+    phi = Math.atan2(Z, p*(1 - e2*Nn/(Nn + h)));
+  }
+  const lam = Math.atan2(Y, X);
+  /* ευθεία TM (GRS80) */
+  const k0 = 0.9996, lon0 = 24*Math.PI/180, FE = 500000, FN = 0;
+  const ep2 = e2/(1-e2);
+  const sLat = Math.sin(phi), cLat = Math.cos(phi), t = Math.tan(phi);
+  const Ntm = a/Math.sqrt(1 - e2*sLat*sLat);
+  const T = t*t, C = ep2*cLat*cLat, A = (lam - lon0)*cLat;
+  const M = a*((1 - e2/4 - 3*e2*e2/64 - 5*e2*e2*e2/256)*phi
+    - (3*e2/8 + 3*e2*e2/32 + 45*e2*e2*e2/1024)*Math.sin(2*phi)
+    + (15*e2*e2/256 + 45*e2*e2*e2/1024)*Math.sin(4*phi)
+    - (35*e2*e2*e2/3072)*Math.sin(6*phi));
+  const E = FE + k0*Ntm*(A + (1 - T + C)*Math.pow(A,3)/6
+    + (5 - 18*T + T*T + 72*C - 58*ep2)*Math.pow(A,5)/120);
+  const N = FN + k0*(M + Ntm*t*(A*A/2 + (5 - T + 9*C + 4*C*C)*Math.pow(A,4)/24
+    + (61 - 58*T + T*T + 600*C - 330*ep2)*Math.pow(A,6)/720));
+  return { E, N };
 }
 
 /* ═══════════════ Άνοιγμα Google Maps με πινέζα ═══════════════ */
@@ -943,16 +986,11 @@ const dxfStatusEl=$('dxfStatus');
 ['dragleave','dragend'].forEach(ev=>dxfStatusEl.addEventListener(ev,()=>dxfStatusEl.classList.remove('drag')));
 dxfStatusEl.addEventListener('drop',e=>{ e.preventDefault(); dxfStatusEl.classList.remove('drag'); const f=e.dataTransfer.files&&e.dataTransfer.files[0]; if(f){ const r=new FileReader(); r.onload=ev=>ingestDxfText(ev.target.result,f.name); r.readAsText(f); } });
 
-/* Εύρεση γεωτεμαχίου/ιδιοκτήτη στο σημείο Χ,Υ */
-async function findFolderAtPoint(X, Y){
-  const box=$('xyFolderBox'), val=$('xyFolderVal');
-  if(!dxfPolys){ box.style.display='none'; return; }
-  box.style.display='block';
+/* Κοινή: HTML στοιχείων γεωτεμαχίου/ιδιοκτήτη για σημείο ΕΓΣΑ87 (X,Y) */
+async function folderInfoHtml(X, Y){
+  if(!dxfPolys) return '';
   const hits = dxfPolys.filter(e => pointInPoly(X, Y, e.pts)).sort((a,b)=>a.area-b.area);
-  if(hits.length === 0){
-    val.innerHTML = '<div class="folder-note">Το σημείο δεν εμπίπτει σε γεωτεμάχιο του SYNOLIKO-12.</div>';
-    return;
-  }
+  if(hits.length === 0) return '<div class="folder-note">Το σημείο δεν εμπίπτει σε γεωτεμάχιο του SYNOLIKO-12.</div>';
   const parcel = hits[0];
   const label = (parcel.l||'').trim();
   let html = '';
@@ -984,7 +1022,15 @@ async function findFolderAtPoint(X, Y){
       html += '<div class="folder-note" style="margin-top:0.6rem;">Δεν φορτώθηκε η λίστα ιδιοκτητών.</div>';
     }
   }
-  val.innerHTML = html;
+  return html;
+}
+
+/* Καρτέλα Χ,Υ: εμφάνιση στοιχείων φακέλου */
+async function findFolderAtPoint(X, Y){
+  const box=$('xyFolderBox'), val=$('xyFolderVal');
+  if(!dxfPolys){ box.style.display='none'; return; }
+  box.style.display='block';
+  val.innerHTML = await folderInfoHtml(X, Y);
 }
 
 
@@ -1099,6 +1145,7 @@ async function identifyParcel(lat, lon){
   $('mapResult').classList.add('show');
   box.innerHTML = '<span class="spinner spinner-dim"></span> Ανάγνωση ΚΑΕΚ…';
   sub.textContent = '';
+  $('mapFolder').style.display = 'none';
   mapSelected = null;
   if(highlightLayer){ mapObj.removeLayer(highlightLayer); highlightLayer = null; }
   try{
@@ -1127,6 +1174,14 @@ async function identifyParcel(lat, lon){
     mapSelected = { kaek, lat: centerPt.lat, lon: centerPt.lon };
     box.textContent = kaek || '(γεωτεμάχιο χωρίς ΚΑΕΚ)';
     sub.textContent = area ? ('Εμβαδόν ~' + Math.round(area).toLocaleString('el-GR') + ' m²') : '';
+    // Στοιχεία φακέλου/ιδιοκτήτη από το SYNOLIKO-12 (στο σημείο που πατήθηκε)
+    if(dxfPolys){
+      try{
+        const eg = wgs84ToEgsa87(lat, lon);
+        $('mapFolderVal').innerHTML = await folderInfoHtml(eg.E, eg.N);
+        $('mapFolder').style.display = 'block';
+      }catch(e){ /* αγνόησε */ }
+    }
   }catch(err){
     console.error(err);
     box.textContent = 'Αποτυχία ανάγνωσης ΚΑΕΚ — έλεγξε το internet.';
