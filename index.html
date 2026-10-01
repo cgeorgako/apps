@@ -116,6 +116,15 @@
   .ref-card .ctype { color:var(--acc-ref); }
   .arch-card .ctype { color:var(--acc-arch); }
 
+  /* Συμπαγείς (μισές) κάρτες */
+  .grid-mini{grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:12px; margin-top:12px;}
+  .card.mini{padding:12px 14px; gap:4px; border-radius:10px;}
+  .card.mini::after{font-size:13px; right:12px; top:12px;}
+  .card.mini .icon{width:26px; height:26px; font-size:13px; border-radius:7px;}
+  .card.mini .ctitle{font-size:13px;}
+  .card.mini .cdesc{display:none;}
+  .card.mini .ctype{font-size:8.5px; padding-top:4px;}
+
   footer{margin-top:50px; font-size:11.5px; color:#5c6675; text-align:center; font-family:var(--mono); letter-spacing:.5px; border-top:1px solid var(--line); padding-top:20px;}
 </style>
 </head>
@@ -132,6 +141,13 @@
 
   <div class="section-title topo-sec">📐 Τοπογραφικά &amp; Γεωχωρικά Εργαλεία</div>
   <div class="grid">
+
+    <a class="card topo-card" id="card17">
+      <div class="icon">🗺️</div>
+      <div class="ctitle">ΚΑΕΚ-GF</div>
+      <div class="cdesc">Εντοπισμός ακινήτου στον χάρτη → εύρεση ΚΑΕΚ → εξαγωγή DXF περιγράμματος & άνοιγμα στοιχείων στο Κτηματολόγιο. Ενοποιεί Πινέζα + KAEKtoDXF + ΚΑΕΚ→Κτηματολόγιο.</div>
+      <div class="ctype">Χάρτης → ΚΑΕΚ → DXF / Στοιχεία</div>
+    </a>
 
     <a class="card topo-card" id="card1">
       <div class="icon">📐</div>
@@ -154,39 +170,11 @@
       <div class="ctype">TXT → DXF</div>
     </a>
 
-    <a class="card topo-card" id="card7">
-      <div class="icon">🗺️</div>
-      <div class="ctitle">JSON → DXF Converter</div>
-      <div class="cdesc">Μετατροπή ESRI JSON σε DXF (R12 / AC1009) — Κτηματολόγιο / Τοπογραφικά.</div>
-      <div class="ctype">JSON → DXF</div>
-    </a>
-
-    <a class="card topo-card" id="card8">
-      <div class="icon">🔍</div>
-      <div class="ctitle">KAEKtoDXF</div>
-      <div class="cdesc">Άντληση γεωμετρίας από το Κτηματολόγιο με βάση το ΚΑΕΚ και αυτόματη εξαγωγή σε JSON και DXF.</div>
-      <div class="ctype">ΚΑΕΚ → JSON / DXF</div>
-    </a>
-
-    <a class="card topo-card" id="card9">
-      <div class="icon">🏛️</div>
-      <div class="ctitle">KAEK → Κτηματολόγιο</div>
-      <div class="cdesc">Άνοιγμα σελίδας έρευνας απευθείας από τον 12ψήφιο κωδικό ΚΑΕΚ ή μέσω OCR εικόνας.</div>
-      <div class="ctype">ΚΑΕΚ → Αναζήτηση</div>
-    </a>
-
     <a class="card topo-card" id="card16">
       <div class="icon">📍</div>
       <div class="ctitle">Πινέζα στο Google Maps</div>
       <div class="cdesc">Από ΚΑΕΚ ή συντεταγμένες Χ,Υ (ΕΓΣΑ87) ανοίγει το Google Maps με πινέζα στο σημείο. Εγκαταστάσιμη εφαρμογή (PWA) για Android.</div>
       <div class="ctype">ΚΑΕΚ / Χ,Υ → Χάρτης</div>
-    </a>
-
-    <a class="card topo-card" id="card17">
-      <div class="icon">🗺️</div>
-      <div class="ctitle">KAEK-teeIlias (Ενοποιημένο)</div>
-      <div class="cdesc">Εντοπισμός ακινήτου στον χάρτη → εύρεση ΚΑΕΚ → εξαγωγή DXF περιγράμματος & άνοιγμα στοιχείων στο Κτηματολόγιο. Ενοποιεί Πινέζα + KAEKtoDXF + ΚΑΕΚ→Κτηματολόγιο.</div>
-      <div class="ctype">Χάρτης → ΚΑΕΚ → DXF / Στοιχεία</div>
     </a>
 
     <a class="card topo-card" id="card3">
@@ -201,6 +189,30 @@
       <div class="ctitle">ΠΙΝΑΚΑΣ ΣΥΝΤΕΤΑΓΜΕΝΩΝ ΣΕ txt</div>
       <div class="cdesc">Μετάβαση στο σχετικό Gemini Gem για επεξεργασία πίνακα συντεταγμένων.</div>
       <div class="ctype">Εξωτερικός σύνδεσμος · Gemini</div>
+    </a>
+
+  </div>
+  <div class="grid grid-mini">
+
+    <a class="card topo-card mini" id="card8">
+      <div class="icon">🔍</div>
+      <div class="ctitle">KAEKtoDXF</div>
+      <div class="cdesc">Άντληση γεωμετρίας από το Κτηματολόγιο με βάση το ΚΑΕΚ και αυτόματη εξαγωγή σε JSON και DXF.</div>
+      <div class="ctype">ΚΑΕΚ → JSON / DXF</div>
+    </a>
+
+    <a class="card topo-card mini" id="card9">
+      <div class="icon">🏛️</div>
+      <div class="ctitle">KAEK → Κτηματολόγιο</div>
+      <div class="cdesc">Άνοιγμα σελίδας έρευνας απευθείας από τον 12ψήφιο κωδικό ΚΑΕΚ ή μέσω OCR εικόνας.</div>
+      <div class="ctype">ΚΑΕΚ → Αναζήτηση</div>
+    </a>
+
+    <a class="card topo-card mini" id="card7">
+      <div class="icon">🗺️</div>
+      <div class="ctitle">JSON → DXF Converter</div>
+      <div class="cdesc">Μετατροπή ESRI JSON σε DXF (R12 / AC1009) — Κτηματολόγιο / Τοπογραφικά.</div>
+      <div class="ctype">JSON → DXF</div>
     </a>
 
   </div>
