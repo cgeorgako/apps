@@ -159,6 +159,7 @@
     <button class="tab active" data-tab="map" id="tabMap">Χάρτης</button>
     <button class="tab" data-tab="kaek" id="tabKaek">ΚΑΕΚ</button>
     <button class="tab" data-tab="xy" id="tabXy">Χ,Υ</button>
+    <button class="tab" data-tab="add" id="tabAdd">Καταχώριση</button>
   </div>
 
   <!-- ── Χάρτης ── -->
@@ -209,6 +210,54 @@
     <div class="actions">
       <button id="xyConvertBtn" class="act btn-primary">Εντοπισμός γεωτεμαχίου (ΚΑΕΚ)</button>
     </div>
+  </div>
+
+  <!-- ── Καταχώριση γεωτεμαχίου στο SYNOLIKO-12 ── -->
+  <div class="card" id="panelAdd" style="display:none;">
+    <div class="rlabel">Προσθήκη γεωτεμαχίου στο SYNOLIKO-12.dxf</div>
+    <p class="map-tip" style="margin-top:0;">Δώσε ένα DXF με το περίγραμμα της ιδιοκτησίας στο layer <b>Topo_Prop</b>. Η εφαρμογή προσθέτει κλειστή polyline + κείμενο στο SYNOLIKO-12.dxf.</p>
+
+    <div class="paste-zone" id="addDrop" tabindex="0" role="button">
+      <div class="paste-icon">📐</div>
+      <div class="paste-text" id="addDropText">Επιλογή DXF (layer <b>Topo_Prop</b>) — ή σύρε το εδώ</div>
+      <input type="file" id="addFile" accept=".dxf,.DXF" style="display:none">
+    </div>
+    <div id="addGeomHint" class="hint"></div>
+
+    <div class="field"><label for="addLabel">Ετικέτα (κείμενο μέσα στην polyline) *</label>
+      <input id="addLabel" type="text" autocomplete="off" placeholder="π.χ. ΠΑΠΑΔΟΠΟΥΛΟΣ ΚΟΥΡΟΥΤΑ-26"></div>
+    <div class="field"><label for="addOwner">Ονοματεπώνυμο ιδιοκτήτη</label>
+      <input id="addOwner" type="text" autocomplete="off" placeholder="π.χ. ΠΑΠΑΔΟΠΟΥΛΟΣ ΙΩΑΝΝΗΣ"></div>
+    <div class="field"><label for="addThesi">Θέση</label>
+      <input id="addThesi" type="text" autocomplete="off" placeholder="π.χ. ΚΟΥΡΟΥΤΑ-Δ.ΑΜΑΛΙΑΔΑΣ"></div>
+    <div class="field"><label for="addLayer">Layer στο SYNOLIKO</label>
+      <input id="addLayer" type="text" autocomplete="off" value="Topo_Prop"></div>
+
+    <div class="actions">
+      <button id="addBuildBtn" class="act btn-primary" disabled>Δημιουργία εγγραφής</button>
+    </div>
+    <div id="addResult" class="hint" style="display:none;"></div>
+
+    <div id="addActions" class="actions" style="display:none;">
+      <button id="addDownloadBtn" class="act btn-dxf">⬇️ Λήψη ενημερωμένου SYNOLIKO-12.dxf</button>
+      <button id="addSaveLocalBtn" class="act btn-primary">💾 Αποθήκευση στην εφαρμογή (αυτή η συσκευή)</button>
+      <button id="addSaveRepoBtn" class="act btn-secondary">☁️ Αποθήκευση στο repo (GitHub)</button>
+    </div>
+
+    <div id="addRow" style="display:none;margin-top:0.8rem;">
+      <div class="rlabel">Έτοιμη γραμμή για τη ΛΙΣΤΑ-TOPOGRAFIKA</div>
+      <div id="addRowText" style="font-family:monospace;font-size:0.82rem;background:#14171c;border:1px solid #2a323d;border-radius:8px;padding:0.5rem 0.7rem;word-break:break-word;white-space:pre-wrap;"></div>
+      <div class="btn-mini-row" style="margin-top:0.5rem;">
+        <button id="addRowCopy" class="act btn-secondary">Αντιγραφή γραμμής</button>
+      </div>
+    </div>
+
+    <details class="adv" style="margin-top:0.8rem;">
+      <summary>Ρυθμίσεις GitHub (για αποθήκευση στο repo)</summary>
+      <div class="field" style="margin-top:0.6rem;"><label for="ghToken">GitHub token (fine-grained, Contents: write στο cgeorgako/apps)</label>
+        <input id="ghToken" type="password" autocomplete="off" placeholder="github_pat_…"></div>
+      <div class="sso-note">Το token μένει <b>μόνο σε αυτή τη συσκευή</b> (localStorage) και στέλνεται απευθείας στο api.github.com. Επειδή η σελίδα είναι δημόσια, χρησιμοποίησε fine-grained token μόνο για αυτό το repo και ανακάλεσέ το αν χρειαστεί. Κάθε αποθήκευση = commit ~19MB.</div>
+    </details>
   </div>
 
   <!-- ── Ενέργειες τρέχοντος ΚΑΕΚ ── -->
@@ -611,6 +660,189 @@ $('synolikoFile').addEventListener('change', async e=>{
   e.target.value='';
 });
 
+/* ═══ Καταχώριση γεωτεμαχίου στο SYNOLIKO-12.dxf ═══ */
+let addPolys=null, addSelected=null, addUpdated=null;
+
+async function getMasterText(){
+  let t=null;
+  try{ t=await idbGet('synoliko'); }catch(e){}
+  if(!t){ try{ const r=await fetch('SYNOLIKO-12.dxf',{cache:'force-cache'}); if(r.ok) t=await r.text(); }catch(e){} }
+  return t;
+}
+
+/* Εξαγωγή polyline(s) από συγκεκριμένο layer του input DXF */
+function parseLayerPolys(text, layerName){
+  const raw=text.split(/\r\n|\r|\n/); const pairs=[];
+  for(let i=0;i+1<raw.length;i+=2){ const c=parseInt(raw[i],10); if(Number.isNaN(c)){ i-=1; continue; } pairs.push({c,v:raw[i+1]}); }
+  const ents=[]; for(let i=0;i<pairs.length;){ if(pairs[i].c===0){ const t=(pairs[i].v||'').trim(); i++; const pr=[]; while(i<pairs.length&&pairs[i].c!==0){ pr.push(pairs[i]); i++; } ents.push({t,pr}); } else i++; }
+  const want=(layerName||'').trim().toUpperCase();
+  const polys=[];
+  for(let k=0;k<ents.length;k++){ const e=ents[k];
+    const lyr=((e.pr.find(p=>p.c===8)||{}).v||'').trim().toUpperCase();
+    if(e.t==='LWPOLYLINE'){ const pts=[]; let cx=null; for(const p of e.pr){ if(p.c===10)cx=parseFloat(p.v); else if(p.c===20&&cx!=null){ pts.push([cx,parseFloat(p.v)]); cx=null; } } if(pts.length>=3 && (!want||lyr===want)) polys.push(pts); }
+    else if(e.t==='POLYLINE'){ const pts=[]; let j=k+1; while(j<ents.length&&ents[j].t==='VERTEX'){ let vx=null,vy=null; for(const p of ents[j].pr){ if(p.c===10)vx=parseFloat(p.v); else if(p.c===20)vy=parseFloat(p.v); } if(vx!=null&&vy!=null)pts.push([vx,vy]); j++; } if(pts.length>=3 && (!want||lyr===want)) polys.push(pts); k=j-1; }
+  }
+  return polys;
+}
+
+/* Προσθήκη κλειστής polyline + MTEXT στο master AC1032 (δοκιμασμένο) */
+function appendParcelToMaster(master, {pts, label, owner, thesi, layer}){
+  const EOL = master.includes('\r\n') ? '\r\n' : '\n';
+  const esc = s => s.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
+  const hsRe = /(\$HANDSEED\r?\n\s*5\r?\n)([0-9A-Fa-f]+)/;
+  const m = master.match(hsRe); if(!m) throw new Error('Λείπει $HANDSEED');
+  let seed = parseInt(m[2],16); const H = () => (seed++).toString(16).toUpperCase();
+  const layerExists = master.includes(`${EOL}  2${EOL}${layer}${EOL}`);
+
+  let A=0,cx=0,cy=0;
+  for(let i=0;i<pts.length;i++){ const [x0,y0]=pts[i],[x1,y1]=pts[(i+1)%pts.length]; const cr=x0*y1-x1*y0; A+=cr; cx+=(x0+x1)*cr; cy+=(y0+y1)*cr; }
+  A*=0.5; if(Math.abs(A)>1e-9){ cx/=6*A; cy/=6*A; } else { cx=pts[0][0]; cy=pts[0][1]; }
+  const h=Math.max(2, Math.sqrt(Math.abs(A))/15);
+
+  const L=[]; const g=(c,v)=>{ L.push(c); L.push(String(v)); };
+  g('  0','LWPOLYLINE'); g('  5',H()); g('330','1F'); g('100','AcDbEntity'); g('  8',layer);
+  g('100','AcDbPolyline'); g(' 90',pts.length); g(' 70','1'); g(' 43','0');
+  for(const p of pts){ g(' 10',p[0]); g(' 20',p[1]); }
+  const mtext=(txt,height,oy)=>{ g('  0','MTEXT'); g('  5',H()); g('330','1F'); g('100','AcDbEntity'); g('  8',layer);
+    g('100','AcDbMText'); g(' 10',cx); g(' 20',cy-oy); g(' 30','0.0'); g(' 40',height); g(' 41','0.0'); g(' 71','5'); g(' 72','5'); g('  1',txt); g('  7','Standard'); };
+  mtext(label, h, 0);
+  const meta=[owner,thesi].filter(Boolean).join(' / ');
+  if(meta) mtext(meta, h*0.6, h*1.4);
+  const entText = L.join(EOL)+EOL;
+
+  const entMarker = `${EOL}ENTITIES${EOL}`;
+  const ei = master.indexOf(entMarker); if(ei<0) throw new Error('Λείπει ENTITIES');
+  const insAt = ei + entMarker.length;
+  let out = master.slice(0,insAt) + entText + master.slice(insAt);
+
+  if(!layerExists){
+    const tbl = out.indexOf(`${EOL}  2${EOL}LAYER${EOL}`);
+    const recStart = out.indexOf(`${EOL}  0${EOL}LAYER${EOL}`, tbl);
+    const recEnd = out.indexOf(`${EOL}  0${EOL}`, recStart+4);
+    if(tbl>=0 && recStart>=0 && recEnd>recStart){
+      let rec = out.slice(recStart, recEnd);
+      rec = rec.replace(new RegExp(`${esc(EOL)}102${esc(EOL)}\\{ACAD_XDICTIONARY[\\s\\S]*?102${esc(EOL)}\\}`),'');
+      rec = rec.replace(new RegExp(`(${esc(EOL)}  5${esc(EOL)})[0-9A-Fa-f]+`), `$1${H()}`);
+      rec = rec.replace(new RegExp(`(${esc(EOL)}  2${esc(EOL)})[^\\r\\n]*`), `$1${layer}`);
+      const endtab = out.indexOf(`${EOL}  0${EOL}ENDTAB${EOL}`, tbl);
+      if(endtab>recStart) out = out.slice(0,endtab) + rec + out.slice(endtab);
+    }
+  }
+  out = out.replace(hsRe, `$1${seed.toString(16).toUpperCase()}`);
+  return out;
+}
+
+function addPreviewArea(pts){ return polyArea(pts); }
+
+function handleAddFile(file){
+  if(!file){ return; }
+  const reader=new FileReader();
+  reader.onload=e=>{
+    try{
+      const layer=($('addLayer').value||'Topo_Prop').trim();
+      let polys=parseLayerPolys(e.target.result, layer);
+      if(!polys.length){ // fallback: οποιαδήποτε polyline, αν δεν βρεθεί το layer
+        const any=parseLayerPolys(e.target.result, '');
+        $('addGeomHint').className='hint err';
+        $('addGeomHint').textContent = any.length
+          ? `Δεν βρέθηκε polyline στο layer «${layer}». Βρέθηκαν ${any.length} σε άλλα layers — έλεγξε το όνομα του layer.`
+          : 'Δεν βρέθηκε καμία polyline στο αρχείο.';
+        addPolys=null; addSelected=null; $('addBuildBtn').disabled=true; return;
+      }
+      polys.sort((a,b)=>polyArea(b)-polyArea(a));
+      addPolys=polys; addSelected=polys[0];
+      const ar=polyArea(addSelected);
+      $('addGeomHint').className='hint ok';
+      $('addGeomHint').textContent=`Βρέθηκε περίγραμμα: ${addSelected.length} κορυφές · εμβαδόν ~${Math.round(ar).toLocaleString('el-GR')} m²`+(polys.length>1?` (+${polys.length-1} ακόμη, επιλέχθηκε το μεγαλύτερο)`:'');
+      $('addDropText').innerHTML=`✓ ${file.name}`;
+      $('addBuildBtn').disabled = !($('addLabel').value.trim());
+    }catch(err){ console.error(err); $('addGeomHint').className='hint err'; $('addGeomHint').textContent='Σφάλμα ανάγνωσης DXF.'; }
+  };
+  reader.readAsText(file);
+}
+
+(function initAddTab(){
+  const drop=$('addDrop'), fileInp=$('addFile');
+  drop.addEventListener('click', ()=>fileInp.click());
+  drop.addEventListener('keydown', e=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); fileInp.click(); } });
+  fileInp.addEventListener('change', ()=>{ if(fileInp.files&&fileInp.files[0]) handleAddFile(fileInp.files[0]); fileInp.value=''; });
+  ['dragover','dragenter'].forEach(ev=>drop.addEventListener(ev,e=>{ e.preventDefault(); drop.classList.add('drag'); }));
+  ['dragleave','dragend'].forEach(ev=>drop.addEventListener(ev,()=>drop.classList.remove('drag')));
+  drop.addEventListener('drop',e=>{ e.preventDefault(); drop.classList.remove('drag'); const f=e.dataTransfer.files&&e.dataTransfer.files[0]; if(f) handleAddFile(f); });
+  $('addLabel').addEventListener('input', ()=>{ $('addBuildBtn').disabled = !(addSelected && $('addLabel').value.trim()); });
+
+  const savedTok=localStorage.getItem('gh_token'); if(savedTok) $('ghToken').value=savedTok;
+
+  $('addBuildBtn').addEventListener('click', async ()=>{
+    const label=$('addLabel').value.trim(); if(!addSelected||!label){ showToast('Χρειάζονται περίγραμμα + ετικέτα'); return; }
+    const owner=$('addOwner').value.trim(), thesi=$('addThesi').value.trim(), layer=($('addLayer').value||'Topo_Prop').trim();
+    const btn=$('addBuildBtn'); const orig=btn.textContent; btn.disabled=true; btn.textContent='Επεξεργασία…';
+    try{
+      const master=await getMasterText();
+      if(!master){ showToast('Δεν βρέθηκε το SYNOLIKO-12.dxf (άνοιξε πρώτα την καρτέλα Χάρτης/ΚΑΕΚ μία φορά).'); return; }
+      addUpdated=appendParcelToMaster(master,{pts:addSelected,label,owner,thesi,layer});
+      const addedKB=Math.round((addUpdated.length-master.length)/1024*10)/10;
+      $('addResult').style.display='block'; $('addResult').className='hint ok';
+      $('addResult').textContent=`Έτοιμο: προστέθηκε 1 κλειστή polyline + κείμενο (${addedKB} KB). Διάλεξε τι θα κάνεις:`;
+      $('addActions').style.display='flex';
+      const row=[owner,thesi,label].join('\t');
+      $('addRow').style.display='block'; $('addRowText').textContent=`ΟΝΟΜΑΤΕΠΩΝΥΜΟ: ${owner||'—'}\nΘΕΣΗ: ${thesi||'—'}\nΕΤΙΚΕΤΑ: ${label}`;
+      $('addRowCopy').dataset.row=row;
+    }catch(err){ console.error(err); showToast('Σφάλμα: '+err.message); }
+    finally{ btn.disabled=false; btn.textContent=orig; }
+  });
+
+  $('addDownloadBtn').addEventListener('click', ()=>{
+    if(!addUpdated){ return; }
+    const blob=new Blob([addUpdated],{type:'application/dxf;charset=utf-8;'});
+    const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='SYNOLIKO-12.dxf';
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+    showToast('Λήψη ενημερωμένου SYNOLIKO-12.dxf');
+  });
+
+  $('addSaveLocalBtn').addEventListener('click', async ()=>{
+    if(!addUpdated){ return; }
+    await idbSet('synoliko', addUpdated);
+    synoliko=null; // επαναφόρτωση στον επόμενο υπολογισμό
+    showToast('Αποθηκεύτηκε τοπικά — ενεργό στην ΚΑΕΚ-GF σε αυτή τη συσκευή');
+  });
+
+  $('addRowCopy').addEventListener('click', async ()=>{
+    const row=$('addRowCopy').dataset.row||''; try{ await navigator.clipboard.writeText(row); showToast('Αντιγράφηκε (Ονοματεπώνυμο ⇥ Θέση ⇥ Ετικέτα)'); }catch(e){ showToast('Αποτυχία αντιγραφής'); }
+  });
+
+  $('addSaveRepoBtn').addEventListener('click', async ()=>{
+    if(!addUpdated){ return; }
+    const token=($('ghToken').value||'').trim(); if(!token){ showToast('Βάλε GitHub token (Ρυθμίσεις GitHub παρακάτω)'); return; }
+    localStorage.setItem('gh_token',token);
+    const btn=$('addSaveRepoBtn'); const orig=btn.textContent; btn.disabled=true; btn.textContent='Αποθήκευση…';
+    try{
+      await ghCommitFile('SYNOLIKO-12.dxf', addUpdated, 'SYNOLIKO-12: νέο γεωτεμάχιο ('+(($('addLabel').value||'').trim())+')', token);
+      showToast('Αποθηκεύτηκε στο repo ✓ (το Pages θα ενημερωθεί σε λίγο)');
+    }catch(err){ console.error(err); showToast('Αποτυχία repo: '+err.message); }
+    finally{ btn.disabled=false; btn.textContent=orig; }
+  });
+})();
+
+function base64FromString(str){
+  const bytes=new TextEncoder().encode(str); let bin=''; const chunk=0x8000;
+  for(let i=0;i<bytes.length;i+=chunk){ bin+=String.fromCharCode.apply(null, bytes.subarray(i,i+chunk)); }
+  return btoa(bin);
+}
+async function ghCommitFile(path, contentStr, message, token){
+  const owner='cgeorgako', repo='apps', branch='main', api='https://api.github.com';
+  const hdr={ 'Authorization':'Bearer '+token, 'Accept':'application/vnd.github+json' };
+  const j=async r=>{ if(!r.ok){ throw new Error('HTTP '+r.status); } return r.json(); };
+  const ref=await j(await fetch(`${api}/repos/${owner}/${repo}/git/ref/heads/${branch}`,{headers:hdr}));
+  const baseSha=ref.object.sha;
+  const commit=await j(await fetch(`${api}/repos/${owner}/${repo}/git/commits/${baseSha}`,{headers:hdr}));
+  const blob=await j(await fetch(`${api}/repos/${owner}/${repo}/git/blobs`,{method:'POST',headers:hdr,body:JSON.stringify({content:base64FromString(contentStr),encoding:'base64'})}));
+  const tree=await j(await fetch(`${api}/repos/${owner}/${repo}/git/trees`,{method:'POST',headers:hdr,body:JSON.stringify({base_tree:commit.tree.sha,tree:[{path,mode:'100644',type:'blob',sha:blob.sha}]})}));
+  const nc=await j(await fetch(`${api}/repos/${owner}/${repo}/git/commits`,{method:'POST',headers:hdr,body:JSON.stringify({message,tree:tree.sha,parents:[baseSha]})}));
+  await j(await fetch(`${api}/repos/${owner}/${repo}/git/refs/heads/${branch}`,{method:'PATCH',headers:hdr,body:JSON.stringify({sha:nc.sha})}));
+}
+
 /* ═══ Καρτέλες ═══ */
 document.querySelectorAll('.tab').forEach(tab=>{
   tab.addEventListener('click', ()=>{
@@ -620,6 +852,8 @@ document.querySelectorAll('.tab').forEach(tab=>{
     $('panelMap').style.display = w==='map'?'':'none';
     $('panelKaek').style.display= w==='kaek'?'':'none';
     $('panelXy').style.display  = w==='xy'?'':'none';
+    $('panelAdd').style.display = w==='add'?'':'none';
+    $('actionsCard').style.display = w==='add'?'none':'';
     if(w==='map') initMap();
   });
 });
