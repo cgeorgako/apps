@@ -78,6 +78,14 @@
 
   /* Χάρτης */
   #map{width:100%;height:52vh;min-height:300px;border-radius:12px;border:1px solid var(--border);background:var(--surface-2);}
+
+  /* Desktop: πλατύτερη διάταξη & μεγάλος χάρτης */
+  @media (min-width:900px){
+    .wrap{max-width:1060px;}
+    #map{height:74vh;min-height:560px;}
+    /* Οι φόρμες μένουν σε αναγνώσιμο πλάτος, ο χάρτης απλώνεται */
+    #panelKaek,#panelXy,#panelAdd,#actionsCard{max-width:620px;margin-left:auto;margin-right:auto;}
+  }
   .map-toolbar{display:flex;gap:0.5rem;margin-bottom:0.7rem;flex-wrap:wrap;}
   .map-toolbar .act{flex:1;min-width:120px;font-size:0.82rem;padding:0.6rem 0.5rem;}
   .map-tip{font-size:0.76rem;color:var(--text-muted);margin:0.7rem 0 0;line-height:1.45;}
@@ -167,6 +175,7 @@
     <div class="map-toolbar">
       <button id="mapLocateBtn" class="act btn-secondary" type="button">📍 Η θέση μου</button>
       <button id="mapKtimaBtn" class="act btn-secondary" type="button">Επίσημο GIS ↗</button>
+      <button id="mapRefreshSyn" class="act btn-secondary" type="button" title="Κατέβασε ξανά το SYNOLIKO-12.dxf από το repo">🔄 Ανανέωση SYNOLIKO</button>
     </div>
     <div id="map"></div>
     <p class="map-tip">Κάνε <b>κλικ πάνω σε ένα γεωτεμάχιο</b> για να βρεθεί ο ΚΑΕΚ. Στο κοντινό zoom φαίνονται τα όρια των γεωτεμαχίων.</p>
@@ -977,6 +986,21 @@ $('mapLocateBtn').addEventListener('click', ()=>{
   navigator.geolocation.getCurrentPosition(pos=>mapObj.setView([pos.coords.latitude,pos.coords.longitude],18), ()=>showToast('Δεν ήταν δυνατός ο εντοπισμός θέσης'), {enableHighAccuracy:true,timeout:8000});
 });
 $('mapKtimaBtn').addEventListener('click', ()=>window.open('https://gis.ktimanet.gr/gis/map','_blank','noopener'));
+
+/* Ανανέωση SYNOLIKO-12.dxf από το repo (παράκαμψη cache) */
+$('mapRefreshSyn').addEventListener('click', async ()=>{
+  const btn=$('mapRefreshSyn'); const o=btn.textContent; btn.disabled=true; btn.textContent='🔄 Ανανέωση…';
+  try{
+    const r=await fetch('SYNOLIKO-12.dxf?t='+Date.now(), {cache:'reload'});
+    if(!r.ok) throw new Error('HTTP '+r.status);
+    const text=await r.text();
+    await idbSet('synoliko', text);
+    synoliko=parseDxf(text);
+    showToast('Ανανεώθηκε από repo: '+synoliko.polylines.length+' polylines, '+synoliko.texts.length+' κείμενα');
+    for(const rec of selected) computeSynolikoForRecord(rec);
+  }catch(e){ console.error(e); showToast('Αποτυχία ανανέωσης: '+e.message); }
+  finally{ btn.disabled=false; btn.textContent=o; }
+});
 
 /* ═══ Ιστορικό ═══ */
 function loadHistory(){ try{ return JSON.parse(localStorage.getItem(STORAGE_KEY))||[]; }catch(e){ return []; } }
