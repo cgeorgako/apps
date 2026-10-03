@@ -163,6 +163,12 @@
     <p>Χάρτης → ΚΑΕΚ → DXF περιγράμματος & στοιχεία Κτηματολογίου</p>
   </header>
 
+  <div id="synUpdateBanner" style="display:none;align-items:center;gap:0.6rem;flex-wrap:wrap;background:#2a2410;border:1px solid #8a701e;color:#e6edf3;border-radius:10px;padding:0.6rem 0.8rem;margin-bottom:0.8rem;font-size:0.85rem;">
+    <span style="flex:1;min-width:160px;">🔔 Υπάρχει νεότερο <b>SYNOLIKO-12</b> στο repo.</span>
+    <button id="synUpdateBtn" class="act btn-primary" type="button" style="flex:0 0 auto;padding:0.5rem 0.9rem;">Ανανέωση τώρα</button>
+    <button id="synUpdateDismiss" class="act btn-secondary" type="button" style="flex:0 0 auto;padding:0.5rem 0.9rem;">Αργότερα</button>
+  </div>
+
   <div class="tabs">
     <button class="tab active" data-tab="map" id="tabMap">Χάρτης</button>
     <button class="tab" data-tab="kaek" id="tabKaek">ΚΑΕΚ</button>
@@ -594,7 +600,7 @@ async function ensureSynoliko(){
   let text=null;
   try{ text=await idbGet('synoliko'); }catch(e){}      // πρώτα η τοπική cache (γρήγορη)
   if(!text){
-    try{ const r=await fetch('SYNOLIKO-12.dxf',{cache:'force-cache'}); if(r.ok){ text=await r.text(); idbSet('synoliko', text); } }catch(e){}
+    try{ const r=await fetch('SYNOLIKO-12.dxf',{cache:'force-cache'}); if(r.ok){ text=await r.text(); idbSet('synoliko', text); try{ localStorage.setItem('synoliko_sig', synSig(r)); }catch(e){} } }catch(e){}
   }
   if(text){ synoliko=parseDxf(text); return synoliko; }
   return null;
@@ -988,19 +994,47 @@ $('mapLocateBtn').addEventListener('click', ()=>{
 $('mapKtimaBtn').addEventListener('click', ()=>window.open('https://gis.ktimanet.gr/gis/map','_blank','noopener'));
 
 /* Ανανέωση SYNOLIKO-12.dxf από το repo (παράκαμψη cache) */
+/* «Υπογραφή» έκδοσης (σταθερή ανεξαρτήτως συμπίεσης): Last-Modified → ETag → μέγεθος */
+function synSig(res){ try{ return res.headers.get('last-modified') || res.headers.get('etag') || res.headers.get('content-length') || ''; }catch(e){ return ''; } }
+
+async function refreshSynolikoFromRepo(){
+  const r=await fetch('SYNOLIKO-12.dxf?t='+Date.now(), {cache:'reload'});
+  if(!r.ok) throw new Error('HTTP '+r.status);
+  const text=await r.text();
+  await idbSet('synoliko', text);
+  try{ localStorage.setItem('synoliko_sig', synSig(r)); }catch(e){}
+  synoliko=parseDxf(text);
+  for(const rec of selected) computeSynolikoForRecord(rec);
+  return synoliko;
+}
+
 $('mapRefreshSyn').addEventListener('click', async ()=>{
   const btn=$('mapRefreshSyn'); const o=btn.textContent; btn.disabled=true; btn.textContent='🔄 Ανανέωση…';
-  try{
-    const r=await fetch('SYNOLIKO-12.dxf?t='+Date.now(), {cache:'reload'});
-    if(!r.ok) throw new Error('HTTP '+r.status);
-    const text=await r.text();
-    await idbSet('synoliko', text);
-    synoliko=parseDxf(text);
-    showToast('Ανανεώθηκε από repo: '+synoliko.polylines.length+' polylines, '+synoliko.texts.length+' κείμενα');
-    for(const rec of selected) computeSynolikoForRecord(rec);
-  }catch(e){ console.error(e); showToast('Αποτυχία ανανέωσης: '+e.message); }
+  try{ const s=await refreshSynolikoFromRepo(); showToast('Ανανεώθηκε: '+s.polylines.length+' polylines, '+s.texts.length+' κείμενα'); hideSynBanner(); }
+  catch(e){ console.error(e); showToast('Αποτυχία ανανέωσης: '+e.message); }
   finally{ btn.disabled=false; btn.textContent=o; }
 });
+
+/* Αυτόματος έλεγχος νεότερης έκδοσης στο repo (ελαφρύ HEAD) */
+function showSynBanner(){ $('synUpdateBanner').style.display='flex'; }
+function hideSynBanner(){ $('synUpdateBanner').style.display='none'; }
+async function checkSynolikoUpdate(){
+  try{
+    const cached=await idbGet('synoliko'); if(!cached) return;   // δεν υπάρχει τοπικό → θα κατέβει ούτως ή άλλως
+    let res; try{ res=await fetch('SYNOLIKO-12.dxf?head='+Date.now(), {method:'HEAD', cache:'no-store'}); }catch(e){ return; }
+    if(!res||!res.ok) return;
+    const cur=synSig(res), known=localStorage.getItem('synoliko_sig');
+    if(!known){ try{ localStorage.setItem('synoliko_sig', cur); }catch(e){} return; }
+    if(cur && cur!==known) showSynBanner();
+  }catch(e){}
+}
+$('synUpdateBtn').addEventListener('click', async ()=>{
+  const b=$('synUpdateBtn'); const o=b.textContent; b.disabled=true; b.textContent='Ανανέωση…';
+  try{ await refreshSynolikoFromRepo(); showToast('Ανανεώθηκε από repo ✓'); hideSynBanner(); }
+  catch(e){ showToast('Αποτυχία: '+e.message); }
+  finally{ b.disabled=false; b.textContent=o; }
+});
+$('synUpdateDismiss').addEventListener('click', hideSynBanner);
 
 /* ═══ Ιστορικό ═══ */
 function loadHistory(){ try{ return JSON.parse(localStorage.getItem(STORAGE_KEY))||[]; }catch(e){ return []; } }
@@ -1024,6 +1058,7 @@ $('clearHistoryBtn').addEventListener('click', ()=>{ if(!loadHistory().length) r
 renderSelection();
 renderHistory();
 initMap();
+checkSynolikoUpdate();
 </script>
 </body>
 </html>
