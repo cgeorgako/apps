@@ -245,6 +245,10 @@
       <input id="addOwner" type="text" autocomplete="off" placeholder="π.χ. ΠΑΠΑΔΟΠΟΥΛΟΣ ΙΩΑΝΝΗΣ"></div>
     <div class="field"><label for="addThesi">Θέση</label>
       <input id="addThesi" type="text" autocomplete="off" placeholder="π.χ. ΚΟΥΡΟΥΤΑ-Δ.ΑΜΑΛΙΑΔΑΣ"></div>
+    <div class="field"><label for="addFolder">Φάκελος</label>
+      <input id="addFolder" type="text" autocomplete="off" placeholder="π.χ. top2026\PAPADOPOULOS"></div>
+    <div class="field"><label for="addYear">Έτος</label>
+      <input id="addYear" type="text" inputmode="numeric" autocomplete="off" placeholder="π.χ. 2026 (αυτόματα από την ετικέτα)"></div>
     <div class="field"><label for="addLayer">Layer στο SYNOLIKO</label>
       <input id="addLayer" type="text" autocomplete="off" value="Topo_Prop"></div>
 
@@ -676,7 +680,7 @@ $('synolikoFile').addEventListener('change', async e=>{
 });
 
 /* ═══ Καταχώριση γεωτεμαχίου στο SYNOLIKO-12.dxf ═══ */
-let addPolys=null, addSelected=null, addUpdated=null;
+let addPolys=null, addSelected=null, addUpdated=null, addMeta=null;
 
 async function getMasterText(){
   let t=null;
@@ -791,17 +795,22 @@ function handleAddFile(file){
   $('addBuildBtn').addEventListener('click', async ()=>{
     const label=$('addLabel').value.trim(); if(!addSelected||!label){ showToast('Χρειάζονται περίγραμμα + ετικέτα'); return; }
     const owner=$('addOwner').value.trim(), thesi=$('addThesi').value.trim(), layer=($('addLayer').value||'Topo_Prop').trim();
+    const folder=$('addFolder').value.trim();
+    let year=$('addYear').value.trim();
+    if(!year){ const mm=label.match(/-(\d{2})\b/); if(mm){ year='20'+mm[1]; $('addYear').value=year; } }
     const btn=$('addBuildBtn'); const orig=btn.textContent; btn.disabled=true; btn.textContent='Επεξεργασία…';
     try{
       const master=await getMasterText();
       if(!master){ showToast('Δεν βρέθηκε το SYNOLIKO-12.dxf (άνοιξε πρώτα την καρτέλα Χάρτης/ΚΑΕΚ μία φορά).'); return; }
       addUpdated=appendParcelToMaster(master,{pts:addSelected,label,owner,thesi,layer});
+      addMeta={owner,thesi,folder,year,label};
       const addedKB=Math.round((addUpdated.length-master.length)/1024*10)/10;
       $('addResult').style.display='block'; $('addResult').className='hint ok';
       $('addResult').textContent=`Έτοιμο: προστέθηκε 1 κλειστή polyline + κείμενο (${addedKB} KB). Διάλεξε τι θα κάνεις:`;
       $('addActions').style.display='flex';
-      const row=[owner,thesi,label].join('\t');
-      $('addRow').style.display='block'; $('addRowText').textContent=`ΟΝΟΜΑΤΕΠΩΝΥΜΟ: ${owner||'—'}\nΘΕΣΗ: ${thesi||'—'}\nΕΤΙΚΕΤΑ: ${label}`;
+      const row=[owner,thesi,folder,year].join('\t');
+      $('addRow').style.display='block';
+      $('addRowText').textContent=`ΟΝΟΜΑΤΕΠΩΝΥΜΟ: ${owner||'—'}\nΘΕΣΗ: ${thesi||'—'}\nΦΑΚΕΛΟΣ: ${folder||'—'}\nΕΤΟΣ: ${year||'—'}`;
       $('addRowCopy').dataset.row=row;
     }catch(err){ console.error(err); showToast('Σφάλμα: '+err.message); }
     finally{ btn.disabled=false; btn.textContent=orig; }
@@ -824,7 +833,7 @@ function handleAddFile(file){
   });
 
   $('addRowCopy').addEventListener('click', async ()=>{
-    const row=$('addRowCopy').dataset.row||''; try{ await navigator.clipboard.writeText(row); showToast('Αντιγράφηκε (Ονοματεπώνυμο ⇥ Θέση ⇥ Ετικέτα)'); }catch(e){ showToast('Αποτυχία αντιγραφής'); }
+    const row=$('addRowCopy').dataset.row||''; try{ await navigator.clipboard.writeText(row); showToast('Αντιγράφηκε (Ονοματεπώνυμο ⇥ Θέση ⇥ Φάκελος ⇥ Έτος)'); }catch(e){ showToast('Αποτυχία αντιγραφής'); }
   });
 
   $('addSaveRepoBtn').addEventListener('click', async ()=>{
@@ -833,8 +842,13 @@ function handleAddFile(file){
     localStorage.setItem('gh_token',token);
     const btn=$('addSaveRepoBtn'); const orig=btn.textContent; btn.disabled=true; btn.textContent='Αποθήκευση…';
     try{
-      await ghCommitFile('SYNOLIKO-12.dxf', addUpdated, 'SYNOLIKO-12: νέο γεωτεμάχιο ('+(($('addLabel').value||'').trim())+')', token);
-      showToast('Αποθηκεύτηκε στο repo ✓ (το Pages θα ενημερωθεί σε λίγο)');
+      const label=(addMeta&&addMeta.label)||($('addLabel').value||'').trim();
+      const mdContent=await buildMdContent(addMeta||{}, token);
+      await ghCommitFiles([
+        { path:'SYNOLIKO-12.dxf', content:addUpdated },
+        { path:'lista_topo_arxeio.md', content:mdContent }
+      ], 'SYNOLIKO-12 + λίστα: νέο γεωτεμάχιο ('+label+')', token);
+      showToast('Αποθηκεύτηκε στο repo ✓ (SYNOLIKO + lista_topo_arxeio.md)');
     }catch(err){ console.error(err); showToast('Αποτυχία repo: '+err.message); }
     finally{ btn.disabled=false; btn.textContent=orig; }
   });
@@ -845,16 +859,46 @@ function base64FromString(str){
   for(let i=0;i<bytes.length;i+=chunk){ bin+=String.fromCharCode.apply(null, bytes.subarray(i,i+chunk)); }
   return btoa(bin);
 }
-async function ghCommitFile(path, contentStr, message, token){
+function stringFromBase64(b64){
+  const bin=atob(String(b64||'').replace(/\s/g,'')); const bytes=new Uint8Array(bin.length);
+  for(let i=0;i<bin.length;i++) bytes[i]=bin.charCodeAt(i);
+  return new TextDecoder().decode(bytes);
+}
+async function ghGetText(path, token){
+  const api='https://api.github.com', owner='cgeorgako', repo='apps';
+  const hdr={ 'Authorization':'Bearer '+token, 'Accept':'application/vnd.github+json' };
+  const r=await fetch(`${api}/repos/${owner}/${repo}/contents/${encodeURIComponent(path)}?ref=main`,{headers:hdr, cache:'no-store'});
+  if(r.status===404) return null;
+  if(!r.ok) throw new Error('HTTP '+r.status);
+  const jj=await r.json();
+  return stringFromBase64(jj.content||'');
+}
+/* Διαβάζει το τρέχον lista_topo_arxeio.md (ή φτιάχνει header) και προσθέτει γραμμή */
+async function buildMdContent(meta, token){
+  const esc=s=>String(s==null?'':s).replace(/\|/g,'\\|').replace(/[\r\n]+/g,' ').trim();
+  const row=`| ${esc(meta.owner)||'—'} | ${esc(meta.thesi)||'—'} | ${esc(meta.folder)||'—'} | ${esc(meta.year)||'—'} |`;
+  let cur=null;
+  try{ cur=await ghGetText('lista_topo_arxeio.md', token); }catch(e){ cur=null; }
+  if(!cur){
+    cur='# ΛΙΣΤΑ ΤΟΠΟΓΡΑΦΙΚΩΝ — Αρχείο (auto από ΚΑΕΚ-GF)\n\n| Ονοματεπώνυμο | Θέση | Φάκελος | Έτος |\n|---|---|---|---|\n';
+  }
+  if(!cur.endsWith('\n')) cur+='\n';
+  return cur+row+'\n';
+}
+async function ghCommitFiles(files, message, token){
   const owner='cgeorgako', repo='apps', branch='main', api='https://api.github.com';
   const hdr={ 'Authorization':'Bearer '+token, 'Accept':'application/vnd.github+json' };
   const j=async r=>{ if(!r.ok){ throw new Error('HTTP '+r.status); } return r.json(); };
   const ref=await j(await fetch(`${api}/repos/${owner}/${repo}/git/ref/heads/${branch}`,{headers:hdr}));
   const baseSha=ref.object.sha;
   const commit=await j(await fetch(`${api}/repos/${owner}/${repo}/git/commits/${baseSha}`,{headers:hdr}));
-  const blob=await j(await fetch(`${api}/repos/${owner}/${repo}/git/blobs`,{method:'POST',headers:hdr,body:JSON.stringify({content:base64FromString(contentStr),encoding:'base64'})}));
-  const tree=await j(await fetch(`${api}/repos/${owner}/${repo}/git/trees`,{method:'POST',headers:hdr,body:JSON.stringify({base_tree:commit.tree.sha,tree:[{path,mode:'100644',type:'blob',sha:blob.sha}]})}));
-  const nc=await j(await fetch(`${api}/repos/${owner}/${repo}/git/commits`,{method:'POST',headers:hdr,body:JSON.stringify({message,tree:tree.sha,parents:[baseSha]})}));
+  const tree=[];
+  for(const f of files){
+    const blob=await j(await fetch(`${api}/repos/${owner}/${repo}/git/blobs`,{method:'POST',headers:hdr,body:JSON.stringify({content:base64FromString(f.content),encoding:'base64'})}));
+    tree.push({path:f.path, mode:'100644', type:'blob', sha:blob.sha});
+  }
+  const newTree=await j(await fetch(`${api}/repos/${owner}/${repo}/git/trees`,{method:'POST',headers:hdr,body:JSON.stringify({base_tree:commit.tree.sha, tree})}));
+  const nc=await j(await fetch(`${api}/repos/${owner}/${repo}/git/commits`,{method:'POST',headers:hdr,body:JSON.stringify({message, tree:newTree.sha, parents:[baseSha]})}));
   await j(await fetch(`${api}/repos/${owner}/${repo}/git/refs/heads/${branch}`,{method:'PATCH',headers:hdr,body:JSON.stringify({sha:nc.sha})}));
 }
 
