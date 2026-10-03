@@ -239,18 +239,14 @@
     </div>
     <div id="addGeomHint" class="hint"></div>
 
-    <div class="field"><label for="addLabel">Ετικέτα (κείμενο μέσα στην polyline) *</label>
-      <input id="addLabel" type="text" autocomplete="off" placeholder="π.χ. ΠΑΠΑΔΟΠΟΥΛΟΣ ΚΟΥΡΟΥΤΑ-26"></div>
     <div class="field"><label for="addOwner">Ονοματεπώνυμο ιδιοκτήτη</label>
       <input id="addOwner" type="text" autocomplete="off" placeholder="π.χ. ΠΑΠΑΔΟΠΟΥΛΟΣ ΙΩΑΝΝΗΣ"></div>
     <div class="field"><label for="addThesi">Θέση</label>
       <input id="addThesi" type="text" autocomplete="off" placeholder="π.χ. ΚΟΥΡΟΥΤΑ-Δ.ΑΜΑΛΙΑΔΑΣ"></div>
     <div class="field"><label for="addFolder">Φάκελος</label>
       <input id="addFolder" type="text" autocomplete="off" placeholder="π.χ. top2026\PAPADOPOULOS"></div>
-    <div class="field"><label for="addYear">Έτος</label>
-      <input id="addYear" type="text" inputmode="numeric" autocomplete="off" placeholder="π.χ. 2026 (αυτόματα από την ετικέτα)"></div>
-    <div class="field"><label for="addLayer">Layer στο SYNOLIKO</label>
-      <input id="addLayer" type="text" autocomplete="off" value="Topo_Prop"></div>
+    <div class="field"><label for="addYear">Έτος *</label>
+      <input id="addYear" type="text" inputmode="numeric" autocomplete="off" placeholder="π.χ. 2026 (καθορίζει και το layer: Topo_2026)"></div>
 
     <div class="actions">
       <button id="addBuildBtn" class="act btn-primary" disabled>Δημιουργία εγγραφής</button>
@@ -705,7 +701,7 @@ function parseLayerPolys(text, layerName){
 }
 
 /* Προσθήκη κλειστής polyline + MTEXT στο master AC1032 (δοκιμασμένο) */
-function appendParcelToMaster(master, {pts, label, owner, thesi, layer}){
+function appendParcelToMaster(master, {pts, texts, layer}){
   const EOL = master.includes('\r\n') ? '\r\n' : '\n';
   const esc = s => s.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
   const hsRe = /(\$HANDSEED\r?\n\s*5\r?\n)([0-9A-Fa-f]+)/;
@@ -724,9 +720,9 @@ function appendParcelToMaster(master, {pts, label, owner, thesi, layer}){
   for(const p of pts){ g(' 10',p[0]); g(' 20',p[1]); }
   const mtext=(txt,height,oy)=>{ g('  0','MTEXT'); g('  5',H()); g('330','1F'); g('100','AcDbEntity'); g('  8',layer);
     g('100','AcDbMText'); g(' 10',cx); g(' 20',cy-oy); g(' 30','0.0'); g(' 40',height); g(' 41','0.0'); g(' 71','5'); g(' 72','5'); g('  1',txt); g('  7','Standard'); };
-  mtext(label, h, 0);
-  const meta=[owner,thesi].filter(Boolean).join(' / ');
-  if(meta) mtext(meta, h*0.6, h*1.4);
+  const lines=(texts||[]).filter(t=>t&&String(t).trim());
+  if(lines.length===0) lines.push('ΓΕΩΤΕΜΑΧΙΟ');
+  lines.forEach((t,i)=> mtext(String(t).trim(), i===0?h:h*0.6, i===0?0 : (h*1.4 + (i-1)*h*0.9)));
   const entText = L.join(EOL)+EOL;
 
   const entMarker = `${EOL}ENTITIES${EOL}`;
@@ -758,13 +754,13 @@ function handleAddFile(file){
   const reader=new FileReader();
   reader.onload=e=>{
     try{
-      const layer=($('addLayer').value||'Topo_Prop').trim();
-      let polys=parseLayerPolys(e.target.result, layer);
+      const INPUT_LAYER='Topo_Prop';
+      let polys=parseLayerPolys(e.target.result, INPUT_LAYER);
       if(!polys.length){ // fallback: οποιαδήποτε polyline, αν δεν βρεθεί το layer
         const any=parseLayerPolys(e.target.result, '');
         $('addGeomHint').className='hint err';
         $('addGeomHint').textContent = any.length
-          ? `Δεν βρέθηκε polyline στο layer «${layer}». Βρέθηκαν ${any.length} σε άλλα layers — έλεγξε το όνομα του layer.`
+          ? `Δεν βρέθηκε polyline στο layer «${INPUT_LAYER}». Βρέθηκαν ${any.length} σε άλλα layers — έλεγξε το όνομα του layer.`
           : 'Δεν βρέθηκε καμία polyline στο αρχείο.';
         addPolys=null; addSelected=null; $('addBuildBtn').disabled=true; return;
       }
@@ -774,7 +770,7 @@ function handleAddFile(file){
       $('addGeomHint').className='hint ok';
       $('addGeomHint').textContent=`Βρέθηκε περίγραμμα: ${addSelected.length} κορυφές · εμβαδόν ~${Math.round(ar).toLocaleString('el-GR')} m²`+(polys.length>1?` (+${polys.length-1} ακόμη, επιλέχθηκε το μεγαλύτερο)`:'');
       $('addDropText').innerHTML=`✓ ${file.name}`;
-      $('addBuildBtn').disabled = !($('addLabel').value.trim());
+      $('addBuildBtn').disabled = !($('addYear').value.trim());
     }catch(err){ console.error(err); $('addGeomHint').className='hint err'; $('addGeomHint').textContent='Σφάλμα ανάγνωσης DXF.'; }
   };
   reader.readAsText(file);
@@ -788,25 +784,26 @@ function handleAddFile(file){
   ['dragover','dragenter'].forEach(ev=>drop.addEventListener(ev,e=>{ e.preventDefault(); drop.classList.add('drag'); }));
   ['dragleave','dragend'].forEach(ev=>drop.addEventListener(ev,()=>drop.classList.remove('drag')));
   drop.addEventListener('drop',e=>{ e.preventDefault(); drop.classList.remove('drag'); const f=e.dataTransfer.files&&e.dataTransfer.files[0]; if(f) handleAddFile(f); });
-  $('addLabel').addEventListener('input', ()=>{ $('addBuildBtn').disabled = !(addSelected && $('addLabel').value.trim()); });
+  $('addYear').addEventListener('input', ()=>{ $('addBuildBtn').disabled = !(addSelected && $('addYear').value.trim()); });
 
   const savedTok=localStorage.getItem('gh_token'); if(savedTok) $('ghToken').value=savedTok;
 
   $('addBuildBtn').addEventListener('click', async ()=>{
-    const label=$('addLabel').value.trim(); if(!addSelected||!label){ showToast('Χρειάζονται περίγραμμα + ετικέτα'); return; }
-    const owner=$('addOwner').value.trim(), thesi=$('addThesi').value.trim(), layer=($('addLayer').value||'Topo_Prop').trim();
-    const folder=$('addFolder').value.trim();
-    let year=$('addYear').value.trim();
-    if(!year){ const mm=label.match(/-(\d{2})\b/); if(mm){ year='20'+mm[1]; $('addYear').value=year; } }
+    const owner=$('addOwner').value.trim(), thesi=$('addThesi').value.trim(), folder=$('addFolder').value.trim();
+    const year=$('addYear').value.trim();
+    if(!addSelected){ showToast('Χρειάζεται DXF με περίγραμμα (layer Topo_Prop)'); return; }
+    if(!year){ showToast('Συμπλήρωσε Έτος (καθορίζει και το layer)'); return; }
+    const layer='Topo_'+year;
+    const texts=[owner, thesi, folder, 'Έτος '+year].map(s=>String(s||'').trim()).filter(Boolean);
     const btn=$('addBuildBtn'); const orig=btn.textContent; btn.disabled=true; btn.textContent='Επεξεργασία…';
     try{
       const master=await getMasterText();
       if(!master){ showToast('Δεν βρέθηκε το SYNOLIKO-12.dxf (άνοιξε πρώτα την καρτέλα Χάρτης/ΚΑΕΚ μία φορά).'); return; }
-      addUpdated=appendParcelToMaster(master,{pts:addSelected,label,owner,thesi,layer});
-      addMeta={owner,thesi,folder,year,label};
+      addUpdated=appendParcelToMaster(master,{pts:addSelected,texts,layer});
+      addMeta={owner,thesi,folder,year};
       const addedKB=Math.round((addUpdated.length-master.length)/1024*10)/10;
       $('addResult').style.display='block'; $('addResult').className='hint ok';
-      $('addResult').textContent=`Έτοιμο: προστέθηκε 1 κλειστή polyline + κείμενο (${addedKB} KB). Διάλεξε τι θα κάνεις:`;
+      $('addResult').textContent=`Έτοιμο: προστέθηκε 1 κλειστή polyline + κείμενο στο layer «${layer}» (${addedKB} KB). Διάλεξε τι θα κάνεις:`;
       $('addActions').style.display='flex';
       const row=[owner,thesi,folder,year].join('\t');
       $('addRow').style.display='block';
@@ -842,12 +839,12 @@ function handleAddFile(file){
     localStorage.setItem('gh_token',token);
     const btn=$('addSaveRepoBtn'); const orig=btn.textContent; btn.disabled=true; btn.textContent='Αποθήκευση…';
     try{
-      const label=(addMeta&&addMeta.label)||($('addLabel').value||'').trim();
+      const tag=(addMeta&&(addMeta.owner||addMeta.folder))|| (addMeta&&addMeta.year? 'Topo_'+addMeta.year : 'νέο');
       const mdContent=await buildMdContent(addMeta||{}, token);
       await ghCommitFiles([
         { path:'SYNOLIKO-12.dxf', content:addUpdated },
         { path:'lista_topo_arxeio.md', content:mdContent }
-      ], 'SYNOLIKO-12 + λίστα: νέο γεωτεμάχιο ('+label+')', token);
+      ], 'SYNOLIKO-12 + λίστα: νέο γεωτεμάχιο ('+tag+')', token);
       showToast('Αποθηκεύτηκε στο repo ✓ (SYNOLIKO + lista_topo_arxeio.md)');
     }catch(err){ console.error(err); showToast('Αποτυχία repo: '+err.message); }
     finally{ btn.disabled=false; btn.textContent=orig; }
