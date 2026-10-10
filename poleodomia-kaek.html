@@ -427,7 +427,9 @@ function escapeHtml(s){ return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':
 /* ─── Εντοπισμός URLs/TIFF μέσα σε τιμή πεδίου & κουμπιά λήψης/CAD ─── */
 const URL_RE = /(https?:\/\/[^\s"'<>]+)/ig;
 function isTifUrl(u){ return /\.tiff?(\?|#|$)/i.test(u); }
+function isPdfUrl(u){ return /\.pdf(\?|#|$)/i.test(u); }
 function tifName(u){ try{ const p=u.split(/[?#]/)[0]; return decodeURIComponent(p.substring(p.lastIndexOf('/')+1))||'raster.tif'; }catch(e){ return 'raster.tif'; } }
+function fileName(u,fallback){ try{ const p=u.split(/[?#]/)[0]; return decodeURIComponent(p.substring(p.lastIndexOf('/')+1))||fallback; }catch(e){ return fallback; } }
 function hasTif(v){ const s=String(v); URL_RE.lastIndex=0; let m; while((m=URL_RE.exec(s))){ if(isTifUrl(m[0])) return true; } return false; }
 function renderValue(v){
   const s=String(v); let out='', last=0, m; URL_RE.lastIndex=0;
@@ -439,6 +441,10 @@ function renderValue(v){
       out+=`<span class="tif"><a class="tif-name" href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer">🗺️ ${escapeHtml(name)}</a>`
         +`<button type="button" class="tifbtn" data-act="dl" data-url="${escapeHtml(url)}" data-name="${escapeHtml(name)}" title="Λήψη TIFF (+ world file αν υπάρχει)">📥 Λήψη</button>`
         +`<button type="button" class="tifbtn cad" data-act="cad" data-url="${escapeHtml(url)}" data-name="${escapeHtml(name)}" title="Εισαγωγή σε εφαρμογή CAD της συσκευής">📲 CAD</button></span>`;
+    } else if(isPdfUrl(url)){
+      const name=fileName(url,'document.pdf');
+      out+=`<span class="tif"><a class="tif-name" href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer">📄 ${escapeHtml(name)}</a>`
+        +`<button type="button" class="tifbtn" data-act="file" data-url="${escapeHtml(url)}" data-name="${escapeHtml(name)}" title="Λήψη PDF">📥 Λήψη</button></span>`;
     } else {
       out+=`<a href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(url)}</a>`;
     }
@@ -458,6 +464,11 @@ async function fetchTifFiles(url,name){
     try{ const rr=await fetch(base+ext,{referrerPolicy:'no-referrer'}); if(rr&&rr.ok){ const t=await rr.text(); if(t&&t.length<4096){ files.push(new File([t], name.replace(/\.tiff?$/i,'')+ext, {type:'text/plain'})); } } }catch(_){}
   }
   return files;
+}
+async function downloadFile(url,name){
+  showToast('Λήψη '+name+'…');
+  try{ const r=await fetch(url,{referrerPolicy:'no-referrer'}); if(!r.ok) throw new Error('HTTP '+r.status); saveBlob(await r.blob(), name); showToast('Κατέβηκε: '+name); }
+  catch(e){ window.open(url,'_blank','noopener'); showToast('Άνοιγμα σε νέα καρτέλα — αποθήκευσέ το χειροκίνητα.'); }
 }
 async function downloadTif(url,name){
   showToast('Λήψη '+name+'…');
@@ -814,7 +825,9 @@ $('reportBody').addEventListener('click', e=>{
   const b=e.target.closest('.tifbtn'); if(!b) return;
   e.preventDefault();
   const url=b.dataset.url, name=b.dataset.name||'raster.tif';
-  if(b.dataset.act==='cad') shareTifToCad(url,name); else downloadTif(url,name);
+  if(b.dataset.act==='cad') shareTifToCad(url,name);
+  else if(b.dataset.act==='file') downloadFile(url,name);
+  else downloadTif(url,name);
 });
 $('runBtn').addEventListener('click', runFlow);
 $('actPrint').addEventListener('click', ()=>window.print());
