@@ -74,6 +74,7 @@
   .map-tip{font-size:0.76rem;color:var(--text-muted);margin:0.7rem 0 0;line-height:1.45;}
   .leaflet-container{font:inherit;}
   .map-status{font-size:0.76rem;color:var(--gold);margin-top:0.5rem;min-height:1.1em;font-family:'IBM Plex Mono',monospace;}
+  .rlabel{font-size:0.72rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:0.4rem;font-weight:600;}
 
   /* Πρόοδος */
   #progress{display:none;margin-top:1rem;}
@@ -174,6 +175,17 @@
     <div id="pickMap"></div>
     <p class="map-tip">Κάνε <b>κλικ πάνω σε γεωτεμάχιο</b> για αυτόματη συμπλήρωση του ΚΑΕΚ, ή γράψε τον ΚΑΕΚ χειροκίνητα πιο κάτω για να εντοπιστεί στον χάρτη. Στο κοντινό zoom φαίνονται τα όρια των γεωτεμαχίων (Κτηματολόγιο).</p>
     <div id="mapStatus" class="map-status"></div>
+  </div>
+
+  <!-- ── Δημιουργία αποσπάσματος ── -->
+  <div class="card" id="snippetCard">
+    <div class="rlabel">Δημιουργία αποσπάσματος</div>
+    <p class="map-tip" style="margin-top:0;">Εικόνα του τρέχοντος χάρτη με το επιλεγμένο γεωτεμάχιο (τίτλος, ΚΑΕΚ, κλίμακα, βορράς, ημερομηνία). Ρύθμισε πρώτα zoom/υπόβαθρο όπως θες στον χάρτη.</p>
+    <div class="btn-mini-row" style="margin-top:0.6rem;">
+      <button id="snipCopy" class="act btn-secondary" disabled>📋 Αντιγραφή εικόνας</button>
+      <button id="snipSave" class="act btn-primary" disabled>💾 Αποθήκευση PNG</button>
+    </div>
+    <div id="snipHint" class="hint"></div>
   </div>
 
   <!-- ── Είσοδος ── -->
@@ -730,6 +742,7 @@ function buildTextReport({kaek, note, geo, w, buckets, allFek, ota, diag}){
 
 /* ═══════════════ Χάρτης GIS (επιλογή γεωτεμαχίου) ═══════════════ */
 let pickMap=null, parcelsLayer=null, highlightLayer=null, parcelsAbort=null;
+let activeBase={tpl:'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', subs:null, name:'Esri World Imagery'};
 function mapStatus(msg){ const el=$('mapStatus'); if(el) el.textContent=msg||''; }
 
 function initPickMap(){
@@ -737,6 +750,10 @@ function initPickMap(){
   const osm=L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap'});
   pickMap=L.map('pickMap',{layers:[sat],zoomControl:true}).setView([37.8,21.35],11); // Ηλεία
   L.control.layers({'Δορυφορικό':sat,'Χάρτης (OSM)':osm},null,{position:'topright'}).addTo(pickMap);
+  pickMap.on('baselayerchange', e=>{
+    if(/osm|χάρτης/i.test(e.name||'')) activeBase={tpl:'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', subs:['a','b','c'], name:'OpenStreetMap'};
+    else activeBase={tpl:'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', subs:null, name:'Esri World Imagery'};
+  });
   parcelsLayer=L.layerGroup().addTo(pickMap);
   highlightLayer=L.layerGroup().addTo(pickMap);
   pickMap.on('click', e=>resolveByPoint(e.latlng.lng, e.latlng.lat, 4326));
@@ -773,6 +790,7 @@ function highlightCurrent(){
 function setCurrentGeo(kaek, geo){
   currentGeo=geo; currentKaek=kaek;
   highlightCurrent();
+  $('snipCopy').disabled=false; $('snipSave').disabled=false;
   if(pickMap){
     try{ pickMap.fitBounds(L.polygon(egsaRingsToLatLngs(geo.rings)).getBounds(),{padding:[40,40],maxZoom:19}); }
     catch(e){ const w=egsa87ToWgs84(geo.cx,geo.cy); pickMap.setView([w.lat,w.lon],18); }
@@ -822,6 +840,107 @@ $('mapLocateBtn').addEventListener('click', ()=>{
     {enableHighAccuracy:true,timeout:8000});
 });
 $('mapKtimaBtn').addEventListener('click', ()=>window.open('https://gis.ktimanet.gr/gis/map','_blank','noopener'));
+
+/* ─── Δημιουργία αποσπάσματος (εικόνα χάρτη + γεωτεμάχιο) ─── */
+function tileUrl(tpl,x,y,z,subs){ const s=subs?subs[(x+y)%subs.length]:''; return tpl.replace('{s}',s).replace('{z}',z).replace('{x}',x).replace('{y}',y); }
+function loadImg(url){ return new Promise((res,rej)=>{ const im=new Image(); im.crossOrigin='anonymous'; im.onload=()=>res(im); im.onerror=()=>rej(new Error('tile')); im.src=url; }); }
+
+async function buildSnippetCanvas(){
+  if(!pickMap || !currentGeo) throw new Error('Δεν έχει επιλεγεί γεωτεμάχιο.');
+  const z0=pickMap.getZoom(), size=pickMap.getSize(), maxNative=19;
+  const zCap=Math.min(Math.round(z0), maxNative);
+  const scale=Math.pow(2, zCap - z0);
+  const cw=Math.max(360, Math.round(size.x*scale)), ch=Math.max(260, Math.round(size.y*scale));
+  const center=pickMap.getCenter();
+  const topLeft=pickMap.project(center, zCap).subtract([cw/2, ch/2]);
+  const canvas=document.createElement('canvas'); canvas.width=cw; canvas.height=ch;
+  const ctx=canvas.getContext('2d'); ctx.fillStyle='#20242c'; ctx.fillRect(0,0,cw,ch);
+  // Πλακίδια υποβάθρου
+  const maxTile=Math.pow(2,zCap);
+  const x0=Math.floor(topLeft.x/256), y0=Math.floor(topLeft.y/256);
+  const x1=Math.floor((topLeft.x+cw)/256), y1=Math.floor((topLeft.y+ch)/256);
+  const jobs=[];
+  for(let tx=x0;tx<=x1;tx++) for(let ty=y0;ty<=y1;ty++){
+    if(ty<0||ty>=maxTile) continue;
+    const wx=((tx%maxTile)+maxTile)%maxTile;
+    const url=tileUrl(activeBase.tpl, wx, ty, zCap, activeBase.subs);
+    const dx=Math.round(tx*256 - topLeft.x), dy=Math.round(ty*256 - topLeft.y);
+    jobs.push(loadImg(url).then(im=>ctx.drawImage(im,dx,dy,256,256)).catch(()=>{}));
+  }
+  await Promise.allSettled(jobs);
+  // Περίγραμμα γεωτεμαχίου
+  const rings=egsaRingsToLatLngs(currentGeo.rings);
+  ctx.lineJoin='round';
+  rings.forEach(r=>{
+    ctx.beginPath();
+    r.forEach((ll,i)=>{ const p=pickMap.project(L.latLng(ll[0],ll[1]), zCap).subtract(topLeft); if(i===0)ctx.moveTo(p.x,p.y); else ctx.lineTo(p.x,p.y); });
+    ctx.closePath();
+    ctx.fillStyle='rgba(66,133,244,0.22)'; ctx.fill();
+    ctx.lineWidth=4; ctx.strokeStyle='#ffffff'; ctx.stroke();
+    ctx.lineWidth=2; ctx.strokeStyle='#4285F4'; ctx.stroke();
+  });
+  drawSnippetOverlays(ctx, cw, ch, zCap, center.lat);
+  return canvas;
+}
+
+function drawSnippetOverlays(ctx,cw,ch,z,lat){
+  const note=$('kaekNote').value.trim();
+  // Πάνω μπάρα τίτλου
+  ctx.fillStyle='rgba(15,17,21,0.80)'; ctx.fillRect(0,0,cw,40);
+  ctx.fillStyle='#c9a227'; ctx.textBaseline='middle'; ctx.textAlign='left';
+  ctx.font='bold 19px "IBM Plex Sans",Arial,sans-serif';
+  ctx.fillText('ΑΠΟΣΠΑΣΜΑ ΧΑΡΤΗ  —  ΚΑΕΚ '+(currentKaek||'—'), 12, 21);
+  // Κάτω μπάρα πληροφοριών
+  const bh=50; ctx.fillStyle='rgba(15,17,21,0.80)'; ctx.fillRect(0,ch-bh,cw,bh);
+  ctx.fillStyle='#e9e7e1'; ctx.font='14px "IBM Plex Sans",Arial,sans-serif';
+  const l1=(note?note+'   ·   ':'')+'ΕΓΣΑ87: Χ='+currentGeo.cx.toFixed(1)+'  Υ='+currentGeo.cy.toFixed(1)+(currentGeo.area?('   ·   ~'+Math.round(currentGeo.area).toLocaleString('el-GR')+' m²'):'');
+  ctx.fillText(l1, 12, ch-bh+16);
+  ctx.fillStyle='#9a9ca6'; ctx.font='11px "IBM Plex Sans",Arial,sans-serif';
+  ctx.fillText('Τεχνικό Γραφείο Γεωργακόπουλος   ·   '+new Date().toLocaleDateString('el-GR')+'   ·   Υπόβαθρο: '+activeBase.name, 12, ch-bh+36);
+  // Κλίμακα (πάνω από την κάτω μπάρα, δεξιά)
+  const res=156543.03392*Math.cos(lat*Math.PI/180)/Math.pow(2,z); // m/px
+  const nice=[1,2,5,10,20,50,100,200,500,1000,2000]; let best=nice[0];
+  for(const n of nice){ if(n/res<=cw*0.30) best=n; }
+  const px=best/res, bx=cw-24-px, by=ch-bh-16;
+  ctx.strokeStyle='#fff'; ctx.lineWidth=3;
+  ctx.beginPath(); ctx.moveTo(bx,by); ctx.lineTo(bx+px,by);
+  ctx.moveTo(bx,by-6); ctx.lineTo(bx,by+6); ctx.moveTo(bx+px,by-6); ctx.lineTo(bx+px,by+6); ctx.stroke();
+  ctx.fillStyle='#fff'; ctx.font='bold 12px "IBM Plex Sans",Arial,sans-serif'; ctx.textBaseline='bottom'; ctx.textAlign='center';
+  ctx.fillText(best>=1000?(best/1000+' km'):(best+' m'), bx+px/2, by-7);
+  // Βορράς (πάνω δεξιά)
+  const nx=cw-28, ny=60; ctx.fillStyle='#fff';
+  ctx.beginPath(); ctx.moveTo(nx,ny-15); ctx.lineTo(nx-7,ny+7); ctx.lineTo(nx+7,ny+7); ctx.closePath(); ctx.fill();
+  ctx.textBaseline='middle'; ctx.textAlign='center'; ctx.font='bold 14px "IBM Plex Sans",Arial,sans-serif';
+  ctx.fillText('Β', nx, ny+18);
+  ctx.textAlign='left'; ctx.textBaseline='alphabetic';
+}
+
+async function createSnippet(mode){
+  const hint=$('snipHint'); hint.className='hint'; hint.textContent='Δημιουργία εικόνας…';
+  try{
+    const canvas=await buildSnippetCanvas();
+    const blob=await new Promise((res,rej)=>canvas.toBlob(b=>b?res(b):rej(new Error('toBlob')), 'image/png'));
+    const fname='apospasma_KAEK_'+(currentKaek||'map')+'.png';
+    if(mode==='copy'){
+      try{
+        await navigator.clipboard.write([new ClipboardItem({'image/png':blob})]);
+        hint.className='hint ok'; hint.textContent='✓ Αντιγράφηκε στο πρόχειρο — επικόλλησε όπου θέλεις (Ctrl+V).';
+        showToast('Το απόσπασμα αντιγράφηκε');
+      }catch(e){
+        saveBlob(blob,fname);
+        hint.className='hint'; hint.textContent='Η αντιγραφή εικόνας δεν υποστηρίζεται σε αυτόν τον browser — έγινε λήψη ('+fname+').';
+      }
+    } else {
+      saveBlob(blob,fname);
+      hint.className='hint ok'; hint.textContent='✓ Αποθηκεύτηκε: '+fname;
+    }
+  }catch(e){
+    console.error(e); hint.className='hint err';
+    hint.textContent='Σφάλμα δημιουργίας αποσπάσματος: '+((e&&e.message)||e)+' (πιθανόν περιορισμός CORS στα πλακίδια υποβάθρου).';
+  }
+}
+$('snipCopy').addEventListener('click', ()=>createSnippet('copy'));
+$('snipSave').addEventListener('click', ()=>createSnippet('save'));
 
 /* ═══════════════ Ενέργειες ═══════════════ */
 $('reportBody').addEventListener('click', e=>{
