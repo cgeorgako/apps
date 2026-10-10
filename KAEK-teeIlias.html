@@ -182,6 +182,8 @@
       <button id="mapLocateBtn" class="act btn-secondary" type="button">📍 Η θέση μου</button>
       <button id="mapKtimaBtn" class="act btn-secondary" type="button">Επίσημο GIS ↗</button>
       <button id="mapRefreshSyn" class="act btn-secondary" type="button" title="Κατέβασε ξανά το SYNOLIKO-12.dxf από το repo">🔄 Ανανέωση SYNOLIKO</button>
+      <button id="mapCopyImg" class="act btn-secondary" type="button" title="Αντιγραφή αποσπάσματος χάρτη (με επιλεγμένα ΚΑΕΚ) στο πρόχειρο">📋 Αντιγραφή χάρτη</button>
+      <button id="mapSaveImg" class="act btn-secondary" type="button" title="Λήψη αποσπάσματος χάρτη ως εικόνα PNG">🖼️ Λήψη εικόνας</button>
     </div>
     <div id="map"></div>
     <p class="map-tip">Κάνε <b>κλικ πάνω σε ένα γεωτεμάχιο</b> για να βρεθεί ο ΚΑΕΚ. Στο κοντινό zoom φαίνονται τα όρια των γεωτεμαχίων.</p>
@@ -986,8 +988,8 @@ let mapObj=null, mapInited=false, parcelsLayer=null, highlightsLayer=null, parce
 function initMap(){
   if(mapInited){ if(mapObj) setTimeout(()=>{ mapObj.invalidateSize(); drawSelectionHighlights(); },60); return; }
   mapInited=true;
-  const sat=L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',{maxZoom:21,maxNativeZoom:19,attribution:'Esri World Imagery'});
-  const osm=L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap'});
+  const sat=L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',{maxZoom:21,maxNativeZoom:19,attribution:'Esri World Imagery',crossOrigin:true});
+  const osm=L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap',crossOrigin:true});
   const hist=loadHistory().filter(h=>h.lat&&h.lon);
   const center=hist.length?[hist[0].lat,hist[0].lon]:[37.8,21.35]; // Ηλεία
   const zoom=hist.length?18:11;
@@ -1054,6 +1056,74 @@ $('mapRefreshSyn').addEventListener('click', async ()=>{
   try{ const s=await refreshSynolikoFromRepo(); showToast('Ανανεώθηκε: '+s.polylines.length+' polylines, '+s.texts.length+' κείμενα'); hideSynBanner(); }
   catch(e){ console.error(e); showToast('Αποτυχία ανανέωσης: '+e.message); }
   finally{ btn.disabled=false; btn.textContent=o; }
+});
+
+/* ═══ Εξαγωγή αποσπάσματος χάρτη ως καθαρή εικόνα (μόνο χάρτης + επιλεγμένα ΚΑΕΚ) ═══ */
+function buildMapCanvas(){
+  if(!mapObj) throw new Error('Ο χάρτης δεν έχει αρχικοποιηθεί');
+  const container=mapObj.getContainer();
+  const size=mapObj.getSize();           // CSS px (x,y)
+  const W=size.x, H=size.y;
+  const scale=Math.min(2, Math.max(1, Math.round(window.devicePixelRatio||1)));
+  const canvas=document.createElement('canvas');
+  canvas.width=W*scale; canvas.height=H*scale;
+  const ctx=canvas.getContext('2d');
+  ctx.scale(scale,scale);
+  ctx.fillStyle='#e8e8e8'; ctx.fillRect(0,0,W,H);
+
+  // 1) Tiles του ενεργού base layer (μόνο imgs του tile-pane, canvas-safe λόγω crossOrigin)
+  const cRect=container.getBoundingClientRect();
+  const tiles=container.querySelectorAll('.leaflet-tile-pane img.leaflet-tile');
+  let tainted=false;
+  tiles.forEach(img=>{
+    if(!img.complete || !img.naturalWidth) return;
+    const r=img.getBoundingClientRect();
+    const x=r.left-cRect.left, y=r.top-cRect.top;
+    try{ ctx.drawImage(img, x, y, r.width, r.height); }catch(e){ tainted=true; }
+  });
+
+  // 2) Επιλεγμένα ΚΑΕΚ (ίδια χρώματα με τον χάρτη)
+  for(const rec of selected){
+    if(!rec.ringsEGSA) continue;
+    const color = rec.overlaps ? '#e11d48' : '#4285F4';
+    for(const ring of egsaRingsToLatLngs(rec.ringsEGSA)){
+      ctx.beginPath();
+      ring.forEach((ll,i)=>{ const p=mapObj.latLngToContainerPoint(ll); if(i===0) ctx.moveTo(p.x,p.y); else ctx.lineTo(p.x,p.y); });
+      ctx.closePath();
+      ctx.fillStyle=hexToRgba(color,0.15); ctx.fill();
+      ctx.lineWidth=2; ctx.strokeStyle=color; ctx.stroke();
+    }
+    if(rec.overlaps && rec.point){
+      const p=mapObj.latLngToContainerPoint([rec.point.lat, rec.point.lon]);
+      ctx.beginPath(); ctx.arc(p.x,p.y,7,0,Math.PI*2); ctx.fillStyle='#e11d48'; ctx.fill(); ctx.lineWidth=2; ctx.strokeStyle='#ffffff'; ctx.stroke();
+    }
+  }
+  return canvas;
+}
+function hexToRgba(hex,a){ const h=hex.replace('#',''); const n=parseInt(h.length===3?h.split('').map(c=>c+c).join(''):h,16); return `rgba(${(n>>16)&255},${(n>>8)&255},${n&255},${a})`; }
+function mapImageName(){ const k=(selected[0]&&selected[0].kaek)||'xartis'; const extra=selected.length>1?('_+'+(selected.length-1)):''; return 'xartis_'+k+extra+'.png'; }
+function canvasToBlob(canvas){ return new Promise((res,rej)=>{ canvas.toBlob(b=> b?res(b):rej(new Error('Αποτυχία δημιουργίας εικόνας (ίσως tainted canvas)')), 'image/png'); }); }
+
+$('mapSaveImg').addEventListener('click', async ()=>{
+  try{
+    const blob=await canvasToBlob(buildMapCanvas());
+    const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=mapImageName();
+    document.body.appendChild(a); a.click(); document.body.removeChild(a); setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+    showToast('Λήψη εικόνας χάρτη');
+  }catch(e){ console.error(e); showToast('Αποτυχία: '+e.message); }
+});
+$('mapCopyImg').addEventListener('click', async ()=>{
+  try{
+    const blob=await canvasToBlob(buildMapCanvas());
+    if(navigator.clipboard && window.ClipboardItem){
+      await navigator.clipboard.write([new ClipboardItem({'image/png':blob})]);
+      showToast('Ο χάρτης αντιγράφηκε στο πρόχειρο ✓');
+    }else{
+      const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=mapImageName();
+      document.body.appendChild(a); a.click(); document.body.removeChild(a); setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+      showToast('Το πρόχειρο εικόνας δεν υποστηρίζεται — έγινε λήψη');
+    }
+  }catch(e){ console.error(e); showToast('Αποτυχία αντιγραφής: '+e.message); }
 });
 
 /* Αυτόματος έλεγχος νεότερης έκδοσης στο repo (ελαφρύ HEAD) */
