@@ -112,6 +112,12 @@
   .hit-attrs dt{color:var(--text-muted);white-space:nowrap;}
   .hit-attrs dd{margin:0;word-break:break-word;}
   .hit-attrs dd.fek{color:var(--gold);font-weight:600;}
+  .tif{display:inline-flex;align-items:center;gap:0.3rem;flex-wrap:wrap;background:var(--surface);border:1px solid var(--border);border-radius:7px;padding:0.15rem 0.35rem;margin:0.1rem 0;}
+  .tif .tif-name{color:var(--cyan);word-break:break-all;}
+  .tifbtn{font-family:inherit;font-size:0.72rem;font-weight:600;border:1px solid var(--gold-dim);background:transparent;color:var(--gold);border-radius:6px;padding:0.12rem 0.45rem;cursor:pointer;white-space:nowrap;}
+  .tifbtn:hover{background:var(--gold);color:#1a1305;}
+  .tifbtn.cad{border-color:var(--cyan);color:var(--cyan);}
+  .tifbtn.cad:hover{background:var(--cyan);color:#06222a;}
   .empty-cat{font-size:0.8rem;color:var(--text-muted);padding:0.6rem 0.2rem;}
 
   .alert{border-radius:10px;padding:0.8rem 0.9rem;font-size:0.82rem;line-height:1.5;margin-top:0.9rem;}
@@ -418,6 +424,62 @@ function cleanAttrs(attributes){
 }
 function escapeHtml(s){ return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
 
+/* ─── Εντοπισμός URLs/TIFF μέσα σε τιμή πεδίου & κουμπιά λήψης/CAD ─── */
+const URL_RE = /(https?:\/\/[^\s"'<>]+)/ig;
+function isTifUrl(u){ return /\.tiff?(\?|#|$)/i.test(u); }
+function tifName(u){ try{ const p=u.split(/[?#]/)[0]; return decodeURIComponent(p.substring(p.lastIndexOf('/')+1))||'raster.tif'; }catch(e){ return 'raster.tif'; } }
+function hasTif(v){ const s=String(v); URL_RE.lastIndex=0; let m; while((m=URL_RE.exec(s))){ if(isTifUrl(m[0])) return true; } return false; }
+function renderValue(v){
+  const s=String(v); let out='', last=0, m; URL_RE.lastIndex=0;
+  while((m=URL_RE.exec(s))){
+    out+=escapeHtml(s.slice(last,m.index));
+    const url=m[0];
+    if(isTifUrl(url)){
+      const name=tifName(url);
+      out+=`<span class="tif"><a class="tif-name" href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer">🗺️ ${escapeHtml(name)}</a>`
+        +`<button type="button" class="tifbtn" data-act="dl" data-url="${escapeHtml(url)}" data-name="${escapeHtml(name)}" title="Λήψη TIFF (+ world file αν υπάρχει)">📥 Λήψη</button>`
+        +`<button type="button" class="tifbtn cad" data-act="cad" data-url="${escapeHtml(url)}" data-name="${escapeHtml(name)}" title="Εισαγωγή σε εφαρμογή CAD της συσκευής">📲 CAD</button></span>`;
+    } else {
+      out+=`<a href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(url)}</a>`;
+    }
+    last=m.index+url.length;
+  }
+  out+=escapeHtml(s.slice(last));
+  return out;
+}
+function saveBlob(blob,name){ const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=name||'file'; document.body.appendChild(a); a.click(); document.body.removeChild(a); setTimeout(()=>URL.revokeObjectURL(a.href),2000); }
+/* Κατεβάζει το tif + best-effort τα world files (για georeferencing στο CAD) */
+async function fetchTifFiles(url,name){
+  const files=[];
+  const r=await fetch(url,{referrerPolicy:'no-referrer'}); if(!r.ok) throw new Error('HTTP '+r.status);
+  files.push(new File([await r.blob()], name, {type:'image/tiff'}));
+  const base=url.replace(/\.tiff?(\?.*)?$/i,'');
+  for(const ext of ['.tfw','.tifw','.wld']){
+    try{ const rr=await fetch(base+ext,{referrerPolicy:'no-referrer'}); if(rr&&rr.ok){ const t=await rr.text(); if(t&&t.length<4096){ files.push(new File([t], name.replace(/\.tiff?$/i,'')+ext, {type:'text/plain'})); } } }catch(_){}
+  }
+  return files;
+}
+async function downloadTif(url,name){
+  showToast('Λήψη '+name+'…');
+  try{ const files=await fetchTifFiles(url,name); files.forEach(f=>saveBlob(f,f.name)); showToast('Κατέβηκε: '+files.map(f=>f.name).join(' + ')); }
+  catch(e){ window.open(url,'_blank','noopener'); showToast('Άνοιγμα σε νέα καρτέλα — αποθήκευσέ το χειροκίνητα.'); }
+}
+async function shareTifToCad(url,name){
+  showToast('Προετοιμασία αρχείου…');
+  try{
+    const files=await fetchTifFiles(url,name);
+    if(navigator.canShare && navigator.canShare({files})){
+      await navigator.share({files, title:name, text:'Υπόβαθρο TIFF για εισαγωγή σε CAD'});
+      return;
+    }
+    files.forEach(f=>saveBlob(f,f.name));
+    showToast('Η συσκευή δεν υποστηρίζει απευθείας αποστολή — το αρχείο κατέβηκε· άνοιξέ το από την εφαρμογή CAD (Attach/Insert Image).');
+  }catch(e){
+    if(e && e.name==='AbortError') return; // ο χρήστης ακύρωσε το share
+    window.open(url,'_blank','noopener'); showToast('Δεν ήταν δυνατή η αποστολή — άνοιγμα σε νέα καρτέλα.');
+  }
+}
+
 /* ═══════════════ Κύρια ροή ═══════════════ */
 let lastReportText='';
 let currentGeo=null, currentKaek='';
@@ -523,6 +585,8 @@ function renderResults({kaek, note, geo, w, hits, diag, services}){
   else if(buckets.xor.some(h=>/εξωαστ|εκτος σχεδ/.test(norm(h.layerName)))) chips.push('<span class="chip info">🌄 Εξωαστικός χώρος</span>');
   if(buckets.arx.length) chips.push('<span class="chip warn">🏛️ Αρχαιολογική ζώνη / διατηρητέο — ΕΛΕΓΞΕ</span>');
   if(allFek.length) chips.push('<span class="chip on">📜 Αναφορά ΦΕΚ</span>');
+  let tifCount=0; for(const h of hits){ for(const v of Object.values(h.attributes)){ const s=String(v); URL_RE.lastIndex=0; let m; while((m=URL_RE.exec(s))){ if(isTifUrl(m[0])) tifCount++; } } }
+  if(tifCount) chips.push('<span class="chip info">🗺️ '+tifCount+' υπόβαθρα TIFF (λήψη / CAD)</span>');
   const ota = findOta(buckets.xor);
   if(ota) chips.push('<span class="chip">📍 ΟΤΑ: '+escapeHtml(ota)+'</span>');
   if(!anyTee) chips.push('<span class="chip warn">⚠️ Καμία απόκριση ΤΕΕ</span>');
@@ -537,6 +601,10 @@ function renderResults({kaek, note, geo, w, hits, diag, services}){
       Πιθανόν ο ArcGIS Server του ΤΕΕ να μην επιτρέπει κλήσεις από άλλον ιστότοπο (CORS), ή η υπηρεσία να είναι προσωρινά μη διαθέσιμη.
       Άνοιξε την <b>επίσημη πλατφόρμα ΤΕΕ</b> (κουμπί πιο πάνω) και εντόπισε το σημείο <b>Χ=${geo.cx.toFixed(2)}, Υ=${geo.cy.toFixed(2)}</b> (ΕΓΣΑ87).
       Δες και τον πίνακα διάγνωσης πιο κάτω.</div>`;
+  }
+
+  if(tifCount){
+    html += `<div class="alert info"><b>🗺️ Βρέθηκαν ${tifCount} αρχεία TIFF.</b> Δίπλα σε κάθε link: <b>📥 Λήψη</b> (κατεβάζει το tif + world file .tfw αν υπάρχει, για το georeferencing) και <b>📲 CAD</b> (αποστολή στην εφαρμογή CAD της συσκευής — σε κινητό ανοίγει το μενού κοινοποίησης· σε desktop γίνεται λήψη και το ανοίγεις με Attach/Insert Image/XREF).</div>`;
   }
 
   // Κατηγορία 1,2,4,+
@@ -582,7 +650,7 @@ function renderCat(c, list, raw){
     let rows='';
     for(const k of keys){
       const isFek = /φεκ|fek/i.test(norm(k));
-      rows += `<dt>${escapeHtml(k)}</dt><dd class="${isFek?'fek':''}">${escapeHtml(attrs[k])}</dd>`;
+      rows += `<dt>${escapeHtml(k)}</dt><dd class="${isFek?'fek':''}">${renderValue(attrs[k])}</dd>`;
     }
     if(!rows) rows='<dt>—</dt><dd>(χωρίς περιγραφικά πεδία)</dd>';
     h += `<div class="hit"><div class="hit-title">${escapeHtml(hit.layerName)}</div>
@@ -742,6 +810,12 @@ $('mapLocateBtn').addEventListener('click', ()=>{
 $('mapKtimaBtn').addEventListener('click', ()=>window.open('https://gis.ktimanet.gr/gis/map','_blank','noopener'));
 
 /* ═══════════════ Ενέργειες ═══════════════ */
+$('reportBody').addEventListener('click', e=>{
+  const b=e.target.closest('.tifbtn'); if(!b) return;
+  e.preventDefault();
+  const url=b.dataset.url, name=b.dataset.name||'raster.tif';
+  if(b.dataset.act==='cad') shareTifToCad(url,name); else downloadTif(url,name);
+});
 $('runBtn').addEventListener('click', runFlow);
 $('actPrint').addEventListener('click', ()=>window.print());
 $('actAgain').addEventListener('click', ()=>{ $('results').classList.remove('show'); $('kaekInput').focus(); window.scrollTo({top:0,behavior:'smooth'}); });
