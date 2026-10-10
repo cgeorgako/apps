@@ -226,6 +226,9 @@
       <a class="quick-link" id="linkKtima" href="#" target="_blank" rel="noopener noreferrer">
         <span class="ico">🏛️</span><span class="txt">Στοιχεία στο Κτηματολόγιο</span><span class="arrow">↗</span>
       </a>
+      <a class="quick-link" id="linkArxaio" href="https://www.arxaiologikoktimatologio.gov.gr/map" target="_blank" rel="noopener noreferrer">
+        <span class="ico">🏺</span><span class="txt">Αρχαιολογικό Κτηματολόγιο (ΥΠΠΟ) — αντιγραφή συντεταγμένων</span><span class="arrow">↗</span>
+      </a>
       <a class="quick-link" id="linkMaps" href="#" target="_blank" rel="noopener noreferrer">
         <span class="ico">📍</span><span class="txt">Άνοιγμα στο Google Maps</span><span class="arrow">↗</span>
       </a>
@@ -828,6 +831,14 @@ $('reportBody').addEventListener('click', e=>{
   if(b.dataset.act==='cad') shareTifToCad(url,name);
   else if(b.dataset.act==='file') downloadFile(url,name);
   else downloadTif(url,name);
+});
+$('linkArxaio').addEventListener('click', async ()=>{
+  // Ο χάρτης του Αρχ. Κτηματολογίου δεν έχει γνωστή παράμετρο URL για σημείο·
+  // αντιγράφουμε τις συντεταγμένες WGS84 για επικόλληση στα πεδία lat/lon του χάρτη.
+  if(!currentGeo) return;
+  const w=egsa87ToWgs84(currentGeo.cx,currentGeo.cy);
+  const txt=w.lat.toFixed(6)+', '+w.lon.toFixed(6);
+  try{ await navigator.clipboard.writeText(txt); showToast('Συντεταγμένες αντιγράφηκαν: '+txt+' — επικόλλησέ τες στα πεδία lat/lon του χάρτη.'); }catch(e){}
 });
 $('runBtn').addEventListener('click', runFlow);
 $('actPrint').addEventListener('click', ()=>window.print());
