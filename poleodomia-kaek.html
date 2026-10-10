@@ -67,7 +67,13 @@
   .spinner-dim{border:2px solid rgba(201,162,39,0.25);border-top-color:var(--gold);}
   @keyframes spin{to{transform:rotate(360deg);}}
 
-  #map{width:100%;height:300px;border-radius:12px;border:1px solid var(--border);background:var(--surface-2);margin-top:0.2rem;}
+  #pickMap{width:100%;height:46vh;min-height:300px;border-radius:12px;border:1px solid var(--border);background:var(--surface-2);}
+  @media (min-width:960px){ #pickMap{height:56vh;min-height:420px;} }
+  .map-toolbar{display:flex;gap:0.5rem;margin-bottom:0.7rem;flex-wrap:wrap;}
+  .map-toolbar .act{flex:1;min-width:120px;font-size:0.82rem;padding:0.6rem 0.5rem;}
+  .map-tip{font-size:0.76rem;color:var(--text-muted);margin:0.7rem 0 0;line-height:1.45;}
+  .leaflet-container{font:inherit;}
+  .map-status{font-size:0.76rem;color:var(--gold);margin-top:0.5rem;min-height:1.1em;font-family:'IBM Plex Mono',monospace;}
 
   /* Πρόοδος */
   #progress{display:none;margin-top:1rem;}
@@ -135,9 +141,9 @@
 
   @media print{
     body{background:#fff;color:#000;padding:0;}
-    .back,.actions,#progress,details.adv,.quick-link,#inputCard,.diag,footer{display:none !important;}
+    .back,.actions,#progress,details.adv,.quick-link,#inputCard,.diag,footer,.map-toolbar,.map-tip,#mapStatus{display:none !important;}
     .card{border:1px solid #ccc;box-shadow:none;background:#fff;}
-    #map{height:240px;}
+    #pickMap{height:240px;}
     .hit{background:#fff;border:1px solid #ccc;} .chip{color:#000;border-color:#999;}
     .cur-kaek,.hit-attrs dd.fek{color:#000;}
   }
@@ -153,10 +159,21 @@
     <p>ΚΑΕΚ → πολεοδομική πληροφορία από την πλατφόρμα SDI του ΤΕΕ</p>
   </header>
 
+  <!-- ── Χάρτης επιλογής γεωτεμαχίου (GIS) ── -->
+  <div class="card" id="pickCard">
+    <div class="map-toolbar">
+      <button id="mapLocateBtn" class="act btn-secondary" type="button">📍 Η θέση μου</button>
+      <button id="mapKtimaBtn" class="act btn-secondary" type="button">Επίσημο GIS ↗</button>
+    </div>
+    <div id="pickMap"></div>
+    <p class="map-tip">Κάνε <b>κλικ πάνω σε γεωτεμάχιο</b> για αυτόματη συμπλήρωση του ΚΑΕΚ, ή γράψε τον ΚΑΕΚ χειροκίνητα πιο κάτω για να εντοπιστεί στον χάρτη. Στο κοντινό zoom φαίνονται τα όρια των γεωτεμαχίων (Κτηματολόγιο).</p>
+    <div id="mapStatus" class="map-status"></div>
+  </div>
+
   <!-- ── Είσοδος ── -->
   <div class="card" id="inputCard">
     <div class="field">
-      <label for="kaekInput">Αριθμός ΚΑΕΚ (12 ψηφία)</label>
+      <label for="kaekInput">Αριθμός ΚΑΕΚ (12 ψηφία) — χειροκίνητα ή από τον χάρτη</label>
       <input id="kaekInput" type="text" inputmode="numeric" autocomplete="off" placeholder="π.χ. 150192801004" maxlength="14">
       <div id="kaekBreakdown" class="breakdown"></div>
       <div id="kaekHint" class="hint"></div>
@@ -192,7 +209,6 @@
       <div class="cur-kaek" id="rKaek">—</div>
       <div class="cur-meta" id="rMeta"></div>
       <div class="verdict" id="rVerdict"></div>
-      <div id="map"></div>
       <div class="btn-mini-row" style="margin-top:0.8rem;">
         <button id="actPrint" class="act btn-secondary">🖨️ Εκτύπωση / PDF</button>
         <button id="actCopy" class="act btn-secondary">📋 Αντιγραφή αναφοράς</button>
@@ -290,7 +306,15 @@ function validateKaek(){
   if(digits.length===12){ el.classList.add('valid'); hint.className='hint ok'; hint.textContent='Έγκυρη μορφή ΚΑΕΚ.'; $('runBtn').disabled=false; return true; }
   el.classList.add('invalid'); hint.className='hint'; hint.textContent=`${digits.length}/12 ψηφία`; $('runBtn').disabled=true; return false;
 }
-$('kaekInput').addEventListener('input', validateKaek);
+let locateTimer=null;
+$('kaekInput').addEventListener('input', ()=>{
+  const ok=validateKaek();
+  const digits=$('kaekInput').value.replace(/\D/g,'').slice(0,12);
+  // Αν αλλάξει ο ΚΑΕΚ, ακύρωσε προηγούμενη επιλογή γεωμετρίας
+  if(digits!==currentKaek){ currentGeo=null; }
+  clearTimeout(locateTimer);
+  if(ok && digits!==currentKaek){ locateTimer=setTimeout(()=>locateByKaek(digits), 350); }
+});
 $('kaekInput').addEventListener('keydown', e=>{ if(e.key==='Enter' && !$('runBtn').disabled) runFlow(); });
 
 /* ═══════════════ fetch helper με timeout ═══════════════ */
@@ -395,8 +419,8 @@ function cleanAttrs(attributes){
 function escapeHtml(s){ return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
 
 /* ═══════════════ Κύρια ροή ═══════════════ */
-let MAP=null, MAPLAYER=null;
 let lastReportText='';
+let currentGeo=null, currentKaek='';
 
 function setProgress(pct, txt){ $('progFill').style.width=Math.round(pct)+'%'; if(txt!==undefined) $('progTxt').textContent=txt; }
 
@@ -408,13 +432,15 @@ async function runFlow(){
   $('progress').classList.add('show'); setProgress(5,'Άντληση γεωμετρίας γεωτεμαχίου από το Κτηματολόγιο…');
   $('results').classList.remove('show');
 
-  let geo;
-  try{ geo=await resolveKaek(kaek); }
-  catch(err){
-    $('progress').classList.remove('show'); btn.disabled=false; btn.innerHTML=orig;
-    showToast(err.message||'Σφάλμα');
-    renderError(kaek, note, 'Αποτυχία εντοπισμού γεωτεμαχίου: '+(err.message||err), null);
-    return;
+  let geo = (currentGeo && currentKaek===kaek) ? currentGeo : null;
+  if(!geo){
+    try{ geo=await resolveKaek(kaek); setCurrentGeo(kaek, geo); }
+    catch(err){
+      $('progress').classList.remove('show'); btn.disabled=false; btn.innerHTML=orig;
+      showToast(err.message||'Σφάλμα');
+      renderError(kaek, note, 'Αποτυχία εντοπισμού γεωτεμαχίου: '+(err.message||err), null);
+      return;
+    }
   }
 
   const w=egsa87ToWgs84(geo.cx, geo.cy);
@@ -477,8 +503,9 @@ function renderResults({kaek, note, geo, w, hits, diag, services}){
   $('linkKtima').href = KTIMA_VIEW+kaek+KTIMA_SUFFIX;
   $('linkMaps').href = 'https://www.google.com/maps/search/?api=1&query='+w.lat.toFixed(6)+','+w.lon.toFixed(6);
 
-  // Χάρτης
-  drawMap(geo, w);
+  // Χάρτης: βεβαιώσου ότι το γεωτεμάχιο είναι επιλεγμένο & ορατό
+  if(!(currentGeo && currentKaek===kaek)) setCurrentGeo(kaek, geo);
+  else highlightCurrent();
 
   // Ταξινόμηση
   const buckets={pol:[],xor:[],fek:[],arx:[],ext:[],oth:[]};
@@ -619,20 +646,100 @@ function buildTextReport({kaek, note, geo, w, buckets, allFek, ota, diag}){
   return L.join('\n');
 }
 
-/* ═══════════════ Χάρτης ═══════════════ */
-function drawMap(geo, w){
-  if(!MAP){
-    MAP=L.map('map',{zoomControl:true}).setView([w.lat,w.lon],18);
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:20,attribution:'© OpenStreetMap'}).addTo(MAP);
-  }
-  if(MAPLAYER){ MAP.removeLayer(MAPLAYER); MAPLAYER=null; }
-  const latlngs=egsaRingsToLatLngs(geo.rings);
-  const poly=L.polygon(latlngs,{color:'#c9a227',weight:2,fillOpacity:0.12});
-  const marker=L.marker([w.lat,w.lon]);
-  MAPLAYER=L.layerGroup([poly,marker]).addTo(MAP);
-  try{ MAP.fitBounds(poly.getBounds(),{padding:[30,30],maxZoom:19}); }catch(e){ MAP.setView([w.lat,w.lon],18); }
-  setTimeout(()=>MAP.invalidateSize(),200);
+/* ═══════════════ Χάρτης GIS (επιλογή γεωτεμαχίου) ═══════════════ */
+let pickMap=null, parcelsLayer=null, highlightLayer=null, parcelsAbort=null;
+function mapStatus(msg){ const el=$('mapStatus'); if(el) el.textContent=msg||''; }
+
+function initPickMap(){
+  const sat=L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',{maxZoom:21,maxNativeZoom:19,attribution:'Esri World Imagery'});
+  const osm=L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap'});
+  pickMap=L.map('pickMap',{layers:[sat],zoomControl:true}).setView([37.8,21.35],11); // Ηλεία
+  L.control.layers({'Δορυφορικό':sat,'Χάρτης (OSM)':osm},null,{position:'topright'}).addTo(pickMap);
+  parcelsLayer=L.layerGroup().addTo(pickMap);
+  highlightLayer=L.layerGroup().addTo(pickMap);
+  pickMap.on('click', e=>resolveByPoint(e.latlng.lng, e.latlng.lat, 4326));
+  pickMap.on('moveend', loadViewportParcels);
+  setTimeout(()=>{ pickMap.invalidateSize(); loadViewportParcels(); },120);
 }
+
+/* Όρια γεωτεμαχίων στο viewport (zoom ≥ 16) */
+async function loadViewportParcels(){
+  if(!pickMap) return;
+  if(pickMap.getZoom()<16){ parcelsLayer.clearLayers(); return; }
+  const b=pickMap.getBounds();
+  const env=[b.getWest(),b.getSouth(),b.getEast(),b.getNorth()].join(',');
+  const url=`${ARCGIS_KTIMA}?f=json&geometry=${encodeURIComponent(env)}&geometryType=esriGeometryEnvelope&inSR=4326&spatialRel=esriSpatialRelIntersects&outFields=KAEK&returnGeometry=true&outSR=4326&resultRecordCount=400`;
+  try{
+    if(parcelsAbort) parcelsAbort.abort();
+    parcelsAbort=new AbortController();
+    const res=await fetch(url,{signal:parcelsAbort.signal}); const data=await res.json();
+    parcelsLayer.clearLayers();
+    (data.features||[]).forEach(f=>{ if(!f.geometry||!f.geometry.rings) return; L.polygon(f.geometry.rings.map(r=>r.map(p=>[p[1],p[0]])),{color:'#c9a227',weight:1,fill:true,fillOpacity:0.04,interactive:false}).addTo(parcelsLayer); });
+  }catch(err){}
+}
+
+/* Highlight του τρέχοντος γεωτεμαχίου */
+function highlightCurrent(){
+  if(!pickMap||!highlightLayer) return;
+  highlightLayer.clearLayers();
+  if(!currentGeo||!currentGeo.rings) return;
+  const w=egsa87ToWgs84(currentGeo.cx,currentGeo.cy);
+  L.polygon(egsaRingsToLatLngs(currentGeo.rings),{color:'#4285F4',weight:2.5,fillColor:'#4285F4',fillOpacity:0.18}).addTo(highlightLayer);
+  L.circleMarker([w.lat,w.lon],{radius:6,color:'#fff',weight:2,fillColor:'#4285F4',fillOpacity:1}).addTo(highlightLayer);
+}
+
+function setCurrentGeo(kaek, geo){
+  currentGeo=geo; currentKaek=kaek;
+  highlightCurrent();
+  if(pickMap){
+    try{ pickMap.fitBounds(L.polygon(egsaRingsToLatLngs(geo.rings)).getBounds(),{padding:[40,40],maxZoom:19}); }
+    catch(e){ const w=egsa87ToWgs84(geo.cx,geo.cy); pickMap.setView([w.lat,w.lon],18); }
+  }
+}
+
+/* Εντοπισμός από ΚΑΕΚ (χειροκίνητη πληκτρολόγηση) */
+async function locateByKaek(kaek){
+  if(!kaek||kaek.length!==12) return;
+  mapStatus('Εντοπισμός γεωτεμαχίου στον χάρτη…');
+  try{
+    const geo=await resolveKaek(kaek);
+    setCurrentGeo(kaek, geo);
+    mapStatus('✓ Βρέθηκε στον χάρτη (ΚΑΕΚ '+kaek+').');
+  }catch(err){
+    mapStatus('');
+    showToast(err.message||'Το ΚΑΕΚ δεν βρέθηκε στον χάρτη');
+  }
+}
+
+/* Εντοπισμός από κλικ στον χάρτη → συμπλήρωση ΚΑΕΚ */
+async function resolveByPoint(x, y, inSR){
+  mapStatus('Ανάγνωση ΚΑΕΚ από τον χάρτη…');
+  try{
+    const geom=encodeURIComponent(x+','+y);
+    const url=`${ARCGIS_KTIMA}?f=json&geometry=${geom}&geometryType=esriGeometryPoint&inSR=${inSR}&spatialRel=esriSpatialRelIntersects&outFields=KAEK,AREA,PERIMETER&returnGeometry=true&outSR=2100`;
+    const data=await fetchJson(url, 15000);
+    if(!data.features||!data.features.length){ mapStatus(''); showToast('Δεν υπάρχει καταχωρημένο γεωτεμάχιο εδώ.'); return; }
+    const f=data.features[0];
+    const kaek=String(f.attributes.KAEK||'').replace(/\D/g,'').slice(0,12);
+    if(!f.geometry||!f.geometry.rings){ mapStatus(''); showToast('Χωρίς γεωμετρία.'); return; }
+    const [cx,cy]=ringCentroid(f.geometry.rings[0]);
+    const geo={ rings:f.geometry.rings, area:f.attributes.AREA, perimeter:f.attributes.PERIMETER, cx, cy };
+    $('kaekInput').value=kaek; validateKaek();
+    setCurrentGeo(kaek, geo);
+    mapStatus('✓ Επιλέχθηκε ΚΑΕΚ '+kaek+'.');
+  }catch(err){ mapStatus(''); showToast('Αποτυχία ανάγνωσης ΚΑΕΚ — έλεγξε το internet.'); }
+}
+
+/* Εργαλεία χάρτη */
+$('mapLocateBtn').addEventListener('click', ()=>{
+  if(!pickMap||!navigator.geolocation){ showToast('Μη διαθέσιμος εντοπισμός θέσης'); return; }
+  mapStatus('Εντοπισμός θέσης…');
+  navigator.geolocation.getCurrentPosition(
+    pos=>{ pickMap.setView([pos.coords.latitude,pos.coords.longitude],18); mapStatus(''); },
+    ()=>{ mapStatus(''); showToast('Δεν ήταν δυνατός ο εντοπισμός θέσης'); },
+    {enableHighAccuracy:true,timeout:8000});
+});
+$('mapKtimaBtn').addEventListener('click', ()=>window.open('https://gis.ktimanet.gr/gis/map','_blank','noopener'));
 
 /* ═══════════════ Ενέργειες ═══════════════ */
 $('runBtn').addEventListener('click', runFlow);
@@ -644,6 +751,7 @@ $('actCopy').addEventListener('click', async ()=>{
 });
 
 validateKaek();
+initPickMap();
 </script>
 </body>
 </html>
