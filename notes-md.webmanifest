@@ -1,0 +1,22 @@
+{
+  "name": "Σημειώσεις .md → Google Drive",
+  "short_name": "Σημειώσεις",
+  "description": "Κατέγραψε σημειώσεις με φωνή, κείμενο ή σκαρίφημα και αποθήκευσέ τες αυτόματα ως αρχεία Markdown (.md) σε φάκελο του Google Drive.",
+  "lang": "el",
+  "dir": "ltr",
+  "start_url": "./notes-md.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "theme_color": "#0e1116",
+  "background_color": "#0e1116",
+  "categories": ["productivity", "utilities", "business"],
+  "icons": [
+    {
+      "src": "notes-md-icon.svg",
+      "sizes": "192x192 512x512 any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
