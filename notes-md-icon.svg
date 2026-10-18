@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512" role="img" aria-label="Σημειώσεις Markdown">
+  <!-- Φόντο (maskable safe) -->
+  <rect width="512" height="512" rx="112" fill="#0e1116"/>
+  <circle cx="256" cy="256" r="196" fill="#161b22"/>
+  <!-- Φύλλο σημείωσης -->
+  <g>
+    <rect x="156" y="132" width="200" height="248" rx="18" fill="#1c232d" stroke="#2a323d" stroke-width="6"/>
+    <!-- Γραμμές κειμένου -->
+    <rect x="186" y="176" width="140" height="12" rx="6" fill="#8b97a7"/>
+    <rect x="186" y="210" width="110" height="12" rx="6" fill="#8b97a7"/>
+    <rect x="186" y="244" width="130" height="12" rx="6" fill="#8b97a7"/>
+    <!-- Σήμα Markdown -->
+    <path d="M196 298h120v44H196z" fill="none"/>
+    <path d="M202 334v-30h12l12 15 12-15h12v30h-12v-16l-12 14-12-14v16z" fill="#ff7a18"/>
+    <path d="M286 304v18h-9l15 18 15-18h-9v-18z" fill="#ff7a18"/>
+  </g>
+  <!-- Μικρόφωνο (υπαγόρευση) -->
+  <g transform="translate(330,300)">
+    <circle cx="26" cy="26" r="40" fill="#ff7a18"/>
+    <rect x="18" y="6" width="16" height="30" rx="8" fill="#1a1205"/>
+    <path d="M10 26a16 16 0 0 0 32 0" fill="none" stroke="#1a1205" stroke-width="5" stroke-linecap="round"/>
+    <rect x="23" y="40" width="6" height="10" rx="3" fill="#1a1205"/>
+  </g>
+</svg>
