@@ -1168,7 +1168,10 @@ function buildMapCanvas(){
     try{ ctx.drawImage(img, x, y, r.width, r.height); }catch(e){ tainted=true; }
   });
 
-  // 2) Επιλεγμένα ΚΑΕΚ (ίδια χρώματα με τον χάρτη)
+  // 2) Όρια γεωτεμαχίων (parcels) — όπως φαίνονται στον χάρτη
+  drawVectorLayer(ctx, parcelsLayer);
+
+  // 3) Επιλεγμένα ΚΑΕΚ (ίδια χρώματα με τον χάρτη)
   for(const rec of selected){
     if(!rec.ringsEGSA) continue;
     const color = rec.overlaps ? '#e11d48' : '#4285F4';
@@ -1184,7 +1187,30 @@ function buildMapCanvas(){
       ctx.beginPath(); ctx.arc(p.x,p.y,7,0,Math.PI*2); ctx.fillStyle='#e11d48'; ctx.fill(); ctx.lineWidth=2; ctx.strokeStyle='#ffffff'; ctx.stroke();
     }
   }
+
+  // 4) Polylines/πολύγωνα φορτωμένου DXF (layer TOPO_PROP) — όπως φαίνονται
+  drawVectorLayer(ctx, dxfLayer);
+
   return canvas;
+}
+/* Σχεδιάζει στο canvas ένα Leaflet layerGroup (polylines/πολύγωνα) με τα
+   δικά του χρώματα/πάχη, ακριβώς όπως φαίνεται στον χάρτη. */
+function drawVectorLayer(ctx, group){
+  if(!group || !mapObj) return;
+  group.eachLayer(layer=>{
+    if(typeof layer.getLatLngs!=='function') return;
+    const opt=layer.options||{};
+    const isPoly=(typeof L!=='undefined') && (layer instanceof L.Polygon);
+    const rings=[];
+    (function walk(a){ if(!a||!a.length) return; if(a[0] && typeof a[0].lat==='number') rings.push(a); else a.forEach(walk); })(layer.getLatLngs());
+    rings.forEach(ring=>{
+      ctx.beginPath();
+      ring.forEach((ll,i)=>{ const p=mapObj.latLngToContainerPoint(ll); if(i===0) ctx.moveTo(p.x,p.y); else ctx.lineTo(p.x,p.y); });
+      if(isPoly) ctx.closePath();
+      if(isPoly && opt.fill!==false){ ctx.fillStyle=hexToRgba(opt.fillColor||opt.color||'#3388ff', opt.fillOpacity!=null?opt.fillOpacity:0.2); ctx.fill(); }
+      if(opt.stroke!==false){ ctx.lineWidth=opt.weight!=null?opt.weight:3; ctx.strokeStyle=opt.color||'#3388ff'; ctx.stroke(); }
+    });
+  });
 }
 function hexToRgba(hex,a){ const h=hex.replace('#',''); const n=parseInt(h.length===3?h.split('').map(c=>c+c).join(''):h,16); return `rgba(${(n>>16)&255},${(n>>8)&255},${n&255},${a})`; }
 function mapImageName(){ const k=(selected[0]&&selected[0].kaek)||'xartis'; const extra=selected.length>1?('_+'+(selected.length-1)):''; return 'xartis_'+k+extra+'.png'; }
