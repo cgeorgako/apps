@@ -184,6 +184,9 @@
       <button id="mapRefreshSyn" class="act btn-secondary" type="button" title="Κατέβασε ξανά το SYNOLIKO-12.dxf από το repo">🔄 Ανανέωση SYNOLIKO</button>
       <button id="mapCopyImg" class="act btn-secondary" type="button" title="Αντιγραφή αποσπάσματος χάρτη (με επιλεγμένα ΚΑΕΚ) στο πρόχειρο">📋 Αντιγραφή χάρτη</button>
       <button id="mapSaveImg" class="act btn-secondary" type="button" title="Λήψη αποσπάσματος χάρτη ως εικόνα PNG">🖼️ Λήψη εικόνας</button>
+      <button id="mapDxfBtn" class="act btn-secondary" type="button" title="Φόρτωση DXF — απεικόνιση polylines του layer TOPO_PROP στον χάρτη">📂 Φόρτωση DXF</button>
+      <button id="mapDxfClear" class="act btn-secondary" type="button" title="Καθαρισμός φορτωμένων polylines" style="display:none;">✖ Καθαρισμός DXF</button>
+      <input type="file" id="mapDxfFile" accept=".dxf,.DXF" style="display:none">
     </div>
     <div id="map"></div>
     <p class="map-tip">Κάνε <b>κλικ πάνω σε ένα γεωτεμάχιο</b> για να βρεθεί ο ΚΑΕΚ. Στο κοντινό zoom φαίνονται τα όρια των γεωτεμαχίων.</p>
@@ -590,16 +593,17 @@ function parseDxf(text){
   for(let k=0;k<ents.length;k++){
     const e=ents[k];
     if(e.type==='LWPOLYLINE'){
-      const pts=[]; let closed=false, curX=null;
+      const pts=[]; let closed=false, curX=null, layer='';
       for(const p of e.props){
         if(p.code===10) curX=parseFloat(p.value);
         else if(p.code===20 && curX!==null){ pts.push([curX, parseFloat(p.value)]); curX=null; }
         else if(p.code===70) closed=(parseInt(p.value,10)&1)===1;
+        else if(p.code===8) layer=(p.value||'').trim();
       }
-      if(pts.length>=3) polylines.push({pts, closed, bbox:bboxOf(pts), area:polyArea(pts)});
+      if(pts.length>=3) polylines.push({pts, closed, layer, bbox:bboxOf(pts), area:polyArea(pts)});
     } else if(e.type==='POLYLINE'){
-      let closed=false;
-      for(const p of e.props){ if(p.code===70) closed=(parseInt(p.value,10)&1)===1; }
+      let closed=false, layer='';
+      for(const p of e.props){ if(p.code===70) closed=(parseInt(p.value,10)&1)===1; else if(p.code===8) layer=(p.value||'').trim(); }
       const pts=[]; let j=k+1;
       while(j<ents.length && ents[j].type==='VERTEX'){
         let vx=null, vy=null;
@@ -607,7 +611,7 @@ function parseDxf(text){
         if(vx!==null && vy!==null) pts.push([vx,vy]);
         j++;
       }
-      if(pts.length>=3) polylines.push({pts, closed, bbox:bboxOf(pts), area:polyArea(pts)});
+      if(pts.length>=3) polylines.push({pts, closed, layer, bbox:bboxOf(pts), area:polyArea(pts)});
       k=j-1;
     } else if(e.type==='TEXT' || e.type==='MTEXT'){
       let x=null,y=null,str='';
@@ -1026,7 +1030,7 @@ $('xyConvertBtn').addEventListener('click', ()=>{
 });
 
 /* ═══ Χάρτης ═══ */
-let mapObj=null, mapInited=false, parcelsLayer=null, highlightsLayer=null, parcelsAbort=null;
+let mapObj=null, mapInited=false, parcelsLayer=null, highlightsLayer=null, parcelsAbort=null, dxfLayer=null;
 function initMap(){
   if(mapInited){ if(mapObj) setTimeout(()=>{ mapObj.invalidateSize(); drawSelectionHighlights(); },60); return; }
   mapInited=true;
@@ -1039,6 +1043,7 @@ function initMap(){
   L.control.layers({'Δορυφορικό':sat,'Χάρτης (OSM)':osm},null,{position:'topright'}).addTo(mapObj);
   parcelsLayer=L.layerGroup().addTo(mapObj);
   highlightsLayer=L.layerGroup().addTo(mapObj);
+  dxfLayer=L.layerGroup().addTo(mapObj);
   mapObj.on('click', e=>resolveByPoint(e.latlng.lng, e.latlng.lat, 4326));
   mapObj.on('moveend', loadViewportParcels);
   setTimeout(()=>{ mapObj.invalidateSize(); loadViewportParcels(); drawSelectionHighlights(); },80);
@@ -1077,6 +1082,43 @@ $('mapLocateBtn').addEventListener('click', ()=>{
   navigator.geolocation.getCurrentPosition(pos=>mapObj.setView([pos.coords.latitude,pos.coords.longitude],18), ()=>showToast('Δεν ήταν δυνατός ο εντοπισμός θέσης'), {enableHighAccuracy:true,timeout:8000});
 });
 $('mapKtimaBtn').addEventListener('click', ()=>window.open('https://gis.ktimanet.gr/gis/map','_blank','noopener'));
+
+/* Φόρτωση DXF → απεικόνιση polylines του layer TOPO_PROP (κόκκινα) στον χάρτη.
+   Όλα γίνονται τοπικά στον browser· το αρχείο δεν ανεβαίνει πουθενά. */
+$('mapDxfBtn').addEventListener('click', ()=>$('mapDxfFile').click());
+$('mapDxfClear').addEventListener('click', ()=>{
+  if(dxfLayer) dxfLayer.clearLayers();
+  $('mapDxfClear').style.display='none';
+  showToast('Καθαρίστηκαν τα polylines του DXF');
+});
+$('mapDxfFile').addEventListener('change', e=>{
+  const f=e.target.files&&e.target.files[0]; e.target.value='';
+  if(!f) return;
+  const reader=new FileReader();
+  reader.onload=()=>{
+    try{
+      const {polylines}=parseDxf(String(reader.result||''));
+      const sel=polylines.filter(p=>(p.layer||'').toUpperCase()==='TOPO_PROP');
+      if(!sel.length){ showToast('Δεν βρέθηκαν polylines στο layer TOPO_PROP'); return; }
+      if(!dxfLayer){ showToast('Ο χάρτης δεν είναι έτοιμος — δοκίμασε ξανά'); return; }
+      dxfLayer.clearLayers();
+      const all=[];
+      for(const pl of sel){
+        const latlngs=pl.pts.map(pt=>{ const w=egsa87ToWgs84(pt[0],pt[1]); return [w.lat,w.lon]; });
+        const shape = pl.closed
+          ? L.polygon(latlngs, {color:'#ff0000', weight:2, fillColor:'#ff0000', fillOpacity:0.12})
+          : L.polyline(latlngs, {color:'#ff0000', weight:2});
+        shape.addTo(dxfLayer);
+        all.push(...latlngs);
+      }
+      if(all.length){ mapObj.fitBounds(L.latLngBounds(all).pad(0.15)); }
+      $('mapDxfClear').style.display='';
+      showToast('Φορτώθηκαν '+sel.length+' polyline(s) από το layer TOPO_PROP');
+    }catch(err){ showToast('Σφάλμα ανάγνωσης DXF'); }
+  };
+  reader.onerror=()=>showToast('Αποτυχία ανάγνωσης αρχείου');
+  reader.readAsText(f);
+});
 
 /* Ανανέωση SYNOLIKO-12.dxf από το repo (παράκαμψη cache) */
 /* «Υπογραφή» έκδοσης (σταθερή ανεξαρτήτως συμπίεσης): Last-Modified → ETag → μέγεθος */
