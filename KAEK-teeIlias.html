@@ -521,15 +521,9 @@ $('actDxf').addEventListener('click', ()=>{ if(selected.length) downloadDxf(sele
   });
   $('forestCmdCopy').addEventListener('click', ()=>{ const t=$('forestCmd').value; if(t) copyText(t,'Αντιγράφηκε η εντολή'); });
   $('forestOpenDir').addEventListener('click', ()=>{
-    const fpath=($('forestPath').value||'').trim();
-    if(!fpath){ showToast('Δώσε πρώτα διαδρομή δασικού DXF'); return; }
-    // Φάκελος = ο γονικός φάκελος του DXF (αφαιρούμε το όνομα αρχείου)
-    let dir=fpath.replace(/[\\/]+[^\\/]*$/,'').trim(); if(!dir) dir=fpath;
-    // Δοκιμή ανοίγματος ως file:// (οι browsers συχνά το μπλοκάρουν από https σελίδα)
-    const url='file:///'+encodeURI(dir.replace(/\\/g,'/'));
-    try{ window.open(url,'_blank'); }catch(e){}
-    // Σίγουρο fallback: αντιγραφή διαδρομής για επικόλληση στην Εξερεύνηση
-    copyText(dir,'Η διαδρομή αντιγράφηκε — αν ο browser δεν άνοιξε τον φάκελο, επικόλλησέ την στη γραμμή διεύθυνσης της Εξερεύνησης των Windows');
+    // Άνοιγμα φακέλου με ένα κλικ μέσω του protocol dasika:// (εφάπαξ εγκατάσταση του dasika.reg).
+    try{ window.location.href='dasika://open'; }catch(e){}
+    showToast('Άνοιγμα φακέλου… (αν δεν ανοίξει, εγκατέστησε μία φορά το dasika.reg)');
   });
 })();
 
