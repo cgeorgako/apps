@@ -315,6 +315,7 @@
         <input type="text" id="forestLayer" style="width:100%" value="DX_KYROSH_PER_DYTIKHS_ELLADAS_20260406.shp"></div>
       <div class="actions" style="margin-top:0.6rem;">
         <button id="actForestCmd" class="act btn-primary" type="button">🌲 Δημιουργία εντολής</button>
+        <button id="forestOpenDir" class="act btn-secondary" type="button">📁 Φάκελος δασικών</button>
       </div>
       <textarea id="forestCmd" readonly rows="4" style="width:100%;margin-top:0.5rem;font-family:monospace;font-size:0.8rem;display:none;" onclick="this.select()"></textarea>
       <div class="btn-mini-row" id="forestCmdActions" style="margin-top:0.4rem;display:none;">
@@ -519,6 +520,11 @@ $('actDxf').addEventListener('click', ()=>{ if(selected.length) downloadDxf(sele
     $('forestCmd').value=cmd; $('forestCmd').style.display='block'; $('forestCmdActions').style.display='flex';
   });
   $('forestCmdCopy').addEventListener('click', ()=>{ const t=$('forestCmd').value; if(t) copyText(t,'Αντιγράφηκε η εντολή'); });
+  $('forestOpenDir').addEventListener('click', ()=>{
+    // Άνοιγμα φακέλου με ένα κλικ μέσω του protocol dasika:// (εφάπαξ εγκατάσταση του dasika.reg).
+    try{ window.location.href='dasika://open'; }catch(e){}
+    showToast('Άνοιγμα φακέλου… (αν δεν ανοίξει, εγκατέστησε μία φορά το dasika.reg)');
+  });
 })();
 
 /* ═══ DXF (ΕΓΣΑ87) ═══ */
