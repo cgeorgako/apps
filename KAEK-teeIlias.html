@@ -297,6 +297,25 @@
         <button id="actMaps" class="act btn-maps">📍 Google Maps (1ο)</button>
         <button id="actCopy" class="act btn-secondary">Αντιγραφή ΚΑΕΚ</button>
       </div>
+
+      <details class="adv" style="margin-top:0.2rem;">
+        <summary style="font-size:1.15rem;font-weight:700;padding:0.85rem 1rem;background:#17351c;border:1px solid #2e7d32;border-radius:12px;cursor:pointer;text-align:center;list-style:none;">🌲 Εξαγωγή Δασικών Πολυγώνων</summary>
+        <div class="hint" style="margin-top:0.5rem;">Φτιάχνει έτοιμη εντολή για το τοπικό <b>extract_forest.py</b> με τα επιλεγμένα ΚΑΕΚ (χειρίζεται τον δασικό χάρτη των 400MB στον υπολογιστή σου). Αντίγραψέ την και τρέξ' την σε παράθυρο εντολών.</div>
+        <div style="margin-top:0.5rem;"><label for="forestPath">Διαδρομή δασικού DXF</label>
+          <input type="text" id="forestPath" style="width:100%" value="Z:\Εγγραφα\XARTES-1\ΔΑΣΙΚΟΣ ΧΑΡΤΗΣ\KYRWSH-DXF.dxf"></div>
+        <div style="margin-top:0.4rem;"><label for="forestLayer">Layer δασικών (προαιρετικό)</label>
+          <input type="text" id="forestLayer" style="width:100%" value="DX_KYROSH_PER_DYTIKHS_ELLADAS_20260406.shp"></div>
+        <div class="actions" style="margin-top:0.6rem;">
+          <button id="actForestCmd" class="act btn-primary" type="button">🌲 Δημιουργία εντολής</button>
+          <button id="forestOpenDir" class="act btn-secondary" type="button">📁 Φάκελος δασικών</button>
+        </div>
+        <textarea id="forestCmd" readonly rows="4" style="width:100%;margin-top:0.5rem;font-family:monospace;font-size:0.8rem;display:none;" onclick="this.select()"></textarea>
+        <div class="btn-mini-row" id="forestCmdActions" style="margin-top:0.4rem;display:none;">
+          <button id="forestCmdCopy" class="act btn-secondary" type="button">Αντιγραφή εντολής</button>
+        </div>
+        <div class="hint" style="margin-top:0.4rem;">Εναλλακτικά (χωρίς internet στο script): πάτα «📐 Λήψη DXF», και στην εντολή άλλαξε το <code>--kaek …</code> σε <code>--parcel &lt;το_αρχείο&gt;.dxf</code>.</div>
+      </details>
+
       <button id="actClear" class="act btn-secondary">🗑️ Καθαρισμός επιλογής</button>
     </div>
 
@@ -309,23 +328,6 @@
       <div class="hint" style="margin-top:0.5rem;">Εξάγεται <b>μόνο το διορθωμένο</b> περίγραμμα (shift): κλειστή polyline στο layer «PST_KAEK_&lt;κωδικός&gt;» με μετάθεση ΔΧ/ΔΥ + ΚΑΕΚ ως κείμενο, σε ΕΓΣΑ87. Το αδιόρθωτο GIS δεν συμπεριλαμβάνεται.</div>
     </details>
 
-    <details class="adv">
-      <summary>🌲 Εξαγωγή δασικών πολυγώνων (εντολή)</summary>
-      <div class="hint" style="margin-top:0.5rem;">Φτιάχνει έτοιμη εντολή για το τοπικό <b>extract_forest.py</b> με τα επιλεγμένα ΚΑΕΚ (χειρίζεται τον δασικό χάρτη των 400MB στον υπολογιστή σου). Αντίγραψέ την και τρέξ' την σε παράθυρο εντολών.</div>
-      <div style="margin-top:0.5rem;"><label for="forestPath">Διαδρομή δασικού DXF</label>
-        <input type="text" id="forestPath" style="width:100%" value="Z:\Εγγραφα\XARTES-1\ΔΑΣΙΚΟΣ ΧΑΡΤΗΣ\KYRWSH-DXF.dxf"></div>
-      <div style="margin-top:0.4rem;"><label for="forestLayer">Layer δασικών (προαιρετικό)</label>
-        <input type="text" id="forestLayer" style="width:100%" value="DX_KYROSH_PER_DYTIKHS_ELLADAS_20260406.shp"></div>
-      <div class="actions" style="margin-top:0.6rem;">
-        <button id="actForestCmd" class="act btn-primary" type="button">🌲 Δημιουργία εντολής</button>
-        <button id="forestOpenDir" class="act btn-secondary" type="button">📁 Φάκελος δασικών</button>
-      </div>
-      <textarea id="forestCmd" readonly rows="4" style="width:100%;margin-top:0.5rem;font-family:monospace;font-size:0.8rem;display:none;" onclick="this.select()"></textarea>
-      <div class="btn-mini-row" id="forestCmdActions" style="margin-top:0.4rem;display:none;">
-        <button id="forestCmdCopy" class="act btn-secondary" type="button">Αντιγραφή εντολής</button>
-      </div>
-      <div class="hint" style="margin-top:0.4rem;">Εναλλακτικά (χωρίς internet στο script): πάτα «📐 Λήψη DXF», και στην εντολή άλλαξε το <code>--kaek …</code> σε <code>--parcel &lt;το_αρχείο&gt;.dxf</code>.</div>
-    </details>
 
     <div class="login-row">
       <a class="quick-link" href="https://ktimatologio.gov.gr/Professionals/Inquiry/Main/Home" target="_blank" rel="noopener noreferrer">
