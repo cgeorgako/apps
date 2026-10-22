@@ -306,6 +306,23 @@
       <div class="hint" style="margin-top:0.5rem;">Εξάγεται <b>μόνο το διορθωμένο</b> περίγραμμα (shift): κλειστή polyline στο layer «PST_KAEK_&lt;κωδικός&gt;» με μετάθεση ΔΧ/ΔΥ + ΚΑΕΚ ως κείμενο, σε ΕΓΣΑ87. Το αδιόρθωτο GIS δεν συμπεριλαμβάνεται.</div>
     </details>
 
+    <details class="adv">
+      <summary>🌲 Εξαγωγή δασικών πολυγώνων (εντολή)</summary>
+      <div class="hint" style="margin-top:0.5rem;">Φτιάχνει έτοιμη εντολή για το τοπικό <b>extract_forest.py</b> με τα επιλεγμένα ΚΑΕΚ (χειρίζεται τον δασικό χάρτη των 400MB στον υπολογιστή σου). Αντίγραψέ την και τρέξ' την σε παράθυρο εντολών.</div>
+      <div style="margin-top:0.5rem;"><label for="forestPath">Διαδρομή δασικού DXF</label>
+        <input type="text" id="forestPath" style="width:100%" value="Z:\Εγγραφα\XARTES-1\ΔΑΣΙΚΟΣ ΧΑΡΤΗΣ\KYRWSH-DXF.dxf"></div>
+      <div style="margin-top:0.4rem;"><label for="forestLayer">Layer δασικών (προαιρετικό)</label>
+        <input type="text" id="forestLayer" style="width:100%" value="DX_KYROSH_PER_DYTIKHS_ELLADAS_20260406.shp"></div>
+      <div class="actions" style="margin-top:0.6rem;">
+        <button id="actForestCmd" class="act btn-primary" type="button">🌲 Δημιουργία εντολής</button>
+      </div>
+      <textarea id="forestCmd" readonly rows="4" style="width:100%;margin-top:0.5rem;font-family:monospace;font-size:0.8rem;display:none;" onclick="this.select()"></textarea>
+      <div class="btn-mini-row" id="forestCmdActions" style="margin-top:0.4rem;display:none;">
+        <button id="forestCmdCopy" class="act btn-secondary" type="button">Αντιγραφή εντολής</button>
+      </div>
+      <div class="hint" style="margin-top:0.4rem;">Εναλλακτικά (χωρίς internet στο script): πάτα «📐 Λήψη DXF», και στην εντολή άλλαξε το <code>--kaek …</code> σε <code>--parcel &lt;το_αρχείο&gt;.dxf</code>.</div>
+    </details>
+
     <div class="login-row">
       <a class="quick-link" href="https://ktimatologio.gov.gr/Professionals/Inquiry/Main/Home" target="_blank" rel="noopener noreferrer">
         <span class="ico">🏛️</span><span class="txt">Είσοδος Μηχανικού (SSO ΤΕΕ)</span><span class="arrow">↗</span>
@@ -484,6 +501,25 @@ $('actMaps').addEventListener('click', ()=>{ const r=selected[0]; if(r&&r.point)
 $('actCopy').addEventListener('click', ()=>{ if(!selected.length){ showToast('Καμία επιλογή'); return; } copyText(selected.map(s=>s.kaek).join('\n'), 'Αντιγράφηκαν '+selected.length+' ΚΑΕΚ'); });
 $('actClear').addEventListener('click', ()=>{ selected=[]; current=null; renderSelection(); drawSelectionHighlights(); $('actionsCard').classList.remove('show'); });
 $('actDxf').addEventListener('click', ()=>{ if(selected.length) downloadDxf(selected); else showToast('Καμία επιλογή για DXF'); });
+
+/* ═══ Εντολή εξαγωγής δασικών (για το τοπικό extract_forest.py) ═══ */
+(function initForestCmd(){
+  const fp=localStorage.getItem('forest_path'); if(fp) $('forestPath').value=fp;
+  const fl=localStorage.getItem('forest_layer'); if(fl!==null) $('forestLayer').value=fl;
+  $('actForestCmd').addEventListener('click', ()=>{
+    if(!selected.length){ showToast('Διάλεξε πρώτα ΚΑΕΚ'); return; }
+    const kaeks=selected.map(s=>String(s.kaek||'').replace(/\D/g,'')).filter(k=>k.length===12);
+    if(!kaeks.length){ showToast('Δεν υπάρχουν έγκυροι 12ψήφιοι ΚΑΕΚ'); return; }
+    const fpath=($('forestPath').value||'').trim();
+    const layer=($('forestLayer').value||'').trim();
+    localStorage.setItem('forest_path',fpath); localStorage.setItem('forest_layer',layer);
+    const out='dasika_'+kaeks[0]+(kaeks.length>1?('_syn'+(kaeks.length-1)):'')+'.dxf';
+    let cmd='python extract_forest.py "'+fpath+'" '+out+' --kaek '+kaeks.join(' ');
+    if(layer) cmd+=' --layer "'+layer+'"';
+    $('forestCmd').value=cmd; $('forestCmd').style.display='block'; $('forestCmdActions').style.display='flex';
+  });
+  $('forestCmdCopy').addEventListener('click', ()=>{ const t=$('forestCmd').value; if(t) copyText(t,'Αντιγράφηκε η εντολή'); });
+})();
 
 /* ═══ DXF (ΕΓΣΑ87) ═══ */
 function fmt(n){ return Number(n.toFixed(9)).toString(); }
