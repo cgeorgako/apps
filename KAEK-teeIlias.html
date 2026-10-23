@@ -1036,8 +1036,11 @@ let mapObj=null, mapInited=false, parcelsLayer=null, highlightsLayer=null, parce
 function initMap(){
   if(mapInited){ if(mapObj) setTimeout(()=>{ mapObj.invalidateSize(); drawSelectionHighlights(); },60); return; }
   mapInited=true;
-  const sat=L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',{maxZoom:21,maxNativeZoom:19,attribution:'Esri World Imagery',crossOrigin:true});
-  const osm=L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap',crossOrigin:true});
+  // maxNativeZoom = βαθύτερο επίπεδο με πραγματική εικόνα· σε πιο κοντινό zoom ο Leaflet
+  // ΜΕΓΕΘΥΝΕΙ την τελευταία πραγματική δορυφορική εικόνα αντί να ζητά ανύπαρκτα tiles
+  // (έτσι ο δορυφόρος ESRI δεν «εξαφανίζεται»/γκριζάρει σε κοντινό zoom).
+  const sat=L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',{maxZoom:22,maxNativeZoom:18,attribution:'Esri World Imagery',crossOrigin:true});
+  const osm=L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:22,maxNativeZoom:19,attribution:'© OpenStreetMap',crossOrigin:true});
   const hist=loadHistory().filter(h=>h.lat&&h.lon);
   const center=hist.length?[hist[0].lat,hist[0].lon]:[37.8,21.35]; // Ηλεία
   const zoom=hist.length?18:11;
