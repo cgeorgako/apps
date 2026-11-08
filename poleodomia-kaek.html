@@ -959,7 +959,7 @@ function renderSummary(hits){
   if(!hits||!hits.length) return '';
   const m=extractMetrics(hits);
   const defs=[
-    ['oikod','🔲 Οικοδομικό Τετράγωνο (Ο.Τ.)'],
+    ['oikod','🔲 Οικοδομικό Τετράγωνο (Ο.Τ.) - Λοιπή πληροφορία'],
     ['artRule','📐 Αρτιότητα — κατά κανόνα'],
     ['artExc','📐 Αρτιότητα — κατά παρέκκλιση'],
     ['kalypsi','🏗️ Συντελεστής κάλυψης (Σ.Κ.)'],
@@ -1045,7 +1045,7 @@ function renderSummary(hits){
 function summaryText(hits){
   const m=extractMetrics(hits||[]);
   const defs=[
-    ['oikod','Οικοδομικό Τετράγωνο (Ο.Τ.)'],
+    ['oikod','Οικοδομικό Τετράγωνο (Ο.Τ.) - Λοιπή πληροφορία'],
     ['artRule','Αρτιότητα κατά κανόνα'],
     ['artExc','Αρτιότητα κατά παρέκκλιση'],
     ['kalypsi','Συντελεστής κάλυψης (Σ.Κ.)'],
@@ -1065,7 +1065,7 @@ function summaryText(hits){
       if(noArt) parts.push(noArtMsg);
       else { const items=dedupeMetric(m.oikod); if(items.length) parts.push(items.map(it=>it.value).join(' · ')); else parts.push('(δεν εντοπίστηκε αυτόματα)'); }
       if(arch) parts.push(archNoteText(arch));
-      L.push('  Οικοδομικό Τετράγωνο (Ο.Τ.): '+parts.join('  ·  '));
+      L.push('  Οικοδομικό Τετράγωνο (Ο.Τ.) - Λοιπή πληροφορία: '+parts.join('  ·  '));
       continue;
     }
     if(noArt && key==='artExc') continue;
