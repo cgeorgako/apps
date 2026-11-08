@@ -121,6 +121,28 @@
   .tifbtn.cad:hover{background:var(--cyan);color:#06222a;}
   .empty-cat{font-size:0.8rem;color:var(--text-muted);padding:0.6rem 0.2rem;}
 
+  /* Σύνοψη όρων δόμησης */
+  .sum-wrap{margin-top:0.2rem;}
+  table.summary{width:100%;border-collapse:collapse;font-size:0.82rem;}
+  table.summary th,table.summary td{border:1px solid var(--border);padding:0.45rem 0.55rem;text-align:left;vertical-align:top;}
+  table.summary th{background:var(--surface-2);color:var(--text-muted);font-size:0.68rem;text-transform:uppercase;letter-spacing:0.04em;font-weight:600;}
+  table.summary td.sum-par{font-weight:600;white-space:nowrap;}
+  table.summary .sum-val{font-family:'IBM Plex Mono',monospace;color:var(--gold);font-weight:600;line-height:1.5;}
+  table.summary .sum-src{font-size:0.7rem;color:var(--text-muted);line-height:1.5;}
+  table.summary .sum-fek a{font-weight:600;word-break:break-word;}
+  table.summary .sum-none{color:var(--text-muted);font-style:italic;}
+  .sum-note{font-size:0.74rem;color:var(--text-muted);margin-top:0.55rem;line-height:1.45;}
+  .sum-star{color:var(--gold);}
+  @media (max-width:560px){
+    table.summary,table.summary tbody,table.summary tr,table.summary td{display:block;width:100%;}
+    table.summary thead{display:none;}
+    table.summary tr{border:1px solid var(--border);border-radius:9px;margin-bottom:0.6rem;overflow:hidden;}
+    table.summary td{border:none;border-bottom:1px solid var(--border);}
+    table.summary td:last-child{border-bottom:none;}
+    table.summary td.sum-par{background:var(--surface-2);}
+    table.summary td:not(.sum-par):before{content:attr(data-th)" ";color:var(--text-muted);font-size:0.68rem;text-transform:uppercase;letter-spacing:0.03em;display:block;margin-bottom:0.15rem;}
+  }
+
   .alert{border-radius:10px;padding:0.8rem 0.9rem;font-size:0.82rem;line-height:1.5;margin-top:0.9rem;}
   .alert.err{background:#2a1512;border:1px solid var(--red);color:#f0cfc9;}
   .alert.info{background:#12202a;border:1px solid var(--cyan);color:#cfe9f0;}
@@ -622,6 +644,9 @@ function renderResults({kaek, note, geo, w, hits, diag, services}){
   const raw=$('optRaw').checked;
   let html='';
 
+  // Πίνακας σύνοψης βασικών όρων δόμησης (στην κορυφή)
+  html += renderSummary(hits);
+
   if(!anyTee){
     html += `<div class="alert err"><b>⚠️ Δεν ελήφθη καμία απόκριση από την πλατφόρμα ΤΕΕ.</b>
       Πιθανόν ο ArcGIS Server του ΤΕΕ να μην επιτρέπει κλήσεις από άλλον ιστότοπο (CORS), ή η υπηρεσία να είναι προσωρινά μη διαθέσιμη.
@@ -648,7 +673,7 @@ function renderResults({kaek, note, geo, w, hits, diag, services}){
   $('reportBody').innerHTML = html;
   $('diag').innerHTML = renderDiag(diag);
 
-  lastReportText = buildTextReport({kaek, note, geo, w, buckets, allFek, ota, diag});
+  lastReportText = buildTextReport({kaek, note, geo, w, buckets, allFek, ota, diag, hits});
   $('results').scrollIntoView({behavior:'smooth',block:'start'});
 }
 
@@ -696,6 +721,146 @@ function renderFek(allFek){
   return h+'</div>';
 }
 
+/* ═══════════════ Σύνοψη βασικών όρων δόμησης ═══════════════ */
+/* Προτεραιότητα στα θεματικά επίπεδα που δίνουν όρους δόμησης (17,18,20,26),
+   αλλά σαρώνονται ΟΛΑ τα πεδία όλων των hits. */
+const SUM_PRI_LAYERS = new Set([17,18,20,26]);
+
+/* Ποια μετρική «κουβαλά» ένα πεδίο, με βάση κυρίως το όνομα (nk) και δευτερευόντως την τιμή (nv). */
+function classifyAttr(nk, nv){
+  const tags=[];
+  const isArt = /αρτιοτ|ελαχ.{0,8}εμβαδ|εμβαδ.{0,8}αρτ|ελαχ.{0,8}(προσωπ|μετωπ)|αρτιο(?!ν)/.test(nk);
+  if(isArt){
+    const exc  = /παρεκκλ/.test(nk) || /παρεκκλ/.test(nv);
+    const rule = /καν[οω]ν/.test(nk) || /καν[οω]ν/.test(nv);
+    if(exc)  tags.push('artExc');
+    if(rule) tags.push('artRule');
+    if(!exc && !rule) tags.push('artRule');
+  }
+  if( (/καλυψ/.test(nk) && !/ακαλυπτ/.test(nk)) || /(^|[^α-ω])σ\.?\s?κ($|[^α-ω])/.test(nk) ) tags.push('kalypsi');
+  if( /δομησ/.test(nk) || /συντ.{0,8}δομ/.test(nk) || /(^|[^α-ω])σ\.?\s?δ($|[^α-ω])/.test(nk) ) tags.push('domisi');
+  if( (/υψος/.test(nk) && !/υψομετ|θαλασσ/.test(nk)) || /μεγ.{0,6}υψος/.test(nk) ) tags.push('ypsos');
+  if( /οροφ/.test(nk) || /αριθμ.{0,8}οροφ/.test(nk) ) tags.push('orofoi');
+  return [...new Set(tags)];
+}
+
+/* Βρίσκει αναφορά ΦΕΚ + link μέσα σε ένα hit (προτιμά πραγματικό URL/PDF· αλλιώς αναζήτηση). */
+function fekFromHit(h){
+  let refText='';
+  for(const [k,v] of Object.entries(h.attributes||{})){
+    if(v==null||v==='') continue;
+    const nk=norm(k), sv=String(v);
+    if(nk.includes('φεκ')||nk.includes('fek')){ refText=sv; break; }
+  }
+  if(!refText){
+    for(const v of Object.values(h.attributes||{})){
+      const sv=String(v); const m=sv.match(/φεκ[\s:._-]*([0-9]+\s*\/?\s*[α-ωa-z]?\s*\/?\s*[0-9]{2,4})/i);
+      if(m){ refText=m[0]; break; }
+    }
+  }
+  let url='';
+  for(const v of Object.values(h.attributes||{})){
+    const sv=String(v); URL_RE.lastIndex=0; let m;
+    while((m=URL_RE.exec(sv))){ if(isPdfUrl(m[0])){ url=m[0]; break; } if(!url) url=m[0]; }
+    if(url && isPdfUrl(url)) break;
+  }
+  if(!refText && !url) return null;
+  if(!url && refText){ url='https://www.google.com/search?q='+encodeURIComponent('ΦΕΚ '+refText.replace(/^φεκ[\s:._-]*/i,'')); }
+  return { text: refText||'ΦΕΚ (δες πηγή)', url };
+}
+
+function extractMetrics(hits){
+  const res={artRule:[],artExc:[],kalypsi:[],domisi:[],ypsos:[],orofoi:[]};
+  for(const h of hits){
+    const attrs=h.attributes||{};
+    let fek=undefined;
+    for(const [k,v] of Object.entries(attrs)){
+      if(v==null||v===''||String(v).toLowerCase()==='null') continue;
+      if(HIDE.test(k)||/^shape/i.test(k)) continue;
+      const nk=norm(k), nv=norm(String(v));
+      const tags=classifyAttr(nk,nv);
+      if(!tags.length) continue;
+      if(fek===undefined) fek=fekFromHit(h);
+      for(const t of tags){
+        res[t].push({ value:String(v).trim(), key:k, layerName:h.layerName, layerId:h.layerId, service:h.service, priority:SUM_PRI_LAYERS.has(h.layerId), fek });
+      }
+    }
+  }
+  return res;
+}
+
+/* Αφαίρεση διπλών τιμών· προτεραιότητα στα layers 17/18/20/26. */
+function dedupeMetric(arr){
+  const sorted=(arr||[]).slice().sort((a,b)=>(b.priority?1:0)-(a.priority?1:0));
+  const seen=new Map();
+  for(const it of sorted){
+    const key=norm(it.value).replace(/\s+/g,' ').trim();
+    if(!key) continue;
+    if(!seen.has(key)) seen.set(key,it);
+  }
+  return [...seen.values()].slice(0,4);
+}
+
+function renderSummary(hits){
+  if(!hits||!hits.length) return '';
+  const m=extractMetrics(hits);
+  const defs=[
+    ['artRule','📐 Αρτιότητα — κατά κανόνα'],
+    ['artExc','📐 Αρτιότητα — κατά παρέκκλιση'],
+    ['kalypsi','🏗️ Συντελεστής κάλυψης (Σ.Κ.)'],
+    ['domisi','🏢 Συντελεστής δόμησης (Σ.Δ.)'],
+    ['ypsos','📏 Μέγιστο ύψος'],
+    ['orofoi','🧱 Αριθμός ορόφων']
+  ];
+  let anyFound=false, rows='';
+  for(const [key,label] of defs){
+    const items=dedupeMetric(m[key]);
+    let valCell, srcCell, fekCell;
+    if(!items.length){
+      valCell='<span class="sum-none">— δεν εντοπίστηκε αυτόματα</span>'; srcCell='—'; fekCell='—';
+    } else {
+      anyFound=true;
+      valCell=items.map(it=>`<div class="sum-val">${escapeHtml(it.value)}</div>`).join('');
+      srcCell=items.map(it=>`<div class="sum-src">${escapeHtml(it.layerName||'')}${it.layerId!=null?(' · L'+it.layerId):''}${it.priority?' <span class="sum-star">★</span>':''}</div>`).join('');
+      fekCell=items.map(it=> it.fek ? `<a href="${escapeHtml(it.fek.url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(it.fek.text)}</a>` : '—').join('<br>');
+    }
+    rows+=`<tr><td class="sum-par">${escapeHtml(label)}</td>`
+      +`<td data-th="Τιμή">${valCell}</td>`
+      +`<td class="sum-srccol" data-th="Πηγή (layer)">${srcCell}</td>`
+      +`<td class="sum-fek" data-th="ΦΕΚ">${fekCell}</td></tr>`;
+  }
+  const note = anyFound
+    ? 'Αυτόματη σύνοψη από τα θεματικά επίπεδα (με προτεραιότητα στα 17, 18, 20, 26 — σημ. <span class="sum-star">★</span>). Επιβεβαίωσε πάντα την τιμή και το ΦΕΚ στα αναλυτικά στοιχεία πιο κάτω και στην αρμόδια Υ.ΔΟΜ.'
+    : 'Δεν ήταν δυνατή η αυτόματη εξαγωγή των βασικών όρων δόμησης από τα πεδία των επιπέδων. Δες τα αναλυτικά θεματικά επίπεδα πιο κάτω και την επίσημη πλατφόρμα ΤΕΕ.';
+  return `<div class="catsec"><div class="cat-head" style="border-color:var(--gold)"><span class="dot" style="background:var(--gold)"></span>📋 Σύνοψη Όρων Δόμησης<span class="count">auto</span></div>`
+    +`<div class="sum-wrap"><table class="summary"><thead><tr><th>Παράμετρος</th><th>Τιμή</th><th>Πηγή (layer)</th><th>ΦΕΚ</th></tr></thead><tbody>${rows}</tbody></table></div>`
+    +`<div class="sum-note">${note}</div></div>`;
+}
+
+/* Κείμενο σύνοψης για την αντιγραφή αναφοράς */
+function summaryText(hits){
+  const m=extractMetrics(hits||[]);
+  const defs=[
+    ['artRule','Αρτιότητα κατά κανόνα'],
+    ['artExc','Αρτιότητα κατά παρέκκλιση'],
+    ['kalypsi','Συντελεστής κάλυψης (Σ.Κ.)'],
+    ['domisi','Συντελεστής δόμησης (Σ.Δ.)'],
+    ['ypsos','Μέγιστο ύψος'],
+    ['orofoi','Αριθμός ορόφων']
+  ];
+  const L=['— ΣΥΝΟΨΗ ΟΡΩΝ ΔΟΜΗΣΗΣ —'];
+  for(const [key,label] of defs){
+    const items=dedupeMetric(m[key]);
+    if(!items.length){ L.push('  '+label+': (δεν εντοπίστηκε αυτόματα)'); continue; }
+    for(const it of items){
+      const fek=it.fek?('  [ΦΕΚ: '+it.fek.text+(it.fek.url?' '+it.fek.url:'')+']'):'';
+      L.push('  '+label+': '+it.value+'  ('+(it.layerName||'')+(it.layerId!=null?(' L'+it.layerId):'')+')'+fek);
+    }
+  }
+  L.push('');
+  return L.join('\n');
+}
+
 function renderDiag(diag){
   let h='<details class="adv" open><summary>Διάγνωση πηγών ('+diag.length+' υπηρεσίες)</summary><table>';
   diag.sort((a,b)=>(a.status==='ok'?0:1)-(b.status==='ok'?0:1));
@@ -707,7 +872,7 @@ function renderDiag(diag){
   return h+'</table></details>';
 }
 
-function buildTextReport({kaek, note, geo, w, buckets, allFek, ota, diag}){
+function buildTextReport({kaek, note, geo, w, buckets, allFek, ota, diag, hits}){
   const L=[];
   L.push('ΠΟΛΕΟΔΟΜΙΚΟ ΠΡΟΦΙΛ ΚΑΕΚ');
   L.push('========================');
@@ -718,6 +883,7 @@ function buildTextReport({kaek, note, geo, w, buckets, allFek, ota, diag}){
   if(geo.area) L.push('Εμβαδόν (Κτηματ.): ~'+Math.round(geo.area)+' m²');
   if(ota) L.push('ΟΤΑ: '+ota);
   L.push('');
+  L.push(summaryText(hits));
   const sec=(title, list)=>{
     L.push('— '+title+' —');
     if(!list.length){ L.push('  (κανένα)'); }
