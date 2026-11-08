@@ -799,7 +799,7 @@ function fekFromHit(h){
 
 function extractMetrics(hits){
   const res={artRule:[],artExc:[],kalypsi:[],domisi:[],ypsos:[],orofoi:[]};
-  for(const h of hits){
+  hits.forEach((h, hi)=>{
     const attrs=h.attributes||{};
     const hv=hitArtVariant(attrs);
     let fek=undefined;
@@ -810,7 +810,7 @@ function extractMetrics(hits){
       const tags=classifyAttr(nk,nv);
       if(!tags.length) continue;
       if(fek===undefined) fek=fekFromHit(h);
-      const base={ value:String(v).trim(), key:k, layerName:h.layerName, layerId:h.layerId, service:h.service, priority:SUM_PRI_LAYERS.has(h.layerId), fek };
+      const base={ value:String(v).trim(), hitId:hi, key:k, layerName:h.layerName, layerId:h.layerId, service:h.service, priority:SUM_PRI_LAYERS.has(h.layerId), fek };
       for(const t of tags){
         if(t.m==='art'){
           const variant=t.variant||hv||'rule';
@@ -821,7 +821,7 @@ function extractMetrics(hits){
         }
       }
     }
-  }
+  });
   return res;
 }
 
@@ -837,25 +837,26 @@ function dedupeMetric(arr){
   return [...seen.values()].slice(0,4);
 }
 
-/* Ομαδοποίηση αρτιότητας ανά επίπεδο: εμβαδόν + μήκος προσώπου μαζί. */
+/* Ομαδοποίηση αρτιότητας ΑΝΑ ΠΟΛΥΓΩΝΟ (hit): εμβαδόν + μήκος προσώπου μαζί.
+   Έτσι η «κατά παρέκκλιση» μπορεί να έχει πολλά αποτελέσματα — εμφανίζονται όλα. */
 function groupArt(arr){
   const sorted=(arr||[]).slice().sort((a,b)=>(b.priority?1:0)-(a.priority?1:0));
   const groups=new Map();
   for(const it of sorted){
-    const gk=it.service+'|'+it.layerId;
+    const gk=(it.hitId!=null?it.hitId:(it.service+'|'+it.layerId));  // ανά hit/πολύγωνο
     if(!groups.has(gk)) groups.set(gk,{area:null,front:null,layerName:it.layerName,layerId:it.layerId,priority:it.priority,fek:it.fek});
     const g=groups.get(gk);
     if(it.kind==='front'){ if(!g.front) g.front=it.value; }
     else { if(!g.area) g.area=it.value; }
   }
-  // αφαίρεση διπλών (ίδιο εμβαδόν+πρόσωπο)
+  // αφαίρεση ΜΟΝΟ πανομοιότυπων (ίδιο εμβαδόν+πρόσωπο+ΦΕΚ)
   const seen=new Map();
   for(const g of groups.values()){
     if(!g.area && !g.front) continue;
-    const sig=norm((g.area||'')+'|'+(g.front||'')).trim();
+    const sig=norm((g.area||'')+'|'+(g.front||'')+'|'+((g.fek&&g.fek.text)||'')).trim();
     if(!seen.has(sig)) seen.set(sig,g);
   }
-  return [...seen.values()].slice(0,4);
+  return [...seen.values()].slice(0,8);
 }
 /* Αν η τιμή είναι καθαρός αριθμός, πρόσθεσε μονάδα (εμβαδόν→τ.μ., πρόσωπο→μ.). */
 function fmtArtVal(v, kind){
