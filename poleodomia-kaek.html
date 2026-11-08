@@ -745,6 +745,39 @@ function hasForestMap(hits){
   return false;
 }
 
+/* Αρχαιολογικού ενδιαφέροντος περιοχή — layer «Ζώνες Προστασίας - Πολύγωνα»
+   (UDM_SERVICE_ARCHAIOLOGIKO · layer 7). */
+function findArchZone(hits){
+  for(const h of (hits||[])){
+    const svc=norm(h.service||''), ln=norm(h.layerName||'');
+    const isArch = (/archaiologiko|αρχαιολογ/.test(svc) && (h.layerId===7 || /προστασ/.test(ln)))
+                || (/ζων.{0,3}προστασ/.test(ln) && /πολυγ|αρχαιολογ/.test(ln));
+    if(!isArch) continue;
+    let label='';
+    for(const [k,v] of Object.entries(h.attributes||{})){
+      if(v==null||v===''||String(v).toLowerCase()==='null') continue;
+      if(HIDE.test(k)||/^shape/i.test(k)) continue;
+      const nk=norm(k);
+      if(/ονομασ|ονομα|περιγραφ|χαρακτηρ|τιτλ|κηρυ|ζωνη|descr|label|name/.test(nk)){ label=String(v).trim(); break; }
+    }
+    return { label, fek:fekFromHit(h), layerName:h.layerName, layerId:h.layerId };
+  }
+  return null;
+}
+function archNoteHtml(a){
+  if(!a) return '';
+  let t='🏛️ ΑΡΧΑΙΟΛΟΓΙΚΟΥ ΕΝΔΙΑΦΕΡΟΝΤΟΣ — Ζώνη Προστασίας';
+  if(a.label) t+=': '+a.label;
+  return '<div class="sum-val" style="color:var(--purple)">'+escapeHtml(t)+'</div>';
+}
+function archNoteText(a){
+  if(!a) return '';
+  let t='ΑΡΧΑΙΟΛΟΓΙΚΟΥ ΕΝΔΙΑΦΕΡΟΝΤΟΣ — Ζώνη Προστασίας';
+  if(a.label) t+=': '+a.label;
+  if(a.fek) t+='  [ΦΕΚ: '+a.fek.text+(a.fek.url?' '+a.fek.url:'')+']';
+  return t;
+}
+
 /* Ποια μετρική «κουβαλά» ένα πεδίο, με βάση κυρίως το όνομα (nk).
    Για την αρτιότητα επιστρέφει {m:'art', kind:'area'|'front', variant:'rule'|'exc'|null}·
    το variant=null σημαίνει «πάρε τον χαρακτηρισμό από το πεδίο Τύπου σε επίπεδο hit». */
@@ -938,16 +971,37 @@ function renderSummary(hits){
   const noArt=(artRuleG.length+artExcG.length)===0;
   const zoe=noArt?findZoe(hits):null;
   const noArtMsg=noArt?(hasForestMap(hits)?MSG_EKTOS:MSG_800):'';
+  const arch=findArchZone(hits);
   const mkRow=(label,valCell,srcCell,fekCell)=>`<tr><td class="sum-par">${label}</td>`
     +`<td data-th="Τιμή">${valCell}</td>`
     +`<td class="sum-srccol" data-th="Πηγή (layer)">${srcCell}</td>`
     +`<td class="sum-fek" data-th="ΦΕΚ">${fekCell}</td></tr>`;
   let anyFound=false, rows='';
   for(const [key,label] of defs){
-    // Χωρίς αρτιότητα: το Ο.Τ. παίρνει το ίδιο ειδικό κείμενο
-    if(noArt && key==='oikod'){
-      anyFound=true;
-      rows+=mkRow(escapeHtml(label), '<div class="sum-val">'+escapeHtml(noArtMsg)+'</div>', '—', '—');
+    // Πεδίο Ο.Τ.: ειδικό κείμενο (χωρίς αρτιότητα) ή πραγματικό Ο.Τ., + αρχαιολογική ζώνη
+    if(key==='oikod'){
+      let valParts=[], srcCell='—', fekCell='—';
+      if(noArt){
+        anyFound=true;
+        valParts.push('<div class="sum-val">'+escapeHtml(noArtMsg)+'</div>');
+      } else {
+        const items=dedupeMetric(m.oikod);
+        if(items.length){
+          anyFound=true;
+          valParts=items.map(it=>'<div class="sum-val">'+escapeHtml(it.value)+'</div>');
+          srcCell=items.map(it=>'<div class="sum-src">'+escapeHtml(it.layerName||'')+(it.layerId!=null?(' · L'+it.layerId):'')+'</div>').join('');
+          fekCell=items.map(it=> it.fek ? `<a href="${escapeHtml(it.fek.url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(it.fek.text)}</a>` : '—').join('<br>');
+        } else {
+          valParts.push('<span class="sum-none">— δεν εντοπίστηκε αυτόματα</span>');
+        }
+      }
+      if(arch){
+        anyFound=true;
+        valParts.push(archNoteHtml(arch));
+        if(srcCell==='—' && arch.layerName) srcCell='<div class="sum-src">'+escapeHtml(arch.layerName)+(arch.layerId!=null?(' · L'+arch.layerId):'')+'</div>';
+        if(fekCell==='—' && arch.fek) fekCell=`<a href="${escapeHtml(arch.fek.url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(arch.fek.text)}</a>`;
+      }
+      rows+=mkRow(escapeHtml(label), valParts.join(''), srcCell, fekCell);
       continue;
     }
     // Χωρίς αρτιότητα: ενιαία γραμμή Αρτιότητας (ειδικό κείμενο) + τυχόν ΖΟΕ
@@ -1003,9 +1057,17 @@ function summaryText(hits){
   const noArt=(artRuleG.length+artExcG.length)===0;
   const zoe=noArt?findZoe(hits||[]):null;
   const noArtMsg=noArt?(hasForestMap(hits||[])?MSG_EKTOS:MSG_800):'';
+  const arch=findArchZone(hits||[]);
   const L=['— ΣΥΝΟΨΗ ΟΡΩΝ ΔΟΜΗΣΗΣ —'];
   for(const [key,label] of defs){
-    if(noArt && key==='oikod'){ L.push('  Οικοδομικό Τετράγωνο (Ο.Τ.): '+noArtMsg); continue; }
+    if(key==='oikod'){
+      const parts=[];
+      if(noArt) parts.push(noArtMsg);
+      else { const items=dedupeMetric(m.oikod); if(items.length) parts.push(items.map(it=>it.value).join(' · ')); else parts.push('(δεν εντοπίστηκε αυτόματα)'); }
+      if(arch) parts.push(archNoteText(arch));
+      L.push('  Οικοδομικό Τετράγωνο (Ο.Τ.): '+parts.join('  ·  '));
+      continue;
+    }
     if(noArt && key==='artExc') continue;
     if(noArt && key==='artRule'){
       let v=noArtMsg;
