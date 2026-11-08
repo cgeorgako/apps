@@ -726,22 +726,23 @@ function renderFek(allFek){
    αλλά σαρώνονται ΟΛΑ τα πεδία όλων των hits. */
 const SUM_PRI_LAYERS = new Set([17,18,20,26]);
 
-/* Ποια μετρική «κουβαλά» ένα πεδίο, με βάση κυρίως το όνομα (nk) και δευτερευόντως την τιμή (nv). */
+/* Ποια μετρική «κουβαλά» ένα πεδίο, με βάση κυρίως το όνομα (nk) και δευτερευόντως την τιμή (nv).
+   Επιστρέφει αντικείμενα {m:'<metric>', kind?:'area'|'front'} (το kind μόνο για την αρτιότητα). */
 function classifyAttr(nk, nv){
   const tags=[];
-  const isArt = /αρτιοτ|ελαχ.{0,8}εμβαδ|εμβαδ.{0,8}αρτ|ελαχ.{0,8}(προσωπ|μετωπ)|αρτιο(?!ν)/.test(nk);
-  if(isArt){
+  const isArea  = /αρτιοτ|ελαχ.{0,8}εμβαδ|εμβαδ.{0,8}αρτ/.test(nk);
+  const isFront = /προσωπ|μετωπ|μηκ.{0,8}(προσωπ|μετωπ)/.test(nk);
+  if(isArea || isFront){
     const exc  = /παρεκκλ/.test(nk) || /παρεκκλ/.test(nv);
     const rule = /καν[οω]ν/.test(nk) || /καν[οω]ν/.test(nv);
-    if(exc)  tags.push('artExc');
-    if(rule) tags.push('artRule');
-    if(!exc && !rule) tags.push('artRule');
+    const variant = exc ? 'artExc' : 'artRule'; // προεπιλογή: κατά κανόνα
+    tags.push({ m:variant, kind: isArea?'area':'front' });
   }
-  if( (/καλυψ/.test(nk) && !/ακαλυπτ/.test(nk)) || /(^|[^α-ω])σ\.?\s?κ($|[^α-ω])/.test(nk) ) tags.push('kalypsi');
-  if( /δομησ/.test(nk) || /συντ.{0,8}δομ/.test(nk) || /(^|[^α-ω])σ\.?\s?δ($|[^α-ω])/.test(nk) ) tags.push('domisi');
-  if( (/υψος/.test(nk) && !/υψομετ|θαλασσ/.test(nk)) || /μεγ.{0,6}υψος/.test(nk) ) tags.push('ypsos');
-  if( /οροφ/.test(nk) || /αριθμ.{0,8}οροφ/.test(nk) ) tags.push('orofoi');
-  return [...new Set(tags)];
+  if( (/καλυψ/.test(nk) && !/ακαλυπτ/.test(nk)) || /(^|[^α-ω])σ\.?\s?κ($|[^α-ω])/.test(nk) ) tags.push({m:'kalypsi'});
+  if( /δομησ/.test(nk) || /συντ.{0,8}δομ/.test(nk) || /(^|[^α-ω])σ\.?\s?δ($|[^α-ω])/.test(nk) ) tags.push({m:'domisi'});
+  if( (/υψος/.test(nk) && !/υψομετ|θαλασσ/.test(nk)) || /μεγ.{0,6}υψος/.test(nk) ) tags.push({m:'ypsos'});
+  if( /οροφ/.test(nk) || /αριθμ.{0,8}οροφ/.test(nk) ) tags.push({m:'orofoi'});
+  return tags;
 }
 
 /* Βρίσκει αναφορά ΦΕΚ + link μέσα σε ένα hit (προτιμά πραγματικό URL/PDF· αλλιώς αναζήτηση). */
@@ -782,7 +783,7 @@ function extractMetrics(hits){
       if(!tags.length) continue;
       if(fek===undefined) fek=fekFromHit(h);
       for(const t of tags){
-        res[t].push({ value:String(v).trim(), key:k, layerName:h.layerName, layerId:h.layerId, service:h.service, priority:SUM_PRI_LAYERS.has(h.layerId), fek });
+        res[t.m].push({ value:String(v).trim(), kind:t.kind||null, key:k, layerName:h.layerName, layerId:h.layerId, service:h.service, priority:SUM_PRI_LAYERS.has(h.layerId), fek });
       }
     }
   }
@@ -801,6 +802,33 @@ function dedupeMetric(arr){
   return [...seen.values()].slice(0,4);
 }
 
+/* Ομαδοποίηση αρτιότητας ανά επίπεδο: εμβαδόν + μήκος προσώπου μαζί. */
+function groupArt(arr){
+  const sorted=(arr||[]).slice().sort((a,b)=>(b.priority?1:0)-(a.priority?1:0));
+  const groups=new Map();
+  for(const it of sorted){
+    const gk=it.service+'|'+it.layerId;
+    if(!groups.has(gk)) groups.set(gk,{area:null,front:null,layerName:it.layerName,layerId:it.layerId,priority:it.priority,fek:it.fek});
+    const g=groups.get(gk);
+    if(it.kind==='front'){ if(!g.front) g.front=it.value; }
+    else { if(!g.area) g.area=it.value; }
+  }
+  // αφαίρεση διπλών (ίδιο εμβαδόν+πρόσωπο)
+  const seen=new Map();
+  for(const g of groups.values()){
+    if(!g.area && !g.front) continue;
+    const sig=norm((g.area||'')+'|'+(g.front||'')).trim();
+    if(!seen.has(sig)) seen.set(sig,g);
+  }
+  return [...seen.values()].slice(0,4);
+}
+function artCellHtml(g){
+  const bits=[];
+  if(g.area)  bits.push('Εμβαδόν: '+escapeHtml(g.area));
+  if(g.front) bits.push('Πρόσωπο: '+escapeHtml(g.front));
+  return bits.join(' · ');
+}
+
 function renderSummary(hits){
   if(!hits||!hits.length) return '';
   const m=extractMetrics(hits);
@@ -814,13 +842,14 @@ function renderSummary(hits){
   ];
   let anyFound=false, rows='';
   for(const [key,label] of defs){
-    const items=dedupeMetric(m[key]);
+    const isArt = (key==='artRule'||key==='artExc');
+    const items = isArt ? groupArt(m[key]) : dedupeMetric(m[key]);
     let valCell, srcCell, fekCell;
     if(!items.length){
       valCell='<span class="sum-none">— δεν εντοπίστηκε αυτόματα</span>'; srcCell='—'; fekCell='—';
     } else {
       anyFound=true;
-      valCell=items.map(it=>`<div class="sum-val">${escapeHtml(it.value)}</div>`).join('');
+      valCell=items.map(it=>`<div class="sum-val">${isArt?artCellHtml(it):escapeHtml(it.value)}</div>`).join('');
       srcCell=items.map(it=>`<div class="sum-src">${escapeHtml(it.layerName||'')}${it.layerId!=null?(' · L'+it.layerId):''}${it.priority?' <span class="sum-star">★</span>':''}</div>`).join('');
       fekCell=items.map(it=> it.fek ? `<a href="${escapeHtml(it.fek.url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(it.fek.text)}</a>` : '—').join('<br>');
     }
@@ -850,11 +879,13 @@ function summaryText(hits){
   ];
   const L=['— ΣΥΝΟΨΗ ΟΡΩΝ ΔΟΜΗΣΗΣ —'];
   for(const [key,label] of defs){
-    const items=dedupeMetric(m[key]);
+    const isArt=(key==='artRule'||key==='artExc');
+    const items = isArt ? groupArt(m[key]) : dedupeMetric(m[key]);
     if(!items.length){ L.push('  '+label+': (δεν εντοπίστηκε αυτόματα)'); continue; }
     for(const it of items){
+      const val = isArt ? [it.area?('Εμβαδόν: '+it.area):'', it.front?('Πρόσωπο: '+it.front):''].filter(Boolean).join(' · ') : it.value;
       const fek=it.fek?('  [ΦΕΚ: '+it.fek.text+(it.fek.url?' '+it.fek.url:'')+']'):'';
-      L.push('  '+label+': '+it.value+'  ('+(it.layerName||'')+(it.layerId!=null?(' L'+it.layerId):'')+')'+fek);
+      L.push('  '+label+': '+val+'  ('+(it.layerName||'')+(it.layerId!=null?(' L'+it.layerId):'')+')'+fek);
     }
   }
   L.push('');
