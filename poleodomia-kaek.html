@@ -739,10 +739,41 @@ function classifyAttr(nk, nv){
     tags.push({ m:'art', kind: isArea?'area':'front', variant: exc?'exc':(rule?'rule':null) });
   }
   if( (/καλυψ/.test(nk) && !/ακαλυπτ/.test(nk)) || /(^|[^α-ω])σ\.?\s?κ($|[^α-ω])/.test(nk) ) tags.push({m:'kalypsi'});
-  if( /δομησ/.test(nk) || /συντ.{0,8}δομ/.test(nk) || /(^|[^α-ω])σ\.?\s?δ($|[^α-ω])/.test(nk) ) tags.push({m:'domisi'});
+  // Σ.Δ.: εξαιρούμε το πεδίο «Κλιμακωτός Σ.Δ» (είναι σημαία, όχι τιμή)
+  if( !/κλιμακωτ/.test(nk) && (/δομησ/.test(nk) || /συντ.{0,8}δομ/.test(nk) || /(^|[^α-ω])σ\.?\s?δ($|[^α-ω])/.test(nk)) ) tags.push({m:'domisi'});
   if( (/υψος/.test(nk) && !/υψομετ|θαλασσ/.test(nk)) || /μεγ.{0,6}υψος/.test(nk) ) tags.push({m:'ypsos'});
   if( /οροφ/.test(nk) || /αριθμ.{0,8}οροφ/.test(nk) ) tags.push({m:'orofoi'});
+  // Οικοδομικό Τετράγωνο (Ο.Τ.)
+  if( /οικοδομ.{0,4}τετραγ/.test(nk) || /(^|[^α-ω])ο\.?\s?τ\.?($|[^α-ω])/.test(nk) || /αριθμ.{0,8}(ο\.?\s?τ|τετραγ)/.test(nk) ) tags.push({m:'oikod'});
   return tags;
+}
+
+/* Σημαία «Κλιμακωτός Σ.Δ» σε επίπεδο hit. */
+function hitClimax(attrs){
+  for(const [k,v] of Object.entries(attrs||{})){
+    if(v==null||v==='') continue;
+    const nk=norm(k), nv=norm(String(v));
+    if(/κλιμακωτ/.test(nk) && (/ναι/.test(nv)||nv==='1'||/yes|true/.test(nv))) return true;
+  }
+  return false;
+}
+
+/* Εντοπισμός Ζώνης Οικιστικού Ελέγχου (ΖΟΕ) στα αποτελέσματα. */
+function findZoe(hits){
+  for(const h of hits){
+    const svc=norm(h.service||''), ln=norm(h.layerName||'');
+    const isZoe = /exoastikou|ζοε|ζωνη οικιστικου|οικιστικου ελεγχου/.test(svc+' '+ln) || /\bzoe\b/.test(svc+' '+ln);
+    if(!isZoe) continue;
+    let zone='';
+    for(const [k,v] of Object.entries(h.attributes||{})){
+      if(v==null||v==='') continue;
+      const nk=norm(k);
+      if(/ονομασ.{0,4}ζων|ονομα.{0,4}ζων/.test(nk)){ zone=String(v).trim(); break; }
+    }
+    const fek=fekFromHit(h);
+    if(zone||fek) return { zone: zone||'(ΖΟΕ)', fek, layerName:h.layerName, layerId:h.layerId };
+  }
+  return null;
 }
 
 /* Χαρακτηρισμός αρτιότητας σε επίπεδο hit: διαβάζει πεδίο «Τύπος Παρέκκλισης»
@@ -765,7 +796,7 @@ function hitArtVariant(attrs){
 /* Βρίσκει αναφορά ΦΕΚ + link μέσα σε ένα hit.
    Κείμενο: ο αριθμός ΦΕΚ (π.χ. «1064Δ/1992» από πεδίο Έγκριση/ΦΕΚ) — όχι το URL.
    Link: πραγματικό PDF/URL (π.χ. «Αρχείο ΦΕΚ») αν υπάρχει, αλλιώς αναζήτηση. */
-const FEK_NUM_RE=/\b\d{1,5}\s*[Α-Ωα-ω]?\s*\/\s*\d{2,4}\b/;
+const FEK_NUM_RE=/\b\d{1,5}\s*[Α-Ωα-ω]{0,4}\s*\/\s*\d{2,4}\b/;
 function fekFromHit(h){
   const attrs=h.attributes||{};
   let url='';
@@ -786,7 +817,7 @@ function fekFromHit(h){
   if(!refText){
     for(const v of Object.values(attrs)){
       const sv=String(v).trim(); if(/https?:/i.test(sv)) continue;
-      const m=sv.match(/φεκ[\s:._-]*([0-9]+\s*[α-ωa-z]?\s*\/\s*[0-9]{2,4})/i);
+      const m=sv.match(/φεκ[\s:._-]*([0-9]+\s*[α-ωa-z]{0,4}\s*\/\s*[0-9]{2,4})/i);
       if(m){ refText=m[1]; break; }
     }
   }
@@ -798,10 +829,11 @@ function fekFromHit(h){
 }
 
 function extractMetrics(hits){
-  const res={artRule:[],artExc:[],kalypsi:[],domisi:[],ypsos:[],orofoi:[]};
+  const res={oikod:[],artRule:[],artExc:[],kalypsi:[],domisi:[],ypsos:[],orofoi:[]};
   hits.forEach((h, hi)=>{
     const attrs=h.attributes||{};
     const hv=hitArtVariant(attrs);
+    const climax=hitClimax(attrs);
     let fek=undefined;
     for(const [k,v] of Object.entries(attrs)){
       if(v==null||v===''||String(v).toLowerCase()==='null') continue;
@@ -810,7 +842,7 @@ function extractMetrics(hits){
       const tags=classifyAttr(nk,nv);
       if(!tags.length) continue;
       if(fek===undefined) fek=fekFromHit(h);
-      const base={ value:String(v).trim(), hitId:hi, key:k, layerName:h.layerName, layerId:h.layerId, service:h.service, priority:SUM_PRI_LAYERS.has(h.layerId), fek };
+      const base={ value:String(v).trim(), hitId:hi, key:k, layerName:h.layerName, layerId:h.layerId, service:h.service, priority:SUM_PRI_LAYERS.has(h.layerId), fek, climax };
       for(const t of tags){
         if(t.m==='art'){
           const variant=t.variant||hv||'rule';
@@ -875,6 +907,7 @@ function renderSummary(hits){
   if(!hits||!hits.length) return '';
   const m=extractMetrics(hits);
   const defs=[
+    ['oikod','🔲 Οικοδομικό Τετράγωνο (Ο.Τ.)'],
     ['artRule','📐 Αρτιότητα — κατά κανόνα'],
     ['artExc','📐 Αρτιότητα — κατά παρέκκλιση'],
     ['kalypsi','🏗️ Συντελεστής κάλυψης (Σ.Κ.)'],
@@ -882,23 +915,43 @@ function renderSummary(hits){
     ['ypsos','📏 Μέγιστο ύψος'],
     ['orofoi','🧱 Αριθμός ορόφων']
   ];
+  const artRuleG=groupArt(m.artRule), artExcG=groupArt(m.artExc);
+  const noArt=(artRuleG.length+artExcG.length)===0;
+  const zoe=noArt?findZoe(hits):null;
+  const mkRow=(label,valCell,srcCell,fekCell)=>`<tr><td class="sum-par">${label}</td>`
+    +`<td data-th="Τιμή">${valCell}</td>`
+    +`<td class="sum-srccol" data-th="Πηγή (layer)">${srcCell}</td>`
+    +`<td class="sum-fek" data-th="ΦΕΚ">${fekCell}</td></tr>`;
   let anyFound=false, rows='';
   for(const [key,label] of defs){
-    const isArt = (key==='artRule'||key==='artExc');
-    const items = isArt ? groupArt(m[key]) : dedupeMetric(m[key]);
+    // Αρτιότητα ΕΚΤΟΣ ΣΧΕΔΙΟΥ: ενιαία γραμμή + τυχόν ΖΟΕ
+    if(noArt && key==='artExc') continue;
+    if(noArt && key==='artRule'){
+      anyFound=true;
+      let valCell='<div class="sum-val">ΕΚΤΟΣ ΣΧΕΔΙΟΥ</div>';
+      if(zoe) valCell+='<div class="sum-val">ΖΟΕ: '+escapeHtml(zoe.zone)+'</div>';
+      const srcCell = zoe?('<div class="sum-src">'+escapeHtml(zoe.layerName||'')+(zoe.layerId!=null?(' · L'+zoe.layerId):'')+'</div>'):'—';
+      const fekCell = (zoe&&zoe.fek)?`<a href="${escapeHtml(zoe.fek.url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(zoe.fek.text)}</a>`:'—';
+      rows+=mkRow('📐 Αρτιότητα', valCell, srcCell, fekCell);
+      continue;
+    }
+    const isArt=(key==='artRule'||key==='artExc');
+    const isDom=(key==='domisi');
+    const items = isArt ? (key==='artRule'?artRuleG:artExcG) : dedupeMetric(m[key]);
     let valCell, srcCell, fekCell;
     if(!items.length){
       valCell='<span class="sum-none">— δεν εντοπίστηκε αυτόματα</span>'; srcCell='—'; fekCell='—';
     } else {
       anyFound=true;
-      valCell=items.map(it=>`<div class="sum-val">${isArt?artCellHtml(it):escapeHtml(it.value)}</div>`).join('');
+      valCell=items.map(it=>{
+        let v = isArt?artCellHtml(it):escapeHtml(it.value);
+        if(isDom && it.climax) v+=' <b>(ΚΛΙΜΑΚΩΤΟΣ)</b>';
+        return `<div class="sum-val">${v}</div>`;
+      }).join('');
       srcCell=items.map(it=>`<div class="sum-src">${escapeHtml(it.layerName||'')}${it.layerId!=null?(' · L'+it.layerId):''}${it.priority?' <span class="sum-star">★</span>':''}</div>`).join('');
       fekCell=items.map(it=> it.fek ? `<a href="${escapeHtml(it.fek.url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(it.fek.text)}</a>` : '—').join('<br>');
     }
-    rows+=`<tr><td class="sum-par">${escapeHtml(label)}</td>`
-      +`<td data-th="Τιμή">${valCell}</td>`
-      +`<td class="sum-srccol" data-th="Πηγή (layer)">${srcCell}</td>`
-      +`<td class="sum-fek" data-th="ΦΕΚ">${fekCell}</td></tr>`;
+    rows+=mkRow(escapeHtml(label), valCell, srcCell, fekCell);
   }
   const note = anyFound
     ? 'Αυτόματη σύνοψη από τα θεματικά επίπεδα (με προτεραιότητα στα 17, 18, 20, 26 — σημ. <span class="sum-star">★</span>). Επιβεβαίωσε πάντα την τιμή και το ΦΕΚ στα αναλυτικά στοιχεία πιο κάτω και στην αρμόδια Υ.ΔΟΜ.'
@@ -912,6 +965,7 @@ function renderSummary(hits){
 function summaryText(hits){
   const m=extractMetrics(hits||[]);
   const defs=[
+    ['oikod','Οικοδομικό Τετράγωνο (Ο.Τ.)'],
     ['artRule','Αρτιότητα κατά κανόνα'],
     ['artExc','Αρτιότητα κατά παρέκκλιση'],
     ['kalypsi','Συντελεστής κάλυψης (Σ.Κ.)'],
@@ -919,13 +973,25 @@ function summaryText(hits){
     ['ypsos','Μέγιστο ύψος'],
     ['orofoi','Αριθμός ορόφων']
   ];
+  const artRuleG=groupArt(m.artRule), artExcG=groupArt(m.artExc);
+  const noArt=(artRuleG.length+artExcG.length)===0;
+  const zoe=noArt?findZoe(hits||[]):null;
   const L=['— ΣΥΝΟΨΗ ΟΡΩΝ ΔΟΜΗΣΗΣ —'];
   for(const [key,label] of defs){
+    if(noArt && key==='artExc') continue;
+    if(noArt && key==='artRule'){
+      let v='ΕΚΤΟΣ ΣΧΕΔΙΟΥ';
+      if(zoe){ v+='  ·  ΖΟΕ: '+zoe.zone+(zoe.fek?('  [ΦΕΚ: '+zoe.fek.text+(zoe.fek.url?' '+zoe.fek.url:'')+']'):''); }
+      L.push('  Αρτιότητα: '+v);
+      continue;
+    }
     const isArt=(key==='artRule'||key==='artExc');
-    const items = isArt ? groupArt(m[key]) : dedupeMetric(m[key]);
+    const isDom=(key==='domisi');
+    const items = isArt ? (key==='artRule'?artRuleG:artExcG) : dedupeMetric(m[key]);
     if(!items.length){ L.push('  '+label+': (δεν εντοπίστηκε αυτόματα)'); continue; }
     for(const it of items){
-      const val = isArt ? [it.area?('Εμβαδόν: '+fmtArtVal(it.area,'area')):'', it.front?('Πρόσωπο: '+fmtArtVal(it.front,'front')):''].filter(Boolean).join(' · ') : it.value;
+      let val = isArt ? [it.area?('Εμβαδόν: '+fmtArtVal(it.area,'area')):'', it.front?('Πρόσωπο: '+fmtArtVal(it.front,'front')):''].filter(Boolean).join(' · ') : it.value;
+      if(isDom && it.climax) val+=' (ΚΛΙΜΑΚΩΤΟΣ)';
       const fek=it.fek?('  [ΦΕΚ: '+it.fek.text+(it.fek.url?' '+it.fek.url:'')+']'):'';
       L.push('  '+label+': '+val+'  ('+(it.layerName||'')+(it.layerId!=null?(' L'+it.layerId):'')+')'+fek);
     }
