@@ -624,8 +624,11 @@ function renderResults({kaek, note, geo, w, hits, diag, services}){
   if(allFek.length) chips.push('<span class="chip on">📜 Αναφορά ΦΕΚ</span>');
   let tifCount=0; for(const h of hits){ for(const v of Object.values(h.attributes)){ const s=String(v); URL_RE.lastIndex=0; let m; while((m=URL_RE.exec(s))){ if(isTifUrl(m[0])) tifCount++; } } }
   if(tifCount) chips.push('<span class="chip info">🗺️ '+tifCount+' υπόβαθρα TIFF (λήψη / CAD)</span>');
-  const ota = findOta(buckets.xor);
+  const admin = findAdmin(hits);
+  const ota = admin.ota || findOta(buckets.xor);
   if(ota) chips.push('<span class="chip">📍 ΟΤΑ: '+escapeHtml(ota)+'</span>');
+  if(admin.dimEnot) chips.push('<span class="chip">🏘️ Δημ. Ενότητα: '+escapeHtml(admin.dimEnot)+'</span>');
+  if(admin.koinot) chips.push('<span class="chip">📌 Κοινότητα: '+escapeHtml(admin.koinot)+'</span>');
   if(!anyTee) chips.push('<span class="chip warn">⚠️ Καμία απόκριση ΤΕΕ</span>');
   $('rVerdict').innerHTML = chips.join('');
 
@@ -662,7 +665,7 @@ function renderResults({kaek, note, geo, w, hits, diag, services}){
   $('reportBody').innerHTML = html;
   $('diag').innerHTML = renderDiag(diag);
 
-  lastReportText = buildTextReport({kaek, note, geo, w, buckets, allFek, ota, diag, hits});
+  lastReportText = buildTextReport({kaek, note, geo, w, buckets, allFek, ota, diag, hits, admin});
   $('results').scrollIntoView({behavior:'smooth',block:'start'});
 }
 
@@ -679,6 +682,22 @@ function findOta(xorHits){
     }
   }
   return '';
+}
+
+/* Διοικητικά στοιχεία: ΟΤΑ/Δήμος, Δημοτική Ενότητα, (Δημοτική/Τοπική) Κοινότητα. */
+function findAdmin(hits){
+  const r={ota:'',dimEnot:'',koinot:''};
+  for(const h of (hits||[])){
+    for(const [k,v] of Object.entries(h.attributes||{})){
+      if(v==null||v===''||String(v).toLowerCase()==='null') continue;
+      if(HIDE.test(k)||/^shape/i.test(k)) continue;
+      const nk=norm(k), sv=String(v).trim();
+      if(!r.dimEnot && /δημ.{0,8}ενοτ/.test(nk)) r.dimEnot=sv;
+      else if(!r.koinot && /κοινοτ/.test(nk) && !/ενοτ/.test(nk)) r.koinot=sv;
+      else if(!r.ota && (/καλλικρατ.{0,8}δημ/.test(nk) || /ονομα.{0,6}δημ/.test(nk) || /(^|[^α-ω])δημος($|[^α-ω])/.test(nk))) r.ota=sv;
+    }
+  }
+  return r;
 }
 
 function renderCat(c, list, raw){
@@ -1020,7 +1039,7 @@ function renderDiag(diag){
   return h+'</table></details>';
 }
 
-function buildTextReport({kaek, note, geo, w, buckets, allFek, ota, diag, hits}){
+function buildTextReport({kaek, note, geo, w, buckets, allFek, ota, diag, hits, admin}){
   const L=[];
   L.push('ΠΟΛΕΟΔΟΜΙΚΟ ΠΡΟΦΙΛ ΚΑΕΚ');
   L.push('========================');
@@ -1030,6 +1049,8 @@ function buildTextReport({kaek, note, geo, w, buckets, allFek, ota, diag, hits})
   L.push('WGS84: '+w.lat.toFixed(6)+', '+w.lon.toFixed(6));
   if(geo.area) L.push('Εμβαδόν (Κτηματ.): ~'+Math.round(geo.area)+' m²');
   if(ota) L.push('ΟΤΑ: '+ota);
+  if(admin&&admin.dimEnot) L.push('Δημοτική Ενότητα: '+admin.dimEnot);
+  if(admin&&admin.koinot) L.push('Κοινότητα: '+admin.koinot);
   L.push('');
   L.push(summaryText(hits));
   const sec=(title, list)=>{
