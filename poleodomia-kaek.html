@@ -726,17 +726,17 @@ function renderFek(allFek){
    αλλά σαρώνονται ΟΛΑ τα πεδία όλων των hits. */
 const SUM_PRI_LAYERS = new Set([17,18,20,26]);
 
-/* Ποια μετρική «κουβαλά» ένα πεδίο, με βάση κυρίως το όνομα (nk) και δευτερευόντως την τιμή (nv).
-   Επιστρέφει αντικείμενα {m:'<metric>', kind?:'area'|'front'} (το kind μόνο για την αρτιότητα). */
+/* Ποια μετρική «κουβαλά» ένα πεδίο, με βάση κυρίως το όνομα (nk).
+   Για την αρτιότητα επιστρέφει {m:'art', kind:'area'|'front', variant:'rule'|'exc'|null}·
+   το variant=null σημαίνει «πάρε τον χαρακτηρισμό από το πεδίο Τύπου σε επίπεδο hit». */
 function classifyAttr(nk, nv){
   const tags=[];
-  const isArea  = /αρτιοτ|ελαχ.{0,8}εμβαδ|εμβαδ.{0,8}αρτ/.test(nk);
-  const isFront = /προσωπ|μετωπ|μηκ.{0,8}(προσωπ|μετωπ)/.test(nk);
+  const isArea  = /αρτιοτ|ελαχ.{0,10}εμβαδ|εμβαδ.{0,10}αρτ/.test(nk);
+  const isFront = /προσωπ|μετωπ|μηκ.{0,10}(προσωπ|μετωπ)/.test(nk);
   if(isArea || isFront){
-    const exc  = /παρεκκλ/.test(nk) || /παρεκκλ/.test(nv);
-    const rule = /καν[οω]ν/.test(nk) || /καν[οω]ν/.test(nv);
-    const variant = exc ? 'artExc' : 'artRule'; // προεπιλογή: κατά κανόνα
-    tags.push({ m:variant, kind: isArea?'area':'front' });
+    const exc  = /παρεκκλ/.test(nk);
+    const rule = /καν[οω]ν/.test(nk);
+    tags.push({ m:'art', kind: isArea?'area':'front', variant: exc?'exc':(rule?'rule':null) });
   }
   if( (/καλυψ/.test(nk) && !/ακαλυπτ/.test(nk)) || /(^|[^α-ω])σ\.?\s?κ($|[^α-ω])/.test(nk) ) tags.push({m:'kalypsi'});
   if( /δομησ/.test(nk) || /συντ.{0,8}δομ/.test(nk) || /(^|[^α-ω])σ\.?\s?δ($|[^α-ω])/.test(nk) ) tags.push({m:'domisi'});
@@ -745,35 +745,63 @@ function classifyAttr(nk, nv){
   return tags;
 }
 
-/* Βρίσκει αναφορά ΦΕΚ + link μέσα σε ένα hit (προτιμά πραγματικό URL/PDF· αλλιώς αναζήτηση). */
-function fekFromHit(h){
-  let refText='';
-  for(const [k,v] of Object.entries(h.attributes||{})){
+/* Χαρακτηρισμός αρτιότητας σε επίπεδο hit: διαβάζει πεδίο «Τύπος Παρέκκλισης»
+   (ή παρόμοιο) και κρίνει από την ΤΙΜΗ (π.χ. «ΚΑΤΑ ΚΑΝΟΝΑ» / «ΚΑΤΑ ΠΑΡΕΚΚΛΙΣΗ»). */
+function hitArtVariant(attrs){
+  for(const [k,v] of Object.entries(attrs||{})){
     if(v==null||v==='') continue;
-    const nk=norm(k), sv=String(v);
-    if(nk.includes('φεκ')||nk.includes('fek')){ refText=sv; break; }
-  }
-  if(!refText){
-    for(const v of Object.values(h.attributes||{})){
-      const sv=String(v); const m=sv.match(/φεκ[\s:._-]*([0-9]+\s*\/?\s*[α-ωa-z]?\s*\/?\s*[0-9]{2,4})/i);
-      if(m){ refText=m[0]; break; }
+    const nk=norm(k), nv=norm(String(v));
+    const isTypeField = /παρεκκλ/.test(nk) || (/τυπ/.test(nk) && /(παρεκκλ|αρτιοτ|καν[οω]ν)/.test(nk));
+    if(isTypeField){
+      if(/παρεκκλ/.test(nv)) return 'exc';
+      if(/καν[οω]ν/.test(nv)) return 'rule';
     }
+    if(/κατα\s*παρεκκλ/.test(nv)) return 'exc';
+    if(/κατα\s*καν[οω]ν/.test(nv)) return 'rule';
   }
+  return null;
+}
+
+/* Βρίσκει αναφορά ΦΕΚ + link μέσα σε ένα hit.
+   Κείμενο: ο αριθμός ΦΕΚ (π.χ. «1064Δ/1992» από πεδίο Έγκριση/ΦΕΚ) — όχι το URL.
+   Link: πραγματικό PDF/URL (π.χ. «Αρχείο ΦΕΚ») αν υπάρχει, αλλιώς αναζήτηση. */
+const FEK_NUM_RE=/\b\d{1,5}\s*[Α-Ωα-ω]?\s*\/\s*\d{2,4}\b/;
+function fekFromHit(h){
+  const attrs=h.attributes||{};
   let url='';
-  for(const v of Object.values(h.attributes||{})){
+  for(const v of Object.values(attrs)){
     const sv=String(v); URL_RE.lastIndex=0; let m;
     while((m=URL_RE.exec(sv))){ if(isPdfUrl(m[0])){ url=m[0]; break; } if(!url) url=m[0]; }
     if(url && isPdfUrl(url)) break;
   }
+  let refText='';
+  // α) πεδίο Έγκριση/ΦΕΚ/Φύλλο με αριθμό τύπου ΦΕΚ (και όχι URL)
+  for(const [k,v] of Object.entries(attrs)){
+    if(v==null||v==='') continue;
+    const nk=norm(k), sv=String(v).trim();
+    if(/https?:/i.test(sv)) continue;
+    if(/εγκριση|φεκ|φυλλο|δημοσιευ/.test(nk) && FEK_NUM_RE.test(sv)){ refText=sv; break; }
+  }
+  // β) οποιαδήποτε τιμή «ΦΕΚ 123/Δ/2004»
+  if(!refText){
+    for(const v of Object.values(attrs)){
+      const sv=String(v).trim(); if(/https?:/i.test(sv)) continue;
+      const m=sv.match(/φεκ[\s:._-]*([0-9]+\s*[α-ωa-z]?\s*\/\s*[0-9]{2,4})/i);
+      if(m){ refText=m[1]; break; }
+    }
+  }
   if(!refText && !url) return null;
-  if(!url && refText){ url='https://www.google.com/search?q='+encodeURIComponent('ΦΕΚ '+refText.replace(/^φεκ[\s:._-]*/i,'')); }
-  return { text: refText||'ΦΕΚ (δες πηγή)', url };
+  if(refText && !/^φεκ/i.test(refText)) refText='ΦΕΚ '+refText;
+  if(!url && refText){ url='https://www.google.com/search?q='+encodeURIComponent(refText); }
+  if(!refText) refText='Αρχείο ΦΕΚ';
+  return { text: refText, url };
 }
 
 function extractMetrics(hits){
   const res={artRule:[],artExc:[],kalypsi:[],domisi:[],ypsos:[],orofoi:[]};
   for(const h of hits){
     const attrs=h.attributes||{};
+    const hv=hitArtVariant(attrs);
     let fek=undefined;
     for(const [k,v] of Object.entries(attrs)){
       if(v==null||v===''||String(v).toLowerCase()==='null') continue;
@@ -782,8 +810,15 @@ function extractMetrics(hits){
       const tags=classifyAttr(nk,nv);
       if(!tags.length) continue;
       if(fek===undefined) fek=fekFromHit(h);
+      const base={ value:String(v).trim(), key:k, layerName:h.layerName, layerId:h.layerId, service:h.service, priority:SUM_PRI_LAYERS.has(h.layerId), fek };
       for(const t of tags){
-        res[t.m].push({ value:String(v).trim(), kind:t.kind||null, key:k, layerName:h.layerName, layerId:h.layerId, service:h.service, priority:SUM_PRI_LAYERS.has(h.layerId), fek });
+        if(t.m==='art'){
+          const variant=t.variant||hv||'rule';
+          const bucket=variant==='exc'?'artExc':'artRule';
+          res[bucket].push({ ...base, kind:t.kind });
+        } else {
+          res[t.m].push({ ...base, kind:null });
+        }
       }
     }
   }
@@ -822,10 +857,16 @@ function groupArt(arr){
   }
   return [...seen.values()].slice(0,4);
 }
+/* Αν η τιμή είναι καθαρός αριθμός, πρόσθεσε μονάδα (εμβαδόν→τ.μ., πρόσωπο→μ.). */
+function fmtArtVal(v, kind){
+  const s=String(v).trim();
+  if(/^[\d.,]+$/.test(s)) return s+(kind==='front'?' μ.':' τ.μ.');
+  return s;
+}
 function artCellHtml(g){
   const bits=[];
-  if(g.area)  bits.push('Εμβαδόν: '+escapeHtml(g.area));
-  if(g.front) bits.push('Πρόσωπο: '+escapeHtml(g.front));
+  if(g.area)  bits.push('Εμβαδόν: '+escapeHtml(fmtArtVal(g.area,'area')));
+  if(g.front) bits.push('Πρόσωπο: '+escapeHtml(fmtArtVal(g.front,'front')));
   return bits.join(' · ');
 }
 
@@ -883,7 +924,7 @@ function summaryText(hits){
     const items = isArt ? groupArt(m[key]) : dedupeMetric(m[key]);
     if(!items.length){ L.push('  '+label+': (δεν εντοπίστηκε αυτόματα)'); continue; }
     for(const it of items){
-      const val = isArt ? [it.area?('Εμβαδόν: '+it.area):'', it.front?('Πρόσωπο: '+it.front):''].filter(Boolean).join(' · ') : it.value;
+      const val = isArt ? [it.area?('Εμβαδόν: '+fmtArtVal(it.area,'area')):'', it.front?('Πρόσωπο: '+fmtArtVal(it.front,'front')):''].filter(Boolean).join(' · ') : it.value;
       const fek=it.fek?('  [ΦΕΚ: '+it.fek.text+(it.fek.url?' '+it.fek.url:'')+']'):'';
       L.push('  '+label+': '+val+'  ('+(it.layerName||'')+(it.layerId!=null?(' L'+it.layerId):'')+')'+fek);
     }
