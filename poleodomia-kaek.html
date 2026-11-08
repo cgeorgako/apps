@@ -714,6 +714,17 @@ function renderFek(allFek){
 /* Προτεραιότητα στα θεματικά επίπεδα που δίνουν όρους δόμησης (17,18,20,26),
    αλλά σαρώνονται ΟΛΑ τα πεδία όλων των hits. */
 const SUM_PRI_LAYERS = new Set([17,18,20,26]);
+/* Κείμενα για γεωτεμάχια χωρίς στοιχεία αρτιότητας */
+const MSG_800 = 'ΕΝΤΟΣ ΑΚΤΙΝΑΣ 800Μ. ΟΙΚΙΣΜΟΥ-ΦΕΚ 719/Δ/24-12-1990 (Απόφαση Νομάρχη Ηλείας υπ’ αριθμ. οικ. 3918/1990).';
+const MSG_EKTOS = 'ΕΚΤΟΣ ΣΧΕΔΙΟΥ+ ΕΚΤΟΣ ΟΙΚΙΣΜΟΥ';
+/* Ανίχνευση «Μερικώς κυρωμένων» ή «Αναρτημένων» δασικών χαρτών στα αποτελέσματα. */
+function hasForestMap(hits){
+  for(const h of (hits||[])){
+    const hay=norm((h.service||'')+' '+(h.layerName||''));
+    if(/(μερικ.{0,6}κυρωμ|αναρτημ)/.test(hay) && /δασ/.test(hay)) return true;
+  }
+  return false;
+}
 
 /* Ποια μετρική «κουβαλά» ένα πεδίο, με βάση κυρίως το όνομα (nk).
    Για την αρτιότητα επιστρέφει {m:'art', kind:'area'|'front', variant:'rule'|'exc'|null}·
@@ -907,17 +918,24 @@ function renderSummary(hits){
   const artRuleG=groupArt(m.artRule), artExcG=groupArt(m.artExc);
   const noArt=(artRuleG.length+artExcG.length)===0;
   const zoe=noArt?findZoe(hits):null;
+  const noArtMsg=noArt?(hasForestMap(hits)?MSG_EKTOS:MSG_800):'';
   const mkRow=(label,valCell,srcCell,fekCell)=>`<tr><td class="sum-par">${label}</td>`
     +`<td data-th="Τιμή">${valCell}</td>`
     +`<td class="sum-srccol" data-th="Πηγή (layer)">${srcCell}</td>`
     +`<td class="sum-fek" data-th="ΦΕΚ">${fekCell}</td></tr>`;
   let anyFound=false, rows='';
   for(const [key,label] of defs){
-    // Αρτιότητα ΕΚΤΟΣ ΣΧΕΔΙΟΥ: ενιαία γραμμή + τυχόν ΖΟΕ
+    // Χωρίς αρτιότητα: το Ο.Τ. παίρνει το ίδιο ειδικό κείμενο
+    if(noArt && key==='oikod'){
+      anyFound=true;
+      rows+=mkRow(escapeHtml(label), '<div class="sum-val">'+escapeHtml(noArtMsg)+'</div>', '—', '—');
+      continue;
+    }
+    // Χωρίς αρτιότητα: ενιαία γραμμή Αρτιότητας (ειδικό κείμενο) + τυχόν ΖΟΕ
     if(noArt && key==='artExc') continue;
     if(noArt && key==='artRule'){
       anyFound=true;
-      let valCell='<div class="sum-val">ΕΚΤΟΣ ΣΧΕΔΙΟΥ ή ΕΝΤΟΣ ΑΚΤΙΝΑΣ 800Μ. ΟΙΚΙΣΜΟΥ</div>';
+      let valCell='<div class="sum-val">'+escapeHtml(noArtMsg)+'</div>';
       if(zoe) valCell+='<div class="sum-val">ΖΟΕ: '+escapeHtml(zoe.zone)+'</div>';
       const srcCell = zoe?('<div class="sum-src">'+escapeHtml(zoe.layerName||'')+(zoe.layerId!=null?(' · L'+zoe.layerId):'')+'</div>'):'—';
       const fekCell = (zoe&&zoe.fek)?`<a href="${escapeHtml(zoe.fek.url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(zoe.fek.text)}</a>`:'—';
@@ -965,11 +983,13 @@ function summaryText(hits){
   const artRuleG=groupArt(m.artRule), artExcG=groupArt(m.artExc);
   const noArt=(artRuleG.length+artExcG.length)===0;
   const zoe=noArt?findZoe(hits||[]):null;
+  const noArtMsg=noArt?(hasForestMap(hits||[])?MSG_EKTOS:MSG_800):'';
   const L=['— ΣΥΝΟΨΗ ΟΡΩΝ ΔΟΜΗΣΗΣ —'];
   for(const [key,label] of defs){
+    if(noArt && key==='oikod'){ L.push('  Οικοδομικό Τετράγωνο (Ο.Τ.): '+noArtMsg); continue; }
     if(noArt && key==='artExc') continue;
     if(noArt && key==='artRule'){
-      let v='ΕΚΤΟΣ ΣΧΕΔΙΟΥ ή ΕΝΤΟΣ ΑΚΤΙΝΑΣ 800Μ. ΟΙΚΙΣΜΟΥ';
+      let v=noArtMsg;
       if(zoe){ v+='  ·  ΖΟΕ: '+zoe.zone+(zoe.fek?('  [ΦΕΚ: '+zoe.fek.text+(zoe.fek.url?' '+zoe.fek.url:'')+']'):''); }
       L.push('  Αρτιότητα: '+v);
       continue;
