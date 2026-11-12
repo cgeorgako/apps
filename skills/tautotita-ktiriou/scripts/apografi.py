@@ -39,11 +39,11 @@ TYPOI = [
 PLIROTITA_VASIKA = [
     ("ΕΞΟΥΣΙΟΔΟΤΗΣΗ", "Υπόχρεος και στοιχεία του· επισυνάπτεται πριν την εισαγωγή"),
     ("KF", "ΚΑΕΚ, εμβαδόν, δικαιούχοι, ποσοστά, τίτλος"),
-    (("KD", "ΤΟΠΟΓΡΑΦΙΚΟ"), "Κορυφές ΕΓΣΑ87 για τον γεωχωρικό εντοπισμό, εμβαδόν"),
     ("ΑΔΕΙΑ", "Πράξεις, όροφοι, νόμιμα τ.μ. (ή απόδειξη προ 1955)"),
     ("ΣΥΜΒΟΛΑΙΟ", "Αρ./έτος συμβολαίου, συμβολαιογράφος, σύσταση, χιλιοστά (εν μέρει από KF)"),
 ]
 PLIROTITA_PROAIR = [
+    (("ΤΟΠΟΓΡΑΦΙΚΟ", "KD"), "Εμβαδόν γεωτεμαχίου για διασταύρωση με τίτλο/Κτηματολόγιο"),
     ("ΠΕΑ", "Καρτέλα ΠΕΑ"),
     ("ΛΟΓΑΡΙΑΣΜΟΣ", "Δίκτυα: αρ. παροχής"),
 ]
@@ -145,8 +145,9 @@ def main():
         if not vrethikan.intersection(kodikoi):
             leipoun.append({"εγγραφο": " ή ".join(kodikoi), "τι_δινει": ti, "βασικο": True})
     for kod, ti in PLIROTITA_PROAIR:
-        if kod not in vrethikan:
-            leipoun.append({"εγγραφο": kod, "τι_δινει": ti, "βασικο": False})
+        kodikoi = kod if isinstance(kod, tuple) else (kod,)
+        if not vrethikan.intersection(kodikoi):
+            leipoun.append({"εγγραφο": " ή ".join(kodikoi), "τι_δινει": ti, "βασικο": False})
 
     (out / "apografi.json").write_text(
         json.dumps({"εγγραφα": apotel, "λειπουν": leipoun, "αγνωστα": agnosta}, ensure_ascii=False, indent=2),
