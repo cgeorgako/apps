@@ -247,17 +247,6 @@ def elegxos_idioktisias(idx, idk, oik, E):
                       "Υποχρεωτικός πίνακας «Στατικός έλεγχος» για πράξη ν.4178/13 ή ν.4495/17 (κωδ. ν.5306/26)")
             else:
                 E.add("ΟΚ", K, f"Στατικός έλεγχος ({et})", f"{len(st)} γραμμή(-ές)")
-            d = p.get("δηλωση_αυθαιρετου") or {}
-            an = {k: num(v) for k, v in (d.get("αναλυση_προστιμου") or {}).items()}
-            sy = num(d.get("συνολικο_προστιμο"))
-            if an and sy is not None:
-                athroisma = sum(v for v in an.values() if v is not None)
-                ypol = " + ".join(gr(v) for v in an.values() if v is not None) + f" = {gr(athroisma)} €"
-                if abs(athroisma - sy) <= ANOXI:
-                    E.add("ΟΚ", K, f"Πρόστιμο ({et})", "Ανάλυση = συνολικό", ypol)
-                else:
-                    E.add("ΑΣΥΜΦΩΝΙΑ", K, f"Πρόστιμο ({et})", f"Ανάλυση {gr(athroisma)} € ≠ συνολικό {gr(sy)} €", ypol,
-                          {"σοβαροτητα": "ΥΨΗΛΗ"})
         for g in st:
             t = kanoniko(g.get("τυπος", "")).replace(".", "")
             if "ΔΕΔΟΤΑ" in t or "ΤΡΩΤΟΤΗΤΑΣ" in t:
