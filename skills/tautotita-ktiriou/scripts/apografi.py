@@ -6,7 +6,11 @@
 Στο τέλος δίνει τι λείπει σε σχέση με τη λίστα πληρότητας (references/eggrafa.md §Δ).
 
 Χρήση:
-    python3 -I apografi.py <αρχεία ή φάκελοι...> --out <φάκελος> [--dpi 150] [--no-img]
+    python3 -I apografi.py <αρχεία, φάκελοι ή .zip...> --out <φάκελος> [--dpi 150] [--no-img]
+
+Τα .zip αποσυμπιέζονται με ασφάλεια στο <out>/zip/: αγνοούνται διαδρομές εκτός φακέλου,
+__MACOSX και κρυφά αρχεία· τα ελληνικά ονόματα αρχείων από Windows (κωδικοσελίδα 737)
+αποκαθίστανται. Ένθετα zip ανοίγουν ένα επίπεδο.
 """
 import argparse
 import json
@@ -15,10 +19,70 @@ import shutil
 import subprocess
 import sys
 import unicodedata
+import zipfile
 from pathlib import Path
 
 EXT_PDF = {".pdf"}
 EXT_IMG = {".png", ".jpg", ".jpeg", ".tif", ".tiff"}
+ZIP_MAX_BYTES = 1_500_000_000   # σύνολο αποσυμπιεσμένων
+ZIP_MAX_FILES = 500
+
+
+def onoma_zip(info: zipfile.ZipInfo) -> str:
+    """Όνομα μέλους zip. Χωρίς σημαία UTF-8 το zipfile το διαβάζει ως cp437· τα Windows
+    στα ελληνικά γράφουν cp737 (ή UTF-8 χωρίς σημαία)."""
+    if info.flag_bits & 0x800:
+        return info.filename
+    raw = info.filename.encode("cp437", errors="replace")
+    for enc in ("utf-8", "cp737", "cp1253"):
+        try:
+            return raw.decode(enc)
+        except UnicodeDecodeError:
+            continue
+    return info.filename
+
+
+def apozip(zp: Path, dest: Path, eidopoiiseis: list, vathos: int = 0) -> list:
+    """Ασφαλής αποσυμπίεση· επιστρέφει τα PDF/εικόνες που βγήκαν."""
+    vgikan, synolo = [], 0
+    dest.mkdir(parents=True, exist_ok=True)
+    try:
+        z = zipfile.ZipFile(zp)
+    except zipfile.BadZipFile:
+        eidopoiiseis.append(f"{zp.name}: δεν είναι έγκυρο zip")
+        return []
+    with z:
+        meli = [m for m in z.infolist() if not m.is_dir()]
+        if len(meli) > ZIP_MAX_FILES:
+            eidopoiiseis.append(f"{zp.name}: {len(meli)} αρχεία — όριο {ZIP_MAX_FILES}, δεν αποσυμπιέστηκε")
+            return []
+        for m in meli:
+            on = onoma_zip(m).replace("\\", "/")
+            meri = [x for x in on.split("/") if x not in ("", ".")]
+            if not meri or ".." in meri or on.startswith("/") or re.match(r"^[A-Za-z]:", on):
+                eidopoiiseis.append(f"{zp.name}: αγνοήθηκε ύποπτη διαδρομή «{on}»")
+                continue
+            if meri[0] == "__MACOSX" or any(x.startswith(".") for x in meri) or meri[-1].lower() == "thumbs.db":
+                continue
+            synolo += m.file_size
+            if synolo > ZIP_MAX_BYTES:
+                eidopoiiseis.append(f"{zp.name}: υπέρβαση ορίου μεγέθους — η αποσυμπίεση σταμάτησε")
+                break
+            stoxos = dest.joinpath(*meri)
+            if dest.resolve() not in stoxos.resolve().parents:
+                eidopoiiseis.append(f"{zp.name}: αγνοήθηκε «{on}»")
+                continue
+            stoxos.parent.mkdir(parents=True, exist_ok=True)
+            with z.open(m) as src, open(stoxos, "wb") as dst:
+                shutil.copyfileobj(src, dst)
+            kat = stoxos.suffix.lower()
+            if kat in EXT_PDF | EXT_IMG:
+                vgikan.append(stoxos)
+            elif kat == ".zip" and vathos == 0:
+                vgikan += apozip(stoxos, stoxos.with_suffix(""), eidopoiiseis, 1)
+            else:
+                eidopoiiseis.append(f"{zp.name}: αγνοήθηκε «{on}» (τύπος {kat or '—'} — δέχομαι PDF και εικόνες)")
+    return sorted(vgikan)
 
 # (κωδικός, περιγραφή, μοτίβα κειμένου, μοτίβα ονόματος αρχείου). Η σειρά μετράει.
 TYPOI = [
@@ -102,17 +166,24 @@ def main():
     ap.add_argument("--no-img", action="store_true", help="να μην αποδοθούν PNG")
     a = ap.parse_args()
 
-    arxeia = []
+    out = Path(a.out)
+    arxeia, eidop = [], []
     for e in a.eisodos:
         p = Path(e)
         if p.is_dir():
-            arxeia += sorted(x for x in p.rglob("*") if x.suffix.lower() in EXT_PDF | EXT_IMG)
+            for x in sorted(p.rglob("*")):
+                if x.suffix.lower() in EXT_PDF | EXT_IMG:
+                    arxeia.append(x)
+                elif x.suffix.lower() == ".zip":
+                    arxeia += apozip(x, out / "zip" / x.stem, eidop)
+        elif p.is_file() and p.suffix.lower() == ".zip":
+            arxeia += apozip(p, out / "zip" / p.stem, eidop)
         elif p.is_file():
             arxeia.append(p)
         else:
             print(f"Δεν βρέθηκε: {e}", file=sys.stderr)
-
-    out = Path(a.out)
+    for w in eidop:
+        print(f"ΠΡΟΣΟΧΗ: {w}", file=sys.stderr)
     (out / "txt").mkdir(parents=True, exist_ok=True)
     (out / "img").mkdir(parents=True, exist_ok=True)
 
@@ -151,7 +222,7 @@ def main():
             leipoun.append({"εγγραφο": " ή ".join(kodikoi), "τι_δινει": ti, "βασικο": False})
 
     (out / "apografi.json").write_text(
-        json.dumps({"εγγραφα": apotel, "λειπουν": leipoun, "αγνωστα": agnosta}, ensure_ascii=False, indent=2),
+        json.dumps({"εγγραφα": apotel, "λειπουν": leipoun, "αγνωστα": agnosta, "προειδοποιησεις_zip": eidop}, ensure_ascii=False, indent=2),
         encoding="utf-8")
 
     print("| # | Αρχείο | Σελ. | Κείμενο/Σάρωση | Τύπος | Αναγνώριση από |")
