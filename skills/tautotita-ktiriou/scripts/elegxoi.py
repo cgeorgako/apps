@@ -351,6 +351,11 @@ def diastavrosi(lista_d, E):
         sov = "ΥΨΗΛΗ" if rel > 0.02 else "ΜΕΣΑΙΑ" if rel > 0.002 else "ΧΑΜΗΛΗ"
         epil = g.get("επιλεγμενη")
         msg = f"{len(set(round(v, 2) for v in vals))} διαφορετικές τιμές, Δmax = {gr(mx - mn)} {mon} ({gr(rel * 100, 1)}%)"
+        if g.get("επιβεβαιωθηκε") and not keno(epil):
+            E.add("ΠΡΟΕΙΔΟΠΟΙΗΣΗ", "Διασταύρωση", meg,
+                  msg + f". Επιβεβαιωμένη από τον μηχανικό τιμή: {epil}", listing,
+                  {"τιμες": [{"πηγη": p, "τιμη": t} for p, t, _ in arith], "επιλεγμενη": epil})
+            continue
         if not keno(epil):
             msg += f". Προτεινόμενη για το πεδίο: {epil} — χρειάζεται επιβεβαίωση"
         E.add("ΑΣΥΜΦΩΝΙΑ", "Διασταύρωση", meg, msg, listing,
