@@ -68,6 +68,29 @@ def safe_calc(expr):
     e = re.sub(r'\*{2,}', '*', e)  # ΧΧ -> *
     return _ev(ast.parse(e, mode='eval').body)
 
+import unicodedata
+def norm(s):
+    """Πεζά χωρίς τόνους, για ανθεκτική αναζήτηση ελληνικών φράσεων."""
+    s = unicodedata.normalize('NFD', str(s))
+    s = ''.join(c for c in s if unicodedata.category(c) != 'Mn')
+    return s.lower()
+
+# Απαιτούμενες δηλώσεις/ενότητες τοπογραφικού. Κάθε μία: (κλειδί, ετικέτα, [patterns]).
+DECLARATIONS = [
+    ('oria',   'Δήλωση Ορίων',
+     [r'δηλωση\s+οριων', r'τα\s+ορια\b.{0,45}(πραγματικ|ορθ|ακριβ|φυσικ|επιτοπ)',
+      r'δηλων\w*.{0,90}\bορια\b', r'οροθετ']),
+    ('dasika', 'Δήλωση Δασικών',
+     [r'δασικ', r'δασαρχει', r'δασωδ', r'τελεσιδικ\w*\s+πραξ\w*\s+χαρακτηρισμ', r'δασικου\s+χαρτη']),
+    ('n651',   'Δήλωση Ν.651/77',
+     [r'651\s*/\s*77', r'\bν\.?\s*651\b']),
+    ('oroi',   'Όροι Δόμησης',
+     [r'ορ(οι|ων)\s+δομησ', r'συντελεστ\w{0,12}\s*δομησ', r'\bσ\.?δ\.?\b',
+      r'στασιμ\w*\s+οικισμ', r'εκτος\s+σχεδιου', r'εντος\s+(σχεδιου|οικισμ)']),
+    ('artiotita', 'Δήλωση Αρτιότητας',
+     [r'αρτιοτητα', r'αρτι(ο|α|ου|ων)\b.{0,25}οικοδομησιμ']),
+]
+
 def main():
     if len(sys.argv) < 2:
         sys.stderr.write('usage: python3 -I check.py <norm.json> [out.json]\n'); sys.exit(2)
@@ -265,8 +288,38 @@ def main():
         seen.add(key)
         review.append({'layer': t['layer'], 'text': s})
 
+    # ---------- CHECK 6: παρουσία δηλώσεων/ενοτήτων + εξαγωγή για έλεγχο συνάφειας ----------
+    # Τρέχει μόνο σε ΤΟΠΟΓΡΑΦΙΚΟ (πίνακας συντ/νων ή σχετικές λέξεις), όχι σε κάτοψη.
+    alltext_norm = norm('\n'.join(t['text'] for t in texts))
+    is_topo = (table_layer is not None) or bool(
+        re.search(r'γεωτεμαχ|εγσα|κ\.?α\.?ε\.?κ|αρτιοτητα|τοπογραφικ', alltext_norm))
+    declarations = {}
+    sections = {'artiotita': [], 'oroi': []}
+    if is_topo:
+        for key, label, pats in DECLARATIONS:
+            present = any(re.search(p, alltext_norm) for p in pats)
+            declarations[key] = {'label': label, 'present': present}
+            if not present:
+                F('ΕΛΕΓΧΟΣ', 'δήλωση',
+                  'Δεν εντοπίστηκε «%s» στο σχέδιο — επιβεβαίωσε αν λείπει ή είναι διατυπωμένη αλλιώς.' % label,
+                  {'section': key})
+        # συλλογή κειμένων αρτιότητας & όρων δόμησης για τον έλεγχο συνάφειας (μοντέλο)
+        art_p = [r'αρτιοτητα', r'προσωπο\b', r'παρεκκλισ', r'προ\s+του\s+19']
+        oroi_p = [r'ορ(οι|ων)\s+δομησ', r'στασιμ\w*\s+οικισμ', r'οικισμ', r'εκτος\s+σχεδιου',
+                  r'εντος\s+(σχεδιου|οικισμ)', r'συντελεστ', r'\bσ\.?δ\.?\b', r'καλυψ', r'υψος', r'φεκ']
+        for t in texts:
+            tn = norm(t['text'])
+            if any(re.search(p, tn) for p in art_p):
+                sections['artiotita'].append(t['text'][:400])
+            if any(re.search(p, tn) for p in oroi_p):
+                sections['oroi'].append(t['text'][:400])
+        sections['artiotita'] = list(dict.fromkeys(sections['artiotita']))
+        sections['oroi'] = list(dict.fromkeys(sections['oroi']))
+
     summary = {
         'format': data.get('format'), 'layers': len(data.get('layers', [])),
+        'is_topografiko': is_topo,
+        'declarations': {k: v['present'] for k, v in declarations.items()},
         'table_layer': table_layer, 'points': len(points), 'sides': len(sides),
         'sides_ok': s_ok, 'sides_bad': s_bad, 'sides_no_coord': s_no,
         'conflicts': len(conflicts),
@@ -278,6 +331,7 @@ def main():
         'numeric_findings': len([f for f in findings]),
     }
     result = {'summary': summary, 'numeric_findings': findings,
+              'declarations': declarations, 'sections': sections,
               'poly_areas': poly_areas, 'texts_for_review': review}
     if out:
         json.dump(result, open(out, 'w', encoding='utf-8'), ensure_ascii=False, indent=1)
@@ -295,6 +349,12 @@ def main():
     for fx in formulas:
         print('   %s = %.3f  (γραμμ. %.3f)  %s' % (fx['lhs'], fx['calc'], fx['stated'], 'OK' if fx['ok'] else 'ΛΑΘΟΣ'))
     print('Κλειστά πολύγωνα (gap≈0): %d | ΚΑΕΚ: %s | εκτός εύρους: %d' % (len(closure), ','.join(kaek) or '—', oor))
+    if is_topo:
+        print('Δηλώσεις/ενότητες:')
+        for key, label, _ in DECLARATIONS:
+            print('   %s %s' % ('✓' if declarations.get(key, {}).get('present') else '✗ ΛΕΙΠΕΙ', label))
+        print('Κείμενα αρτιότητας: %d | κείμενα όρων δόμησης: %d (για έλεγχο συνάφειας από το μοντέλο)'
+              % (len(sections['artiotita']), len(sections['oroi'])))
     print('Αριθμητικά ευρήματα: %d' % len(findings))
     for f in findings:
         print('  [%s/%s] %s' % (f['sev'], f['cat'], f['msg']))
