@@ -1,0 +1,10 @@
+{
+  "name": "elegxos-topografikou-scripts",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Εξαγωγή/έλεγχος DWG τοπογραφικών (LibreDWG WASM)",
+  "dependencies": {
+    "@mlightcad/libredwg-web": "0.8.9"
+  }
+}
