@@ -8,6 +8,8 @@ import sys, json, re, math, statistics
 SIDE_TOL = 0.015   # m
 AREA_TOL = 0.05    # m^2
 CLOSE_TOL = 0.01   # m
+DIM_TOL = 0.02     # m  (διαφορά override διάστασης vs μετρημένη γεωμετρία)
+FORMULA_TOL = 0.02 # σχετικά/απόλυτα για ενσωματωμένους τύπους (a×b+c×d=E)
 # ΕΓΣΑ87 / ΤΜ87 ευλογοφανές εύρος για Ελλάδα
 X_MIN, X_MAX = 100000, 900000
 Y_MIN, Y_MAX = 3800000, 4700000
@@ -35,6 +37,36 @@ def parse_area(num):
     if ',' in raw:
         return float(raw.replace('.', '').replace(',', '.'))
     return float(raw)
+
+def to_float(s):
+    """Αριθμός με κόμμα ή τελεία δεκαδικό -> float (χωρίς διαχωριστή χιλιάδων)."""
+    s = s.strip().replace(',', '.')
+    return float(s)
+
+import ast, operator as _op
+_OPS = {ast.Add: _op.add, ast.Sub: _op.sub, ast.Mult: _op.mul,
+        ast.Div: _op.truediv, ast.USub: _op.neg, ast.UAdd: _op.pos}
+def _ev(n):
+    if isinstance(n, ast.Constant):
+        if not isinstance(n.value, (int, float)):
+            raise ValueError
+        return n.value
+    if isinstance(n, ast.BinOp) and type(n.op) in _OPS:
+        return _OPS[type(n.op)](_ev(n.left), _ev(n.right))
+    if isinstance(n, ast.UnaryOp) and type(n.op) in _OPS:
+        return _OPS[type(n.op)](_ev(n.operand))
+    raise ValueError
+def safe_calc(expr):
+    """Ασφαλής αποτίμηση αριθμητικής παράστασης (μόνο + - * / και παρενθέσεις)."""
+    e = expr
+    for ch in ('Χ', 'χ', 'X', 'x', '×', '·', '∙', '•'):
+        e = e.replace(ch, '*')
+    e = e.replace(',', '.')
+    e = re.sub(r'\s+', '', e)
+    if not re.fullmatch(r'[0-9.()*/+\-]+', e):
+        raise ValueError('invalid chars')
+    e = re.sub(r'\*{2,}', '*', e)  # ΧΧ -> *
+    return _ev(ast.parse(e, mode='eval').body)
 
 def main():
     if len(sys.argv) < 2:
@@ -104,6 +136,28 @@ def main():
         for c in conflicts:
             F('ΟΥΣΙΑΣΤΙΚΟ', 'κορυφή', 'Κορυφή %d με δύο διαφορετικές συντεταγμένες στον πίνακα' % c['id'], c)
 
+    # ---------- CHECK 1b: overrides διαστάσεων vs μετρημένη γεωμετρία ----------
+    dim_ok = dim_bad = 0
+    for dm in data.get('dims', []):
+        ov = dm.get('textOverride'); meas = dm.get('measurement')
+        if ov is None or meas is None:
+            continue
+        mnum = re.search(r'-?\d+(?:[.,]\d+)?', str(ov))
+        if not mnum:
+            continue  # override κειμένου (π.χ. «ΤΥΠ.») -> δεν συγκρίνεται αριθμητικά
+        try:
+            shown = to_float(mnum.group(0))
+        except ValueError:
+            continue
+        diff = abs(shown - meas)
+        if diff <= DIM_TOL:
+            dim_ok += 1
+        else:
+            dim_bad += 1
+            F('ΟΥΣΙΑΣΤΙΚΟ', 'διάσταση',
+              'Διάσταση: η γεωμετρία μετρά %.3f m αλλά το κείμενο γράφει %s (Δ=%.3f m = %.1f εκ.)'
+              % (meas, ov, diff, diff * 100), {'measured': meas, 'shown': ov})
+
     # ---------- CHECK 2: areas (written E= vs shoelace) ----------
     area_re = re.compile(r'[EΕ]\s*=\s*([\d.,]+)\s*τ\.?\s*μ', re.IGNORECASE)
     written = []
@@ -118,12 +172,53 @@ def main():
     written = sorted(set(written))
     poly_areas = [{'layer': p['layer'], 'handle': p['handle'], 'A': round(shoelace([tuple(x) for x in p['pts']]), 2),
                    'P': round(perim([tuple(x) for x in p['pts']]), 2), 'n': len(p['pts'])} for p in polys if len(p['pts']) >= 3]
-    area_match = []
+    area_match = []; area_unmatched = []
     for w in written:
         hit = next((pa for pa in poly_areas if abs(pa['A'] - w) <= AREA_TOL), None)
         area_match.append({'written': w, 'match': ('%s[%s]=%.2f' % (hit['layer'], hit['handle'], hit['A'])) if hit else None})
         if not hit:
-            F('ΕΛΕΓΧΟΣ', 'εμβαδόν', 'Αναγραφόμενο εμβαδόν %.2f τ.μ. χωρίς αντίστοιχη κλειστή γεωμετρία (ίσως σε LINES ή άλλο layer)' % w, {'written': w})
+            area_unmatched.append(w)
+    # Σε ΤΟΠΟΓΡΑΦΙΚΟ (υπάρχει πίνακας) το εμβαδόν όριου ΠΡΕΠΕΙ να ταιριάζει με polyline -> εύρημα.
+    # Σε ΚΑΤΟΨΗ (χωρίς πίνακα) τα «Ε=…» είναι ετικέτες δωματίων χωρίς κλειστό πολύγωνο -> όχι σφάλμα.
+    if area_unmatched:
+        if table_layer is not None:
+            for w in area_unmatched:
+                F('ΕΛΕΓΧΟΣ', 'εμβαδόν',
+                  'Αναγραφόμενο εμβαδόν %.2f τ.μ. χωρίς αντίστοιχη κλειστή γεωμετρία (ίσως σε LINES ή άλλο layer)' % w,
+                  {'written': w})
+        else:
+            F('ΠΛΗΡΟΦΟΡΙΑ', 'εμβαδόν',
+              '%d εμβαδά δωματίων (%s) δεν επαληθεύτηκαν αυτόματα — σε κάτοψη τα δωμάτια δεν σχεδιάζονται ως κλειστά πολύγωνα.'
+              % (len(area_unmatched), ', '.join('%.2f' % w for w in area_unmatched)),
+              {'areas': area_unmatched})
+
+    # ---------- CHECK 2b: ενσωματωμένοι αριθμητικοί τύποι (a×b+c×d = E) ----------
+    # Πιάνει εκφράσεις όπως «8.00X4.00+1.20X1.75=34.10τ.μ.» ή «85,50Χ(3,80+3,20)/2=299,25κ.μ.»
+    formula_re = re.compile(
+        r'([0-9][0-9.,()XxΧχ×·∙•+\-*/\s]*[0-9)])\s*=\s*([0-9]+(?:[.,][0-9]+)?)\s*(τ\.?\s*μ|κ\.?\s*μ|μ\b)',
+        re.IGNORECASE)
+    formulas = []; _seen_f = set()
+    for t in texts:
+        for m in formula_re.finditer(t['text']):
+            lhs, rhs = m.group(1), m.group(2)
+            if not re.search(r'[XxΧχ×·∙•+/]', lhs):  # πρέπει να έχει πράξη, όχι σκέτο «Ε10=85.50»
+                continue
+            try:
+                calc = safe_calc(lhs); stated = to_float(rhs)
+            except (ValueError, ZeroDivisionError, SyntaxError):
+                continue
+            fk = (re.sub(r'\s+', '', lhs), stated)
+            if fk in _seen_f:  # ίδιος τύπος σε διπλό μπλοκ κειμένου
+                continue
+            _seen_f.add(fk)
+            tol = max(FORMULA_TOL, abs(stated) * 0.001)
+            ok = abs(calc - stated) <= tol
+            formulas.append({'lhs': lhs.strip(), 'calc': round(calc, 3), 'stated': stated, 'ok': ok})
+            if not ok:
+                F('ΟΥΣΙΑΣΤΙΚΟ', 'τύπος',
+                  'Λάθος πράξη: %s = %.3f αλλά γράφεται %s (Δ=%.3f)'
+                  % (lhs.strip(), calc, rhs, abs(calc - stated)),
+                  {'lhs': lhs.strip(), 'calc': round(calc, 3), 'stated': stated})
 
     # ---------- CHECK 3: polygon closure (boundary-ish layers) ----------
     closure = []
@@ -176,6 +271,8 @@ def main():
         'sides_ok': s_ok, 'sides_bad': s_bad, 'sides_no_coord': s_no,
         'conflicts': len(conflicts),
         'written_areas': written, 'area_match': area_match,
+        'dims': len(data.get('dims', [])), 'dim_override_ok': dim_ok, 'dim_override_bad': dim_bad,
+        'formulas_checked': len(formulas), 'formulas_bad': len([x for x in formulas if not x['ok']]),
         'polygons_closed_ok': len(closure),
         'kaek': kaek, 'coords_out_of_range': oor,
         'numeric_findings': len([f for f in findings]),
@@ -192,7 +289,11 @@ def main():
           % (len(points), len(sides), s_ok, s_bad, s_no, len(conflicts)))
     print('Αναγραφόμενα εμβαδά (E=):', written)
     for am in area_match:
-        print('   %.2f τ.μ. -> %s' % (am['written'], am['match'] or 'ΧΩΡΙΣ ΑΝΤΙΣΤΟΙΧΙΑ'))
+        print('   %.2f τ.μ. -> %s' % (am['written'], am['match'] or '(δωμάτιο — χωρίς κλειστό πολύγωνο)'))
+    print('Overrides διαστάσεων: ΟΚ=%d ΛΑΘΟΣ=%d (σύνολο διαστάσεων: %d)' % (dim_ok, dim_bad, len(data.get('dims', []))))
+    print('Ενσωματωμένοι τύποι: ελέγχθηκαν=%d ΛΑΘΟΣ=%d' % (len(formulas), len([x for x in formulas if not x['ok']])))
+    for fx in formulas:
+        print('   %s = %.3f  (γραμμ. %.3f)  %s' % (fx['lhs'], fx['calc'], fx['stated'], 'OK' if fx['ok'] else 'ΛΑΘΟΣ'))
     print('Κλειστά πολύγωνα (gap≈0): %d | ΚΑΕΚ: %s | εκτός εύρους: %d' % (len(closure), ','.join(kaek) or '—', oor))
     print('Αριθμητικά ευρήματα: %d' % len(findings))
     for f in findings:
