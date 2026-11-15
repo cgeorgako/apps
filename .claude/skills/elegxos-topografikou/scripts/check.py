@@ -307,14 +307,39 @@ def main():
         art_p = [r'αρτιοτητα', r'προσωπο\b', r'παρεκκλισ', r'προ\s+του\s+19']
         oroi_p = [r'ορ(οι|ων)\s+δομησ', r'στασιμ\w*\s+οικισμ', r'οικισμ', r'εκτος\s+σχεδιου',
                   r'εντος\s+(σχεδιου|οικισμ)', r'συντελεστ', r'\bσ\.?δ\.?\b', r'καλυψ', r'υψος', r'φεκ']
+        erg_p = [r'εργοδοτ', r'ιδιοκτητ', r'εντολ(εα|ευς|εως)', r'κυριος\s+του\s+εργου']
+        oria_block_p = [r'δηλωση\s+οριων', r'τα\s+ορια\b.{0,45}(πραγματικ|ορθ|ακριβ|φυσικ|επιτοπ)',
+                        r'δηλων\w*.{0,90}\bορια\b', r'οροθετ', r'\bο\s+δηλων']
+        sections['ergodotis'] = []
+        sections['oria_block'] = []
         for t in texts:
             tn = norm(t['text'])
             if any(re.search(p, tn) for p in art_p):
                 sections['artiotita'].append(t['text'][:400])
             if any(re.search(p, tn) for p in oroi_p):
                 sections['oroi'].append(t['text'][:400])
-        sections['artiotita'] = list(dict.fromkeys(sections['artiotita']))
-        sections['oroi'] = list(dict.fromkeys(sections['oroi']))
+            if any(re.search(p, tn) for p in erg_p):
+                sections['ergodotis'].append(t['text'][:300])
+            if any(re.search(p, tn) for p in oria_block_p):
+                sections['oria_block'].append(t['text'][:400])
+        for k in ('artiotita', 'oroi', 'ergodotis', 'oria_block'):
+            sections[k] = list(dict.fromkeys(sections[k]))
+
+        # Έλεγχος ταύτισης εργοδότη με υπογράφοντα τη Δήλωση Ορίων (η σύγκριση ονομάτων γίνεται από το μοντέλο)
+        if declarations.get('oria', {}).get('present'):
+            if not sections['ergodotis']:
+                F('ΕΛΕΓΧΟΣ', 'εργοδότης',
+                  'Υπάρχει Δήλωση Ορίων αλλά δεν εντοπίστηκε πεδίο «ΕΡΓΟΔΟΤΗΣ/ΙΔΙΟΚΤΗΤΗΣ» — '
+                  'επιβεβαίωσε ότι το όνομα του εργοδότη ταυτίζεται με τον υπογράφοντα τη Δήλωση Ορίων.',
+                  {'need': 'ergodotis_vs_oria'})
+            else:
+                F('ΠΛΗΡΟΦΟΡΙΑ', 'εργοδότης',
+                  'Σύγκρισε ότι ο εργοδότης ταυτίζεται με τον υπογράφοντα τη Δήλωση Ορίων '
+                  '(δες sections.ergodotis και sections.oria_block).', {'need': 'ergodotis_vs_oria'})
+        elif is_topo and sections.get('ergodotis'):
+            F('ΕΛΕΓΧΟΣ', 'εργοδότης',
+              'Δεν εντοπίστηκε Δήλωση Ορίων, οπότε δεν έγινε σύγκριση ονόματος εργοδότη ↔ υπογράφοντος.',
+              {'need': 'ergodotis_vs_oria'})
 
     summary = {
         'format': data.get('format'), 'layers': len(data.get('layers', [])),
