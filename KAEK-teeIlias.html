@@ -1556,6 +1556,14 @@ async function shareTifToCad(url,name){
 const SUM_PRI_LAYERS = new Set([17,18,20,26]);
 const MSG_800 = 'ΕΝΤΟΣ ΑΚΤΙΝΑΣ 800Μ. ΟΙΚΙΣΜΟΥ-ΦΕΚ 719/Δ/24-12-1990 (Απόφαση Νομάρχη Ηλείας υπ’ αριθμ. οικ. 3918/1990).';
 const MSG_EKTOS = 'ΕΚΤΟΣ ΣΧΕΔΙΟΥ+ ΕΚΤΟΣ ΟΙΚΙΣΜΟΥ';
+const MSG_BORDERLINE = 'ΠΡΟΣΟΧΗ!!!-ΟΡΙΑΚΟ ΕΝΤΟΣ-ΕΚΤΟΣ ΣΧΕΔΙΟΥ/ΟΙΚΙΣΜΟΥ';
+/* Οριακό εντός/εκτός: ταυτόχρονη παρουσία ΖΟΕ (RYTHMISEIS_EXOASTIKOU_CHOROU)
+   και οικισμού/σχεδίου (POLEOD_RYM_SXD) στα αποτελέσματα του identify. */
+function hasBorderlineZoeOikismos(hits){
+  const zoe=(hits||[]).some(h=>/UDM_SERVICE_RYTHMISEIS_EXOASTIKOU_CHOROU/i.test(h.service||''));
+  const oik=(hits||[]).some(h=>/UDM_SERVICE_POLEOD_RYM_SXD/i.test(h.service||''));
+  return zoe && oik;
+}
 function hasForestMap(hits){
   for(const h of (hits||[])){
     const hay=norm((h.service||'')+' '+(h.layerName||''));
@@ -1759,6 +1767,7 @@ function renderSummary(hits){
   const noArt=(artRuleG.length+artExcG.length)===0;
   const zoe=noArt?findZoe(hits):null;
   const arch=findArchZone(hits);
+  const borderline=hasBorderlineZoeOikismos(hits);
   const noArtMsg=noArt?(hasForestMap(hits)?MSG_EKTOS:((arch||zoe)?'':MSG_800)):'';
   const mkRow=(label,valCell,srcCell,fekCell)=>`<tr><td class="sum-par">${label}</td>`
     +`<td data-th="Τιμή">${valCell}</td>`
@@ -1787,6 +1796,7 @@ function renderSummary(hits){
         if(srcCell==='—' && arch.layerName) srcCell='<div class="sum-src">'+escapeHtml(arch.layerName)+(arch.layerId!=null?(' · L'+arch.layerId):'')+'</div>';
         if(fekCell==='—' && arch.fek) fekCell=`<a href="${escapeHtml(arch.fek.url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(arch.fek.text)}</a>`;
       }
+      if(borderline){ anyFound=true; valParts.unshift('<div class="sum-val" style="color:var(--red);font-weight:700">'+escapeHtml(MSG_BORDERLINE)+'</div>'); }
       if(!valParts.length) valParts.push('<span class="sum-none">— δεν εντοπίστηκε αυτόματα</span>');
       rows+=mkRow(escapeHtml(label), valParts.join(''), srcCell, fekCell);
       continue;
@@ -1845,6 +1855,7 @@ function summaryText(hits){
   const noArt=(artRuleG.length+artExcG.length)===0;
   const zoe=noArt?findZoe(hits||[]):null;
   const arch=findArchZone(hits||[]);
+  const borderline=hasBorderlineZoeOikismos(hits||[]);
   const noArtMsg=noArt?(hasForestMap(hits||[])?MSG_EKTOS:((arch||zoe)?'':MSG_800)):'';
   const L=['— ΣΥΝΟΨΗ ΟΡΩΝ ΔΟΜΗΣΗΣ —'];
   for(const [key,label] of defs){
@@ -1853,6 +1864,7 @@ function summaryText(hits){
       if(noArt){ if(noArtMsg) parts.push(noArtMsg); }
       else { const items=dedupeMetric(m.oikod); if(items.length) parts.push(items.map(it=>it.value).join(' · ')); }
       if(arch) parts.push(archNoteText(arch));
+      if(borderline) parts.unshift(MSG_BORDERLINE);
       if(!parts.length) parts.push('(δεν εντοπίστηκε αυτόματα)');
       L.push('  Οικοδομικό Τετράγωνο (Ο.Τ.) - Λοιπή πληροφορία: '+parts.join('  ·  '));
       continue;
