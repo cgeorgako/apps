@@ -1500,11 +1500,17 @@ $('clearHistoryBtn').addEventListener('click', ()=>{ if(!loadHistory().length) r
 "use strict";
 
 const TEE_BASE='https://sdigmap.tee.gov.gr/mapping/rest/services';
+/* Βασικές θεματικές υπηρεσίες ΤΕΕ που ερωτώνται ΠΑΝΤΑ (ενωμένες με όσες
+   επιστρέψει η αυτόματη ανακάλυψη) — ώστε κρίσιμα επίπεδα όπως το
+   Αρχαιολογικό Κτηματολόγιο (Ζώνες Προστασίας - Πολύγωνα) να μη χάνονται
+   αν η ανακάλυψη τα προσπεράσει. */
 const TEE_KNOWN=[
   'UDM/Data',
   'UDM/UDM_SERVICE_ELSTAT',
   'UDM/UDM_SERVICE_NATURA_DASIKA',
-  'UDM/UDM_SERVICE_RYTHMISEIS_EXOASTIKOU_CHOROU'
+  'UDM/UDM_SERVICE_RYTHMISEIS_EXOASTIKOU_CHOROU',
+  'UDM/UDM_SERVICE_POLEOD_RYM_SXD',
+  'UDM/UDM_SERVICE_ARCHAIOLOGIKO'
 ];
 
 /* ── fetch helper με timeout ── */
@@ -2179,10 +2185,11 @@ async function run(rec){
   setProgress(10,'Προσδιορισμός υπηρεσιών ΤΕΕ…');
   $('polCard').scrollIntoView({behavior:'smooth',block:'start'});
 
-  let services=[];
-  try{ services=await discoverServices(); }
-  catch(e){ console.warn('discover failed', e); services=TEE_KNOWN.slice(); }
-  if(!services.length) services=TEE_KNOWN.slice();
+  let discovered=[];
+  try{ discovered=await discoverServices(); }
+  catch(e){ console.warn('discover failed', e); }
+  // Πάντα οι βασικές υπηρεσίες (incl. Αρχαιολογικό) + όσες βρει η ανακάλυψη
+  let services=[...new Set([...TEE_KNOWN, ...discovered])];
 
   const hits=[]; const diag=[]; let done=0;
   await Promise.allSettled(services.map(async svc=>{
