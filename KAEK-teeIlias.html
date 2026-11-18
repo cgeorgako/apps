@@ -127,6 +127,8 @@
   .sel-sub .syn{color:var(--green);}
   .sel-del{background:none;border:none;color:var(--text-muted);font-size:1rem;padding:0.2rem 0.35rem;line-height:1;cursor:pointer;flex-shrink:0;}
   .sel-del:hover{color:var(--red);}
+  .sel-first-btn{background:none;border:1px solid var(--border);color:var(--text-muted);font-size:0.72rem;font-weight:600;padding:0.25rem 0.5rem;border-radius:7px;cursor:pointer;flex-shrink:0;font-family:inherit;white-space:nowrap;}
+  .sel-first-btn:hover{border-color:var(--gold-dim);color:var(--gold);}
   .login-row{margin-top:1rem;border-top:1px dashed var(--border);padding-top:0.9rem;}
   .quick-link{display:flex;align-items:center;gap:0.6rem;background:var(--surface-2);border:1px solid var(--border);border-radius:10px;padding:0.65rem 0.8rem;color:var(--text);text-decoration:none;font-size:0.85rem;font-weight:500;}
   .quick-link:hover{border-color:var(--gold-dim);}
@@ -573,12 +575,27 @@ function renderSelection(){
     else if(s.synolikoState==='notext') syn='<span class="syn">SYNOLIKO: επικάλυψη (χωρίς κείμενο)</span>';
     else if(s.synolikoState==='none') syn='<span>SYNOLIKO: χωρίς επικάλυψη</span>';
     const sub=[areaTxt, syn].filter(Boolean).join(' · ');
+    const promote = i>0 ? `<button class="sel-first-btn" data-first="${s.kaek}" title="Να γίνει 1ο (για τις ενέργειες «1ο»: Κτηματολόγιο, Google Maps, Πολεοδομικά)">⭐ 1ο</button>` : '';
     return `<div class="sel-item${s.overlaps?' overlap':''}" data-kaek="${s.kaek}">
       <div class="sel-info"><div class="sel-kaek">${first}${s.kaek||'(—)'}${ovl}</div><div class="sel-sub">${sub}</div></div>
-      <button class="sel-del" data-del="${s.kaek}" title="Αφαίρεση">✕</button></div>`;
+      ${promote}<button class="sel-del" data-del="${s.kaek}" title="Αφαίρεση">✕</button></div>`;
   }).join('');
 }
-$('selList').addEventListener('click', e=>{ const del=e.target.closest('[data-del]'); if(del) removeSelected(del.dataset.del); });
+function makeFirst(kaek){
+  const idx=selected.findIndex(s=>s.kaek===kaek);
+  if(idx<=0) return;
+  const [rec]=selected.splice(idx,1);
+  selected.unshift(rec);
+  current=rec;
+  if($('kaekInput').value.replace(/\D/g,'')!==rec.kaek){ $('kaekInput').value=rec.kaek; validateKaek(); }
+  renderSelection(); drawSelectionHighlights();
+  if(mapObj && rec.point) mapObj.setView([rec.point.lat,rec.point.lon], Math.max(mapObj.getZoom(),18));
+  showToast('1ο στη λίστα: '+rec.kaek);
+}
+$('selList').addEventListener('click', e=>{
+  const first=e.target.closest('[data-first]'); if(first){ makeFirst(first.dataset.first); return; }
+  const del=e.target.closest('[data-del]'); if(del) removeSelected(del.dataset.del);
+});
 
 /* ═══ Ανάλυση από ΚΑΕΚ (where) ═══ */
 async function resolveByKaek(kaek, note){
