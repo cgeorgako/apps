@@ -163,6 +163,7 @@
   .act.measure-on{background:var(--gold);color:#1a1305;border-color:var(--gold);}
   .leaflet-tooltip.measure-tip{background:#1a1305;color:#ffd21e;border:1px solid #ffd21e;box-shadow:none;font-family:'IBM Plex Mono',monospace;font-size:0.72rem;font-weight:600;padding:1px 5px;white-space:nowrap;}
   .leaflet-tooltip.measure-tip:before{display:none;}
+  .my-loc-pin{font-size:26px;line-height:1;text-align:center;background:none;border:none;filter:drop-shadow(0 1px 2px rgba(0,0,0,0.65));}
 
   /* ═══ Πολεοδομικά στοιχεία (ΤΕΕ SDI) ═══ */
   .btn-pol{background:#123038;color:#8fe6f3;border:1px solid var(--cyan);}
@@ -1170,6 +1171,7 @@ $('xyConvertBtn').addEventListener('click', ()=>{
 /* ═══ Χάρτης ═══ */
 let mapObj=null, mapInited=false, parcelsLayer=null, highlightsLayer=null, parcelsAbort=null, dxfLayer=null;
 let measureLayer=null, measureMode=false, measurePts=[], measureClickTimer=null;
+let myLocationLayer=null;
 function initMap(){
   if(mapInited){ if(mapObj) setTimeout(()=>{ mapObj.invalidateSize(); drawSelectionHighlights(); },60); return; }
   mapInited=true;
@@ -1232,7 +1234,18 @@ function drawSelectionHighlights(){
 $('mapLocateBtn').addEventListener('click', ()=>{
   if(!mapObj||!navigator.geolocation){ showToast('Μη διαθέσιμος εντοπισμός θέσης'); return; }
   showToast('Εντοπισμός θέσης…');
-  navigator.geolocation.getCurrentPosition(pos=>mapObj.setView([pos.coords.latitude,pos.coords.longitude],18), ()=>showToast('Δεν ήταν δυνατός ο εντοπισμός θέσης'), {enableHighAccuracy:true,timeout:8000});
+  navigator.geolocation.getCurrentPosition(pos=>{
+    const lat=pos.coords.latitude, lon=pos.coords.longitude, acc=pos.coords.accuracy||0;
+    if(!myLocationLayer) myLocationLayer=L.layerGroup().addTo(mapObj);
+    myLocationLayer.clearLayers();
+    if(acc>0) L.circle([lat,lon],{radius:acc,color:'#4285F4',weight:1,fillColor:'#4285F4',fillOpacity:0.12,interactive:false}).addTo(myLocationLayer);
+    L.marker([lat,lon],{icon:L.divIcon({className:'my-loc-pin',html:'📍',iconSize:[30,30],iconAnchor:[15,28]}),title:'Η θέση μου'})
+      .addTo(myLocationLayer)
+      .bindTooltip('📍 Η θέση μου'+(acc?(' (±'+Math.round(acc)+' m)'):''),{direction:'top',offset:[0,-26],className:'measure-tip'});
+    try{ mapObj.fitBounds(L.latLng(lat,lon).toBounds(Math.max(acc*2,60)), {maxZoom:18}); }
+    catch(e){ mapObj.setView([lat,lon],18); }
+    showToast('📍 Η θέση σου'+(acc?(' (ακρίβεια ±'+Math.round(acc)+' m)'):''));
+  }, ()=>showToast('Δεν ήταν δυνατός ο εντοπισμός θέσης'), {enableHighAccuracy:true,timeout:8000,maximumAge:0});
 });
 $('mapKtimaBtn').addEventListener('click', ()=>window.open('https://gis.ktimanet.gr/gis/map','_blank','noopener'));
 
