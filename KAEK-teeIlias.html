@@ -163,7 +163,8 @@
   .act.measure-on{background:var(--gold);color:#1a1305;border-color:var(--gold);}
   .leaflet-tooltip.measure-tip{background:#1a1305;color:#ffd21e;border:1px solid #ffd21e;box-shadow:none;font-family:'IBM Plex Mono',monospace;font-size:0.72rem;font-weight:600;padding:1px 5px;white-space:nowrap;}
   .leaflet-tooltip.measure-tip:before{display:none;}
-  .my-loc-pin{font-size:26px;line-height:1;text-align:center;background:none;border:none;filter:drop-shadow(0 1px 2px rgba(0,0,0,0.65));}
+  .my-loc-pin{background:none;border:none;filter:drop-shadow(0 1px 2px rgba(0,0,0,0.5));}
+  .my-loc-pin svg{display:block;}
 
   /* ═══ Πολεοδομικά στοιχεία (ΤΕΕ SDI) ═══ */
   .btn-pol{background:#123038;color:#8fe6f3;border:1px solid var(--cyan);}
@@ -1238,12 +1239,13 @@ $('mapLocateBtn').addEventListener('click', ()=>{
     const lat=pos.coords.latitude, lon=pos.coords.longitude, acc=pos.coords.accuracy||0;
     if(!myLocationLayer) myLocationLayer=L.layerGroup().addTo(mapObj);
     myLocationLayer.clearLayers();
-    if(acc>0) L.circle([lat,lon],{radius:acc,color:'#4285F4',weight:1,fillColor:'#4285F4',fillOpacity:0.12,interactive:false}).addTo(myLocationLayer);
-    L.marker([lat,lon],{icon:L.divIcon({className:'my-loc-pin',html:'📍',iconSize:[30,30],iconAnchor:[15,28]}),title:'Η θέση μου'})
+    if(acc>0 && acc<2000) L.circle([lat,lon],{radius:acc,color:'#4285F4',weight:1,fillColor:'#4285F4',fillOpacity:0.12,interactive:false}).addTo(myLocationLayer);
+    const pinSvg='<svg width="30" height="42" viewBox="0 0 30 42" xmlns="http://www.w3.org/2000/svg"><path d="M15 0C6.7 0 0 6.7 0 15c0 10.5 15 27 15 27s15-16.5 15-27C30 6.7 23.3 0 15 0z" fill="#e11d48" stroke="#ffffff" stroke-width="2.5"/><circle cx="15" cy="15" r="5.5" fill="#ffffff"/></svg>';
+    L.marker([lat,lon],{icon:L.divIcon({className:'my-loc-pin',html:pinSvg,iconSize:[30,42],iconAnchor:[15,42]}),title:'Η θέση μου',zIndexOffset:1000})
       .addTo(myLocationLayer)
-      .bindTooltip('📍 Η θέση μου'+(acc?(' (±'+Math.round(acc)+' m)'):''),{direction:'top',offset:[0,-26],className:'measure-tip'});
-    try{ mapObj.fitBounds(L.latLng(lat,lon).toBounds(Math.max(acc*2,60)), {maxZoom:18}); }
-    catch(e){ mapObj.setView([lat,lon],18); }
+      .bindTooltip('Η θέση μου'+(acc?(' (±'+Math.round(acc)+' m)'):''),{direction:'top',offset:[0,-40],className:'measure-tip'});
+    const z = (acc && acc>500) ? 16 : 18;
+    mapObj.setView([lat,lon], z);
     showToast('📍 Η θέση σου'+(acc?(' (ακρίβεια ±'+Math.round(acc)+' m)'):''));
   }, ()=>showToast('Δεν ήταν δυνατός ο εντοπισμός θέσης'), {enableHighAccuracy:true,timeout:8000,maximumAge:0});
 });
