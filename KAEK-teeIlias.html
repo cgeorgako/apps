@@ -195,6 +195,10 @@
   .cat-head{display:flex;align-items:center;gap:0.55rem;font-size:0.95rem;font-weight:700;padding-bottom:0.5rem;border-bottom:1px solid var(--border);margin-bottom:0.8rem;}
   .cat-head .dot{width:11px;height:11px;border-radius:3px;flex-shrink:0;}
   .cat-head .count{margin-left:auto;font-family:'IBM Plex Mono',monospace;font-size:0.72rem;color:var(--text-muted);font-weight:500;}
+  details.catsec>summary.cat-head-sum{cursor:pointer;list-style:none;}
+  details.catsec>summary.cat-head-sum::-webkit-details-marker{display:none;}
+  details.catsec>summary.cat-head-sum::after{content:'▸ προβολή';margin-left:0.6rem;color:var(--text-muted);font-size:0.72rem;font-weight:500;font-family:'IBM Plex Mono',monospace;flex-shrink:0;}
+  details.catsec[open]>summary.cat-head-sum::after{content:'▾ απόκρυψη';}
   .c-pol .dot{background:var(--orange);} .c-pol{--c:var(--orange);}
   .c-xor .dot{background:var(--blue);} .c-xor{--c:var(--blue);}
   .c-fek .dot{background:var(--gold);} .c-fek{--c:var(--gold);}
@@ -2161,23 +2165,30 @@ function summaryText(hits){
 }
 
 /* ── Render κατηγοριών / ΦΕΚ / διάγνωσης ── */
-function renderCat(c, list, raw){
-  let h=`<div class="catsec ${c.cls}"><div class="cat-head"><span class="dot"></span>${c.icon} ${escapeHtml(c.title)}<span class="count">${list.length} επίπεδα</span></div>`;
-  if(!list.length){ h+='<div class="empty-cat">— Δεν εντοπίστηκε σχετικό θεματικό επίπεδο σε αυτό το σημείο.</div></div>'; return h; }
-  for(const hit of list){
-    const attrs = raw ? hit.attributes : cleanAttrs(hit.attributes);
-    const keys=Object.keys(attrs);
-    let rows='';
-    for(const k of keys){
-      const isFek = /φεκ|fek/i.test(norm(k));
-      rows += `<dt>${escapeHtml(k)}</dt><dd class="${isFek?'fek':''}">${renderValue(attrs[k])}</dd>`;
+function renderCat(c, list, raw, collapsed){
+  const headInner=`<span class="dot"></span>${c.icon} ${escapeHtml(c.title)}<span class="count">${list.length} επίπεδα</span>`;
+  let body='';
+  if(!list.length){
+    body='<div class="empty-cat">— Δεν εντοπίστηκε σχετικό θεματικό επίπεδο σε αυτό το σημείο.</div>';
+  } else {
+    for(const hit of list){
+      const attrs = raw ? hit.attributes : cleanAttrs(hit.attributes);
+      const keys=Object.keys(attrs);
+      let rows='';
+      for(const k of keys){
+        const isFek = /φεκ|fek/i.test(norm(k));
+        rows += `<dt>${escapeHtml(k)}</dt><dd class="${isFek?'fek':''}">${renderValue(attrs[k])}</dd>`;
+      }
+      if(!rows) rows='<dt>—</dt><dd>(χωρίς περιγραφικά πεδία)</dd>';
+      body += `<div class="hit"><div class="hit-title">${escapeHtml(hit.layerName)}</div>
+        <div class="hit-src">${escapeHtml(hit.service)} · layer ${hit.layerId}</div>
+        <dl class="hit-attrs">${rows}</dl></div>`;
     }
-    if(!rows) rows='<dt>—</dt><dd>(χωρίς περιγραφικά πεδία)</dd>';
-    h += `<div class="hit"><div class="hit-title">${escapeHtml(hit.layerName)}</div>
-      <div class="hit-src">${escapeHtml(hit.service)} · layer ${hit.layerId}</div>
-      <dl class="hit-attrs">${rows}</dl></div>`;
   }
-  return h+'</div>';
+  if(collapsed){
+    return `<details class="catsec ${c.cls}"><summary class="cat-head cat-head-sum">${headInner}</summary>${body}</details>`;
+  }
+  return `<div class="catsec ${c.cls}"><div class="cat-head">${headInner}</div>${body}</div>`;
 }
 function renderFek(allFek){
   let h=`<div class="catsec c-fek"><div class="cat-head"><span class="dot"></span>📜 3 · ΦΕΚ (Φύλλα Εφημερίδας Κυβερνήσεως)<span class="count">${allFek.length}</span></div>`;
@@ -2321,8 +2332,9 @@ function renderResults({kaek, note, geo, w, hits, diag}){
     html += `<div class="alert info"><b>🗺️ Βρέθηκαν ${tifCount} αρχεία TIFF.</b> Δίπλα σε κάθε link: <b>📥 Λήψη</b> (κατεβάζει το tif + world file .tfw αν υπάρχει, για το georeferencing) και <b>📲 CAD</b> (αποστολή στην εφαρμογή CAD της συσκευής — σε κινητό ανοίγει το μενού κοινοποίησης· σε desktop γίνεται λήψη και το ανοίγεις με Attach/Insert Image/XREF).</div>`;
   }
   for(const c of CATS){
-    const list = c.id==='xor' ? buckets.xor : c.id==='pol'?buckets.pol : c.id==='arx'?buckets.arx : buckets.ext;
-    html += renderCat(c, list, raw);
+    if(c.id==='arx' || c.id==='ext') continue; // αφαίρεση: 4·Αρχαιολογικές & ➕ Πρόσθετα
+    const list = c.id==='xor' ? buckets.xor : buckets.pol;
+    html += renderCat(c, list, raw, c.id==='xor'); // κατηγορία 2 (xor) συνεπτυγμένη
   }
   html += renderFek(allFek);
   if(buckets.oth.length){
