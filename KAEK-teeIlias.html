@@ -1185,7 +1185,23 @@ function initMap(){
   const center=hist.length?[hist[0].lat,hist[0].lon]:[37.8,21.35]; // Ηλεία
   const zoom=hist.length?18:11;
   mapObj=L.map('map',{layers:[sat],zoomControl:true}).setView(center,zoom);
-  L.control.layers({'Δορυφορικό':sat,'Χάρτης (OSM)':osm},null,{position:'topright'}).addTo(mapObj);
+  // Διαφανές overlay ετικετών (οδοί + ονόματα οικισμών/πόλεων) για τον δορυφόρο.
+  // Esri reference layers (ίδιος host με τον δορυφόρο, canvas-safe με crossOrigin).
+  const labelsRoads=L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Transportation/MapServer/tile/{z}/{y}/{x}',{maxZoom:22,maxNativeZoom:18,crossOrigin:true,pane:'labelsPane'});
+  const labelsPlaces=L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}',{maxZoom:22,maxNativeZoom:18,attribution:'Esri',crossOrigin:true,pane:'labelsPane'});
+  const labels=L.layerGroup([labelsRoads,labelsPlaces]);
+  // Ξεχωριστό pane ώστε οι ετικέτες να μένουν ΠΑΝΩ από τον δορυφόρο αλλά ΚΑΤΩ από τα διανύσματα (όρια/επιλογές)
+  mapObj.createPane('labelsPane');
+  mapObj.getPane('labelsPane').style.zIndex=350;
+  mapObj.getPane('labelsPane').style.pointerEvents='none';
+  labels.addTo(mapObj); // ενεργό εξ ορισμού (default base = Δορυφορικό)
+  L.control.layers({'Δορυφορικό':sat,'Χάρτης (OSM)':osm},{'Ετικέτες (οδοί/οικισμοί)':labels},{position:'topright'}).addTo(mapObj);
+  // Στον OSM οι ετικέτες υπάρχουν ήδη → αφαίρεσέ τες· στον δορυφόρο πρόσθεσέ τες.
+  mapObj.on('baselayerchange', e=>{
+    const isOsm = /osm/i.test(e.name||'');
+    if(isOsm){ if(mapObj.hasLayer(labels)) mapObj.removeLayer(labels); }
+    else { if(!mapObj.hasLayer(labels)) labels.addTo(mapObj); }
+  });
   parcelsLayer=L.layerGroup().addTo(mapObj);
   highlightsLayer=L.layerGroup().addTo(mapObj);
   dxfLayer=L.layerGroup().addTo(mapObj);
@@ -1370,9 +1386,9 @@ function buildMapCanvas(){
   ctx.scale(scale,scale);
   ctx.fillStyle='#e8e8e8'; ctx.fillRect(0,0,W,H);
 
-  // 1) Tiles του ενεργού base layer (μόνο imgs του tile-pane, canvas-safe λόγω crossOrigin)
+  // 1) Tiles του base layer + ετικέτες (όλα τα panes με tiles, canvas-safe λόγω crossOrigin)
   const cRect=container.getBoundingClientRect();
-  const tiles=container.querySelectorAll('.leaflet-tile-pane img.leaflet-tile');
+  const tiles=container.querySelectorAll('.leaflet-pane img.leaflet-tile');
   let tainted=false;
   tiles.forEach(img=>{
     if(!img.complete || !img.naturalWidth) return;
