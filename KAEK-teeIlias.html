@@ -292,11 +292,13 @@
       <button id="mapDxfClear" class="act btn-secondary" type="button" title="Καθαρισμός φορτωμένων polylines" style="display:none;">✖ Καθαρισμός DXF</button>
       <button id="mapAnoxisBtn" class="act btn-secondary" type="button" title="Έλεγχος ανοχής εμβαδού (ΟΚΧΕ 461/03) για το φορτωμένο DXF" style="display:none;background:#123038;color:#8fe6f3;border:1px solid var(--cyan);">🔍 Έλεγχος ανοχής εμβαδού</button>
       <button id="mapMeasureBtn" class="act btn-secondary" type="button" title="Μέτρηση απόστασης στον χάρτη (σε μέτρα)">📏 Μέτρηση</button>
+      <button id="mapAreaBtn" class="act btn-secondary" type="button" title="Υπολογισμός εμβαδού έκτασης από σημεία στον χάρτη (τ.μ./στρ.)">📐 Εμβαδόν</button>
       <input type="file" id="mapDxfFile" accept=".dxf,.DXF" style="display:none">
     </div>
     <div id="map"></div>
     <p class="map-tip">Κάνε <b>κλικ πάνω σε ένα γεωτεμάχιο</b> για να βρεθεί ο ΚΑΕΚ.</p>
     <div id="measureStatus" class="map-measure-status" style="display:none;"></div>
+    <div id="areaStatus" class="map-measure-status" style="display:none;"></div>
   </div>
 
   <!-- ── ΚΑΕΚ ── -->
@@ -1206,6 +1208,7 @@ $('xyConvertBtn').addEventListener('click', ()=>{
 /* ═══ Χάρτης ═══ */
 let mapObj=null, mapInited=false, parcelsLayer=null, highlightsLayer=null, parcelsAbort=null, dxfLayer=null;
 let measureLayer=null, measureMode=false, measurePts=[], measureClickTimer=null;
+let areaMode=false, areaPts=[], areaClickTimer=null;
 let myLocationLayer=null;
 let loadedDxfText=null, loadedDxfName='';
 function initMap(){
@@ -1247,10 +1250,16 @@ function initMap(){
       measureClickTimer=setTimeout(()=>{ measurePts.push(e.latlng); redrawMeasure(); }, 260); // αναμονή για τυχόν διπλό κλικ (αναίρεση)
       return;
     }
+    if(areaMode){
+      clearTimeout(areaClickTimer);
+      areaClickTimer=setTimeout(()=>{ areaPts.push(e.latlng); redrawArea(); }, 260);
+      return;
+    }
     resolveByPoint(e.latlng.lng, e.latlng.lat, 4326);
   });
   mapObj.on('dblclick', e=>{
     if(measureMode){ clearTimeout(measureClickTimer); if(measurePts.length){ measurePts.pop(); redrawMeasure(); } }
+    else if(areaMode){ clearTimeout(areaClickTimer); if(areaPts.length){ areaPts.pop(); redrawArea(); } }
   });
   mapObj.on('moveend', loadViewportParcels);
   setTimeout(()=>{ mapObj.invalidateSize(); loadViewportParcels(); drawSelectionHighlights(); },80);
@@ -1338,6 +1347,7 @@ function toggleMeasure(){
   measureMode=!measureMode;
   const btn=$('mapMeasureBtn');
   if(measureMode){
+    deactivateArea();
     measurePts=[]; if(measureLayer) measureLayer.clearLayers();
     mapObj.doubleClickZoom.disable();
     mapObj.getContainer().style.cursor='crosshair';
@@ -1354,6 +1364,91 @@ function toggleMeasure(){
   }
 }
 $('mapMeasureBtn').addEventListener('click', toggleMeasure);
+
+/* ═══ Υπολογισμός εμβαδού έκτασης (γεωδαιτικό πολύγωνο, WGS84) ═══ */
+/* Τύπος Leaflet.Draw geodesicArea — ακριβές για τοπικά πολύγωνα. */
+function geodesicArea(latlngs){
+  const d2r=Math.PI/180; let area=0; const n=latlngs.length;
+  if(n>2){
+    for(let i=0;i<n;i++){ const p1=latlngs[i], p2=latlngs[(i+1)%n];
+      area += ((p2.lng-p1.lng)*d2r)*(2 + Math.sin(p1.lat*d2r) + Math.sin(p2.lat*d2r)); }
+    area = area * 6378137.0 * 6378137.0 / 2.0;
+  }
+  return Math.abs(area);
+}
+function areaPerimeter(latlngs){ if(latlngs.length<3) return 0; let s=0; for(let i=0;i<latlngs.length;i++){ s+=mapObj.distance(latlngs[i], latlngs[(i+1)%latlngs.length]); } return s; }
+function fmtArea(m2){
+  const tm = m2.toLocaleString('el-GR',{minimumFractionDigits:2,maximumFractionDigits:2})+' τ.μ.';
+  if(m2>=1000){ const str=(m2/1000).toLocaleString('el-GR',{minimumFractionDigits:3,maximumFractionDigits:3}); return tm+' ('+str+' στρ.)'; }
+  return tm;
+}
+function updateAreaStatus(){
+  const el=$('areaStatus'); if(!el) return;
+  if(areaPts.length<3){
+    el.innerHTML='📐 <b>Εμβαδομέτρηση ενεργή</b> — κλικ στον χάρτη για κορυφές (τουλάχ. 3). Διπλό κλικ: αφαίρεση τελευταίας.';
+    return;
+  }
+  const a=geodesicArea(areaPts), per=areaPerimeter(areaPts);
+  el.innerHTML='📐 Εμβαδόν: <b>'+fmtArea(a)+'</b> · Περίμετρος: <b>'+per.toLocaleString('el-GR',{minimumFractionDigits:2,maximumFractionDigits:2})+' m</b> · '+areaPts.length+' κορυφές'
+    +' <button id="areaUndo" class="measure-clear" type="button">↶ Αναίρεση</button>'
+    +' <button id="areaClear" class="measure-clear" type="button">↺ Μηδενισμός</button>';
+  const u=$('areaUndo'); if(u) u.addEventListener('click', ()=>{ if(areaPts.length){ areaPts.pop(); redrawArea(); } });
+  const c=$('areaClear'); if(c) c.addEventListener('click', ()=>{ areaPts=[]; redrawArea(); });
+}
+function redrawArea(){
+  if(!measureLayer) return;
+  measureLayer.clearLayers();
+  if(areaPts.length>=3){
+    L.polygon(areaPts,{color:'#06b6d4',weight:2,fillColor:'#06b6d4',fillOpacity:0.15,dashArray:'6,4'}).addTo(measureLayer);
+  } else if(areaPts.length===2){
+    L.polyline(areaPts,{color:'#06b6d4',weight:2,dashArray:'6,4'}).addTo(measureLayer);
+  }
+  areaPts.forEach(ll=>{ L.circleMarker(ll,{radius:5,color:'#06222a',weight:2,fillColor:'#06b6d4',fillOpacity:1}).addTo(measureLayer); });
+  if(areaPts.length>=3){
+    let la=0,lo=0; areaPts.forEach(p=>{la+=p.lat;lo+=p.lng;}); la/=areaPts.length; lo/=areaPts.length;
+    const html='<div style="background:#06222a;color:#8fe6f3;border:1px solid #06b6d4;border-radius:6px;padding:2px 6px;font:600 0.72rem/1 \'IBM Plex Mono\',monospace;white-space:nowrap;transform:translate(-50%,-50%);">'+fmtArea(geodesicArea(areaPts))+'</div>';
+    L.marker([la,lo],{icon:L.divIcon({className:'',html,iconSize:[0,0]}),interactive:false,zIndexOffset:900}).addTo(measureLayer);
+  }
+  updateAreaStatus();
+}
+function deactivateMeasure(){
+  if(!measureMode) return;
+  measureMode=false; measurePts=[]; clearTimeout(measureClickTimer);
+  if(measureLayer) measureLayer.clearLayers();
+  mapObj.doubleClickZoom.enable(); mapObj.getContainer().style.cursor='';
+  $('mapMeasureBtn').textContent='📏 Μέτρηση'; $('mapMeasureBtn').classList.remove('measure-on');
+  $('measureStatus').style.display='none';
+}
+function deactivateArea(){
+  if(!areaMode) return;
+  areaMode=false; areaPts=[]; clearTimeout(areaClickTimer);
+  if(measureLayer) measureLayer.clearLayers();
+  mapObj.doubleClickZoom.enable(); mapObj.getContainer().style.cursor='';
+  $('mapAreaBtn').textContent='📐 Εμβαδόν'; $('mapAreaBtn').classList.remove('measure-on');
+  $('areaStatus').style.display='none';
+}
+function toggleArea(){
+  if(!mapObj){ showToast('Ο χάρτης δεν είναι έτοιμος'); return; }
+  areaMode=!areaMode;
+  const btn=$('mapAreaBtn');
+  if(areaMode){
+    deactivateMeasure();
+    areaPts=[]; if(measureLayer) measureLayer.clearLayers();
+    mapObj.doubleClickZoom.disable();
+    mapObj.getContainer().style.cursor='crosshair';
+    btn.textContent='✖ Λήξη εμβαδού'; btn.classList.add('measure-on');
+    $('areaStatus').style.display='block'; updateAreaStatus();
+    showToast('Εμβαδομέτρηση: κλικ για κορυφές · διπλό κλικ αφαιρεί την τελευταία');
+  } else {
+    areaPts=[]; if(measureLayer) measureLayer.clearLayers();
+    clearTimeout(areaClickTimer);
+    mapObj.doubleClickZoom.enable();
+    mapObj.getContainer().style.cursor='';
+    btn.textContent='📐 Εμβαδόν'; btn.classList.remove('measure-on');
+    $('areaStatus').style.display='none';
+  }
+}
+$('mapAreaBtn').addEventListener('click', toggleArea);
 
 /* Φόρτωση DXF → απεικόνιση polylines του layer TOPO_PROP (κόκκινα) στον χάρτη.
    Όλα γίνονται τοπικά στον browser· το αρχείο δεν ανεβαίνει πουθενά. */
