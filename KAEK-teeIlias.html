@@ -1243,7 +1243,7 @@ function initMap(){
   naturaLayer=L.layerGroup();
   L.control.layers(
     {'Δορυφορικό':sat,'Χάρτης (OSM)':osm},
-    {'Ετικέτες (οδοί/οικισμοί)':labels, '🌲 Δασικός χάρτης':forestLayer, '🟢 Natura 2000':naturaLayer},
+    {'Ετικέτες (οδοί/οικισμοί)':labels, '🌲 Δασικός χάρτης':forestLayer, '🔵 Natura 2000':naturaLayer},
     {position:'topright'}
   ).addTo(mapObj);
   mapObj.on('overlayadd', e=>{
@@ -1317,7 +1317,8 @@ async function queryFeatures(url, abortRef){
 function addOverlayPolys(features, layerGroup, style, popupFn){
   for(const f of features){
     if(!f.geometry||!f.geometry.rings) continue;
-    const poly=L.polygon(f.geometry.rings.map(r=>r.map(p=>[p[1],p[0]])), style);
+    const st = (typeof style==='function') ? style(f.attributes||{}) : style;
+    const poly=L.polygon(f.geometry.rings.map(r=>r.map(p=>[p[1],p[0]])), st);
     const pu=popupFn ? popupFn(f.attributes||{}) : '';
     if(pu) poly.bindPopup(pu);
     poly.addTo(layerGroup);
@@ -1329,7 +1330,12 @@ async function loadForest(){
   try{
     const fts=await queryFeatures(FS_FOREST, forestAbort);
     forestLayer.clearLayers();
-    addOverlayPolys(fts, forestLayer, {color:'#1b5e20',weight:1,fillColor:'#2e7d32',fillOpacity:0.28}, a=>{
+    addOverlayPolys(fts, forestLayer, a=>{
+      // «ΑΑ» (μη δασικό τότε & τώρα): μόνο περίγραμμα, χωρίς πράσινο γέμισμα
+      const aa=(a.KATHGORDX||'').trim()==='ΑΑ';
+      return aa ? {color:'#1b5e20',weight:1,fill:false}
+                : {color:'#1b5e20',weight:1,fillColor:'#2e7d32',fillOpacity:0.28};
+    }, a=>{
       const dx=a.KATHGORDX||'—', al1=a.KATHGORAL1||'', al2=a.KATHGORAL2||'';
       return '<b>🌲 Δασικός χάρτης (κυρωμένος)</b><br>Χαρακτηρισμός: <b>'+escapeHtml(dx)+'</b>'
         +(al1?'<br>Κατηγ. ΑΛ1: '+escapeHtml(al1):'')+(al2?'<br>Κατηγ. ΑΛ2: '+escapeHtml(al2):'')
@@ -1343,10 +1349,10 @@ async function loadNatura(){
   try{
     const [sci,spa]=await Promise.all([ queryFeatures(FS_NAT_SCI, naturaAbort), queryFeatures(FS_NAT_SPA, {c:null}) ]);
     naturaLayer.clearLayers();
-    addOverlayPolys(sci, naturaLayer, {color:'#00695c',weight:1.5,fillColor:'#26a69a',fillOpacity:0.18}, a=>
-      '<b>🟢 Natura 2000 — SCI/SAC</b><br>Κωδικός: <b>'+escapeHtml(a.SITECODE||'—')+'</b>'+(a.SITETYPE?'<br>Τύπος: '+escapeHtml(a.SITETYPE):''));
-    addOverlayPolys(spa, naturaLayer, {color:'#8e24aa',weight:1.5,fillColor:'#ab47bc',fillOpacity:0.14}, a=>
-      '<b>🟣 Natura 2000 — SPA</b><br>Κωδικός: <b>'+escapeHtml(a.SITECODE||'—')+'</b>'+(a.SITETYPE?'<br>Τύπος: '+escapeHtml(a.SITETYPE):''));
+    addOverlayPolys(sci, naturaLayer, {color:'#1565c0',weight:1.5,fillColor:'#1e88e5',fillOpacity:0.15}, a=>
+      '<b>🔵 Natura 2000 — SCI/SAC</b><br>Κωδικός: <b>'+escapeHtml(a.SITECODE||'—')+'</b>'+(a.SITETYPE?'<br>Τύπος: '+escapeHtml(a.SITETYPE):''));
+    addOverlayPolys(spa, naturaLayer, {color:'#1565c0',weight:1.5,dashArray:'6,4',fillColor:'#1e88e5',fillOpacity:0.15}, a=>
+      '<b>🔵 Natura 2000 — SPA</b><br>Κωδικός: <b>'+escapeHtml(a.SITECODE||'—')+'</b>'+(a.SITETYPE?'<br>Τύπος: '+escapeHtml(a.SITETYPE):''));
   }catch(e){}
 }
 
