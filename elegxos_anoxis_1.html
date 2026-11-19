@@ -447,21 +447,23 @@ drop.addEventListener('drop',ev=>{ if(ev.dataTransfer.files.length) handleFile(e
 fileInput.onchange=e=>{ if(e.target.files.length) handleFile(e.target.files[0]); };
 
 function handleFile(f){
-  $('errbox').innerHTML='';
-  $('fname').textContent='⤓ '+f.name;
   const rd=new FileReader();
-  rd.onload=()=>{
-    try{
-      const res=parseDXF(rd.result);
-      POLYS=res.polys; TEXTS=res.texts;
-      const polyLayers=[...new Set(POLYS.filter(p=>p.pts.length>=3).map(p=>p.layer))];
-      LAYERS=polyLayers;
-      if(LAYERS.length===0){ showErr('Δεν βρέθηκαν πολυγραμμές (LWPOLYLINE/POLYLINE) στο DXF.'); return; }
-      buildSelectors();
-      $('run').classList.remove('disabled');
-    }catch(err){ showErr('Σφάλμα ανάγνωσης DXF: '+err.message); }
-  };
+  rd.onload=()=>loadDxfText(rd.result, f.name);
   rd.readAsText(f);
+}
+function loadDxfText(text, name){
+  $('errbox').innerHTML='';
+  if(name) $('fname').textContent='⤓ '+name;
+  try{
+    const res=parseDXF(text);
+    POLYS=res.polys; TEXTS=res.texts;
+    const polyLayers=[...new Set(POLYS.filter(p=>p.pts.length>=3).map(p=>p.layer))];
+    LAYERS=polyLayers;
+    if(LAYERS.length===0){ showErr('Δεν βρέθηκαν πολυγραμμές (LWPOLYLINE/POLYLINE) στο DXF.'); return false; }
+    buildSelectors();
+    $('run').classList.remove('disabled');
+    return true;
+  }catch(err){ showErr('Σφάλμα ανάγνωσης DXF: '+err.message); return false; }
 }
 function buildSelectors(){
   const st=$('selTopo'),sk=$('selKaek');
@@ -690,6 +692,29 @@ $('copyPng').onclick=async()=>{
     $('copymsg').textContent='Η αντιγραφή δεν υποστηρίζεται εδώ — χρησιμοποιήστε «Λήψη PNG».';
   }
 };
+
+/* ===== Αυτόματη φόρτωση από KAEK-teeIlias (handoff μέσω localStorage) ===== */
+(function initHandoff(){
+  let raw=null;
+  try{ raw=localStorage.getItem('anoxis_handoff'); }catch(e){}
+  if(!raw) return;
+  try{ localStorage.removeItem('anoxis_handoff'); }catch(e){}
+  let h=null; try{ h=JSON.parse(raw); }catch(e){ return; }
+  if(!h || !h.dxf) return;
+  // Χώρος (urban/rural)
+  const z = h.zone==='rural' ? 'rural' : 'urban';
+  const zr=document.querySelector('input[name=zone][value="'+z+'"]'); if(zr) zr.checked=true;
+  // Φόρτωση DXF
+  const ok=loadDxfText(h.dxf, h.name||'DXF από KAEK-teeIlias');
+  if(!ok) return;
+  if(h.kaek && $('inKaek')) $('inKaek').value=h.kaek;
+  // Αυτόματη εκτέλεση μόνο αν αναγνωρίστηκαν διακριτά layers TOPO_PROP & PST_KAEK
+  const hasTopo=LAYERS.some(l=>l.toUpperCase()==='TOPO_PROP');
+  const hasKaek=LAYERS.some(l=>l.toUpperCase()==='PST_KAEK');
+  if(hasTopo && hasKaek && $('selTopo').value!==$('selKaek').value){
+    setTimeout(()=>$('run').click(), 60);
+  }
+})();
 </script>
 </body>
 </html>

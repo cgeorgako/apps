@@ -166,6 +166,19 @@
   .my-loc-pin{background:none;border:none;filter:drop-shadow(0 1px 2px rgba(0,0,0,0.5));}
   .my-loc-pin svg{display:block;}
 
+  /* ═══ Διάλογος Ελέγχου Ανοχής ═══ */
+  .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.62);display:flex;align-items:center;justify-content:center;z-index:100;padding:1rem;}
+  .modal-box{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:1.3rem;max-width:430px;width:100%;}
+  .modal-title{font-size:1rem;font-weight:700;margin-bottom:0.3rem;}
+  .modal-sub{font-size:0.78rem;color:var(--text-muted);font-family:'IBM Plex Mono',monospace;margin-bottom:0.95rem;word-break:break-all;min-height:1em;}
+  .modal-choice{display:flex;flex-direction:column;gap:0.6rem;margin-bottom:1.1rem;}
+  .modal-choice label{display:flex;align-items:center;gap:0.55rem;font-size:0.9rem;background:var(--surface-2);border:1px solid var(--border);border-radius:10px;padding:0.65rem 0.8rem;cursor:pointer;}
+  .modal-choice label:hover{border-color:var(--gold-dim);}
+  .modal-choice input{width:17px;height:17px;accent-color:var(--gold);flex-shrink:0;}
+  .modal-actions{display:flex;gap:0.6rem;}
+  .modal-actions .act{flex:1;}
+  .modal-note{font-size:0.74rem;color:var(--text-muted);margin-top:0.85rem;line-height:1.5;}
+
   /* ═══ Πολεοδομικά στοιχεία (ΤΕΕ SDI) ═══ */
   .btn-pol{background:#123038;color:#8fe6f3;border:1px solid var(--cyan);}
   .btn-pol:hover:not(:disabled){background:#0e4451;}
@@ -274,6 +287,7 @@
       <button id="mapSaveImg" class="act btn-secondary" type="button" title="Λήψη αποσπάσματος χάρτη ως εικόνα PNG">🖼️ Λήψη εικόνας</button>
       <button id="mapDxfBtn" class="act btn-secondary" type="button" title="Φόρτωση DXF — απεικόνιση polylines του layer TOPO_PROP στον χάρτη">📂 Φόρτωση DXF</button>
       <button id="mapDxfClear" class="act btn-secondary" type="button" title="Καθαρισμός φορτωμένων polylines" style="display:none;">✖ Καθαρισμός DXF</button>
+      <button id="mapAnoxisBtn" class="act btn-secondary" type="button" title="Έλεγχος ανοχής εμβαδού (ΟΚΧΕ 461/03) για το φορτωμένο DXF" style="display:none;background:#123038;color:#8fe6f3;border:1px solid var(--cyan);">🔍 Έλεγχος ανοχής εμβαδού</button>
       <button id="mapMeasureBtn" class="act btn-secondary" type="button" title="Μέτρηση απόστασης στον χάρτη (σε μέτρα)">📏 Μέτρηση</button>
       <input type="file" id="mapDxfFile" accept=".dxf,.DXF" style="display:none">
     </div>
@@ -464,6 +478,23 @@
   </div>
 
   <footer>Ενοποιημένο εργαλείο ΚΑΕΚ — Χάρτης · DXF · Κτηματολόγιο</footer>
+</div>
+
+<!-- ── Διάλογος Ελέγχου Ανοχής Εμβαδού ── -->
+<div id="anoxisModal" class="modal-overlay" style="display:none;">
+  <div class="modal-box">
+    <div class="modal-title">🔍 Έλεγχος ανοχής εμβαδού</div>
+    <div class="modal-sub" id="anoxisFile"></div>
+    <div class="modal-choice">
+      <label><input type="radio" name="anoxisZone" value="urban" checked> <span><b>Αστικός χώρος</b> — Uo = 0,50 μ.</span></label>
+      <label><input type="radio" name="anoxisZone" value="rural"> <span><b>Εξωαστικός χώρος</b> — Uo = 2,00 μ. (αγροτικό)</span></label>
+    </div>
+    <div class="modal-actions">
+      <button id="anoxisRun" class="act btn-primary">Εκτέλεση ▶</button>
+      <button id="anoxisCancel" class="act btn-secondary">Άκυρο</button>
+    </div>
+    <div class="modal-note">Απαιτείται DXF με layers <b>TOPO_PROP</b> (μετρηθέν) &amp; <b>PST_KAEK</b> (κτημ. βάση). Ο έλεγχος (ΟΚΧΕ 461/03) ανοίγει σε νέα καρτέλα με προφορτωμένο το DXF.</div>
+  </div>
 </div>
 
 <div id="toast" class="toast"></div>
@@ -1173,6 +1204,7 @@ $('xyConvertBtn').addEventListener('click', ()=>{
 let mapObj=null, mapInited=false, parcelsLayer=null, highlightsLayer=null, parcelsAbort=null, dxfLayer=null;
 let measureLayer=null, measureMode=false, measurePts=[], measureClickTimer=null;
 let myLocationLayer=null;
+let loadedDxfText=null, loadedDxfName='';
 function initMap(){
   if(mapInited){ if(mapObj) setTimeout(()=>{ mapObj.invalidateSize(); drawSelectionHighlights(); },60); return; }
   mapInited=true;
@@ -1334,9 +1366,13 @@ $('mapDxfFile').addEventListener('change', e=>{
   const reader=new FileReader();
   reader.onload=()=>{
     try{
-      const {polylines}=parseDxf(String(reader.result||''));
+      const text=String(reader.result||'');
+      const {polylines}=parseDxf(text);
+      // Κράτα το DXF για τον Έλεγχο Ανοχής Εμβαδού και δείξε το κουμπί
+      loadedDxfText=text; loadedDxfName=f.name||'topografiko.dxf';
+      $('mapAnoxisBtn').style.display='';
       const sel=polylines.filter(p=>(p.layer||'').toUpperCase()==='TOPO_PROP');
-      if(!sel.length){ showToast('Δεν βρέθηκαν polylines στο layer TOPO_PROP'); return; }
+      if(!sel.length){ showToast('DXF φορτώθηκε. (Χωρίς layer TOPO_PROP για απεικόνιση — διαθέσιμος ο Έλεγχος ανοχής.)'); return; }
       if(!dxfLayer){ showToast('Ο χάρτης δεν είναι έτοιμος — δοκίμασε ξανά'); return; }
       dxfLayer.clearLayers();
       const all=[];
@@ -1355,6 +1391,30 @@ $('mapDxfFile').addEventListener('change', e=>{
   };
   reader.onerror=()=>showToast('Αποτυχία ανάγνωσης αρχείου');
   reader.readAsText(f);
+});
+
+/* ═══ Έλεγχος Ανοχής Εμβαδού (ενσωμάτωση elegxos_anoxis_1.html) ═══ */
+$('mapAnoxisBtn').addEventListener('click', ()=>{
+  if(!loadedDxfText){ showToast('Φόρτωσε πρώτα ένα DXF (📂 Φόρτωση DXF)'); return; }
+  $('anoxisFile').textContent='Αρχείο: '+(loadedDxfName||'—');
+  $('anoxisModal').style.display='flex';
+});
+$('anoxisCancel').addEventListener('click', ()=>{ $('anoxisModal').style.display='none'; });
+$('anoxisModal').addEventListener('click', e=>{ if(e.target===$('anoxisModal')) $('anoxisModal').style.display='none'; });
+$('anoxisRun').addEventListener('click', ()=>{
+  if(!loadedDxfText){ showToast('Δεν υπάρχει φορτωμένο DXF'); return; }
+  const zone=(document.querySelector('input[name=anoxisZone]:checked')||{}).value||'urban';
+  const kaek=(selected[0]&&selected[0].kaek)||'';
+  $('anoxisModal').style.display='none';
+  try{
+    localStorage.setItem('anoxis_handoff', JSON.stringify({dxf:loadedDxfText, name:loadedDxfName, zone, kaek, ts:Date.now()}));
+    window.open('elegxos_anoxis_1.html','_blank');
+    showToast('Άνοιγμα Ελέγχου Ανοχής σε νέα καρτέλα…');
+  }catch(err){
+    // π.χ. υπέρβαση ορίου localStorage για πολύ μεγάλο DXF
+    window.open('elegxos_anoxis_1.html','_blank');
+    showToast('Το DXF είναι πολύ μεγάλο για αυτόματη μεταφορά — φόρτωσέ το χειροκίνητα στο εργαλείο.');
+  }
 });
 
 /* Ανανέωση SYNOLIKO-12.dxf από το repo (παράκαμψη cache) */
