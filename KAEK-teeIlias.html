@@ -508,6 +508,10 @@
 
 const $ = id => document.getElementById(id);
 const ARCGIS_URL = "https://services-eu1.arcgis.com/40tFGWzosjaLJpmn/arcgis/rest/services/GEOTEMAXIA_LEITOURGOUN_ON_gdb/FeatureServer/0/query";
+// Θεματικά overlays (ίδιος ArcGIS org Κτηματολογίου, EPSG:3857, πολύγωνα)
+const FS_FOREST   = "https://services-eu1.arcgis.com/40tFGWzosjaLJpmn/arcgis/rest/services/DASIKA_KYROSH_P_gdb/FeatureServer/0/query";   // Δασικός χάρτης (κυρωμένος)
+const FS_NAT_SCI  = "https://services-eu1.arcgis.com/40tFGWzosjaLJpmn/arcgis/rest/services/NATURA_SCI_P_gdb/FeatureServer/0/query";      // Natura SCI
+const FS_NAT_SPA  = "https://services-eu1.arcgis.com/40tFGWzosjaLJpmn/arcgis/rest/services/NATURA_SPA_P_gdb/FeatureServer/0/query";      // Natura SPA
 const KTIMA_VIEW = 'https://ktimatologio.gov.gr/Professionals/Inquiry/Main/viewResults/';
 const KTIMA_SUFFIX = '-0-0?p=1';
 const STORAGE_KEY = 'kaek_teeilias_history_v1';
@@ -1206,6 +1210,8 @@ $('xyConvertBtn').addEventListener('click', ()=>{
 
 /* ═══ Χάρτης ═══ */
 let mapObj=null, mapInited=false, parcelsLayer=null, highlightsLayer=null, parcelsAbort=null, dxfLayer=null;
+let forestLayer=null, naturaLayer=null, forestOn=false, naturaOn=false, forestAbort={c:null}, naturaAbort={c:null};
+const FOREST_MINZOOM=14, NATURA_MINZOOM=10;
 let measureLayer=null, measureMode=false, measurePts=[], measureClickTimer=null;
 let areaMode=false, areaPts=[], areaClickTimer=null;
 let myLocationLayer=null;
@@ -1232,7 +1238,24 @@ function initMap(){
   mapObj.getPane('labelsPane').style.zIndex=350;
   mapObj.getPane('labelsPane').style.pointerEvents='none';
   labels.addTo(mapObj); // ενεργό εξ ορισμού (default base = Δορυφορικό)
-  L.control.layers({'Δορυφορικό':sat,'Χάρτης (OSM)':osm},{'Ετικέτες (οδοί/οικισμοί)':labels},{position:'topright'}).addTo(mapObj);
+  // Θεματικά overlays (ανά viewport)
+  forestLayer=L.layerGroup();
+  naturaLayer=L.layerGroup();
+  L.control.layers(
+    {'Δορυφορικό':sat,'Χάρτης (OSM)':osm},
+    {'Ετικέτες (οδοί/οικισμοί)':labels, '🌲 Δασικός χάρτης':forestLayer, '🟢 Natura 2000':naturaLayer},
+    {position:'topright'}
+  ).addTo(mapObj);
+  mapObj.on('overlayadd', e=>{
+    if(e.layer===forestLayer){ forestOn=true;
+      if(mapObj.getZoom()<FOREST_MINZOOM) showToast('🌲 Κάνε zoom (≥'+FOREST_MINZOOM+') για να εμφανιστεί ο δασικός χάρτης'); else loadForest(); }
+    else if(e.layer===naturaLayer){ naturaOn=true; loadNatura(); }
+  });
+  mapObj.on('overlayremove', e=>{
+    if(e.layer===forestLayer){ forestOn=false; if(forestAbort.c) forestAbort.c.abort(); forestLayer.clearLayers(); }
+    else if(e.layer===naturaLayer){ naturaOn=false; if(naturaAbort.c) naturaAbort.c.abort(); naturaLayer.clearLayers(); }
+  });
+  mapObj.on('moveend', ()=>{ if(forestOn) loadForest(); if(naturaOn) loadNatura(); });
   // Στον OSM οι ετικέτες υπάρχουν ήδη → αφαίρεσέ τες· στον δορυφόρο πρόσθεσέ τες.
   mapObj.on('baselayerchange', e=>{
     const isOsm = /osm/i.test(e.name||'');
@@ -1277,6 +1300,56 @@ async function loadViewportParcels(){
     (data.features||[]).forEach(f=>{ if(!f.geometry||!f.geometry.rings) return; L.polygon(f.geometry.rings.map(r=>r.map(p=>[p[1],p[0]])),{color:'#c9a227',weight:1,fill:true,fillOpacity:0.04,interactive:false}).addTo(parcelsLayer); });
   }catch(err){}
 }
+/* ═══ Θεματικά overlays: Δασικός χάρτης & Natura (ArcGIS FeatureServer ανά viewport) ═══ */
+async function queryFeatures(url, abortRef){
+  const b=mapObj.getBounds();
+  const env=[b.getWest(),b.getSouth(),b.getEast(),b.getNorth()].join(',');
+  const z=mapObj.getZoom();
+  const off=360/(256*Math.pow(2,z))*1.2; // γενίκευση ~1px (σε μοίρες) για ταχύτητα
+  // σημ.: το DASIKA FeatureServer ΔΕΝ δέχεται resultRecordCount (ο server κόβει στα 2000 μόνος του)
+  const u=`${url}?f=json&geometry=${encodeURIComponent(env)}&geometryType=esriGeometryEnvelope&inSR=4326`
+    +`&spatialRel=esriSpatialRelIntersects&outFields=*&returnGeometry=true&outSR=4326&maxAllowableOffset=${off}`;
+  if(abortRef.c) abortRef.c.abort();
+  abortRef.c=new AbortController();
+  const res=await fetch(u,{signal:abortRef.c.signal}); const data=await res.json();
+  return (data.features||[]);
+}
+function addOverlayPolys(features, layerGroup, style, popupFn){
+  for(const f of features){
+    if(!f.geometry||!f.geometry.rings) continue;
+    const poly=L.polygon(f.geometry.rings.map(r=>r.map(p=>[p[1],p[0]])), style);
+    const pu=popupFn ? popupFn(f.attributes||{}) : '';
+    if(pu) poly.bindPopup(pu);
+    poly.addTo(layerGroup);
+  }
+}
+async function loadForest(){
+  if(!mapObj||!forestLayer) return;
+  if(mapObj.getZoom()<FOREST_MINZOOM){ forestLayer.clearLayers(); return; }
+  try{
+    const fts=await queryFeatures(FS_FOREST, forestAbort);
+    forestLayer.clearLayers();
+    addOverlayPolys(fts, forestLayer, {color:'#1b5e20',weight:1,fillColor:'#2e7d32',fillOpacity:0.28}, a=>{
+      const dx=a.KATHGORDX||'—', al1=a.KATHGORAL1||'', al2=a.KATHGORAL2||'';
+      return '<b>🌲 Δασικός χάρτης (κυρωμένος)</b><br>Χαρακτηρισμός: <b>'+escapeHtml(dx)+'</b>'
+        +(al1?'<br>Κατηγ. ΑΛ1: '+escapeHtml(al1):'')+(al2?'<br>Κατηγ. ΑΛ2: '+escapeHtml(al2):'')
+        +(a.NOMOS?'<br>Νομός: '+escapeHtml(a.NOMOS):'')+(a.OTA?' · ΟΤΑ: '+escapeHtml(a.OTA):'');
+    });
+  }catch(e){}
+}
+async function loadNatura(){
+  if(!mapObj||!naturaLayer) return;
+  if(mapObj.getZoom()<NATURA_MINZOOM){ naturaLayer.clearLayers(); return; }
+  try{
+    const [sci,spa]=await Promise.all([ queryFeatures(FS_NAT_SCI, naturaAbort), queryFeatures(FS_NAT_SPA, {c:null}) ]);
+    naturaLayer.clearLayers();
+    addOverlayPolys(sci, naturaLayer, {color:'#00695c',weight:1.5,fillColor:'#26a69a',fillOpacity:0.18}, a=>
+      '<b>🟢 Natura 2000 — SCI/SAC</b><br>Κωδικός: <b>'+escapeHtml(a.SITECODE||'—')+'</b>'+(a.SITETYPE?'<br>Τύπος: '+escapeHtml(a.SITETYPE):''));
+    addOverlayPolys(spa, naturaLayer, {color:'#8e24aa',weight:1.5,fillColor:'#ab47bc',fillOpacity:0.14}, a=>
+      '<b>🟣 Natura 2000 — SPA</b><br>Κωδικός: <b>'+escapeHtml(a.SITECODE||'—')+'</b>'+(a.SITETYPE?'<br>Τύπος: '+escapeHtml(a.SITETYPE):''));
+  }catch(e){}
+}
+
 /* Σχεδίαση όλων των επιλεγμένων: κόκκινο περίγραμμα + κόκκινος κύκλος όταν
    υπάρχει επικάλυψη με polyline του SYNOLIKO-12.dxf, αλλιώς μπλε. */
 function drawSelectionHighlights(){
@@ -1602,6 +1675,8 @@ function buildMapCanvas(){
 
   // 2) Όρια γεωτεμαχίων (parcels) — όπως φαίνονται στον χάρτη
   drawVectorLayer(ctx, parcelsLayer);
+  if(forestOn && forestLayer) drawVectorLayer(ctx, forestLayer);
+  if(naturaOn && naturaLayer) drawVectorLayer(ctx, naturaLayer);
 
   // 3) Επιλεγμένα ΚΑΕΚ (ίδια χρώματα με τον χάρτη)
   for(const rec of selected){
