@@ -2341,7 +2341,7 @@ function renderResults({kaek, note, geo, w, hits, diag}){
     html += renderCat({cls:'c-oth', icon:'📄', title:'Λοιπά θεματικά επίπεδα που εντοπίστηκαν'}, buckets.oth, raw);
   }
   $('polReportBody').innerHTML = html;
-  $('polDiag').innerHTML = renderDiag(diag);
+  $('polDiag').innerHTML = ''; // Διάγνωση Πηγών: αφαιρέθηκε από την προβολή
   lastReportText = buildTextReport({kaek, note, geo, w, buckets, allFek, ota, diag, hits, admin});
   $('polCard').scrollIntoView({behavior:'smooth',block:'start'});
 }
