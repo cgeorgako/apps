@@ -437,7 +437,7 @@ function isClosedGeom(pts){
 }
 
 /* ============ STATE / UI ============ */
-let POLYS=[], TEXTS=[], LAYERS=[], LAST=null;
+let POLYS=[], TEXTS=[], LAYERS=[], LAST=null, HANDOFF_KAEK='';
 const $=id=>document.getElementById(id);
 const drop=$('drop'),fileInput=$('file');
 
@@ -560,7 +560,7 @@ function renderResults(r){
   // store + prepare AutoCAD table panel
   LAST=r;
   $('tblpanel').style.display='block';
-  $('inKaek').value = detectKaek(r.kaekLayer);
+  $('inKaek').value = detectKaek(r.kaekLayer) || HANDOFF_KAEK || '';
   $('tblout').innerHTML='';
   $('tblactions').style.display='none';
   $('results').scrollIntoView({behavior:'smooth',block:'start'});
@@ -707,7 +707,7 @@ $('copyPng').onclick=async()=>{
   // Φόρτωση DXF
   const ok=loadDxfText(h.dxf, h.name||'DXF από KAEK-teeIlias');
   if(!ok) return;
-  if(h.kaek && $('inKaek')) $('inKaek').value=h.kaek;
+  if(h.kaek){ HANDOFF_KAEK=String(h.kaek); if($('inKaek')) $('inKaek').value=HANDOFF_KAEK; }
   // Αυτόματη εκτέλεση μόνο αν αναγνωρίστηκαν διακριτά layers TOPO_PROP & PST_KAEK
   const hasTopo=LAYERS.some(l=>l.toUpperCase()==='TOPO_PROP');
   const hasKaek=LAYERS.some(l=>l.toUpperCase()==='PST_KAEK');

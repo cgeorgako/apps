@@ -1394,9 +1394,37 @@ $('mapDxfFile').addEventListener('change', e=>{
 });
 
 /* ═══ Έλεγχος Ανοχής Εμβαδού (ενσωμάτωση elegxos_anoxis_1.html) ═══ */
+/* Κλειστή POLYLINE (R12) ανά ring σε EGSA87 — raw GIS, χωρίς shift. */
+function buildKaekPolyBlock(rings, layer){
+  let s='';
+  for(const verts of (rings||[])){
+    if(!verts || verts.length<3) continue;
+    s+="  0\nPOLYLINE\n  8\n"+layer+"\n 66\n1\n 70\n1\n";
+    for(const pt of verts){ s+="  0\nVERTEX\n  8\n"+layer+"\n 10\n"+fmt(pt[0])+"\n 20\n"+fmt(pt[1])+"\n 30\n0.0\n"; }
+    s+="  0\nSEQEND\n";
+  }
+  return s;
+}
+/* Ενσωμάτωση του GIS περιγράμματος του ΚΑΕΚ ως layer PST_KAEK μέσα στο DXF. */
+function injectGisKaek(dxfText, rings){
+  const block=buildKaekPolyBlock(rings,'PST_KAEK');
+  if(!block) return dxfText;
+  const idx=(dxfText||'').indexOf('ENTITIES');
+  if(idx<0){ return "  0\nSECTION\n  2\nENTITIES\n"+block+"  0\nENDSEC\n  0\nEOF\n"; }
+  const eol = dxfText.indexOf('\r\n')>=0 ? '\r\n' : '\n';
+  const blk = eol==='\r\n' ? block.replace(/\n/g,'\r\n') : block;
+  const lineEnd=dxfText.indexOf('\n', idx);
+  const insAt = lineEnd<0 ? dxfText.length : lineEnd+1;
+  return dxfText.slice(0,insAt)+blk+dxfText.slice(insAt);
+}
 $('mapAnoxisBtn').addEventListener('click', ()=>{
   if(!loadedDxfText){ showToast('Φόρτωσε πρώτα ένα DXF (📂 Φόρτωση DXF)'); return; }
-  $('anoxisFile').textContent='Αρχείο: '+(loadedDxfName||'—');
+  const rec=selected[0];
+  const gis = rec && rec.ringsEGSA && rec.ringsEGSA.length;
+  $('anoxisFile').innerHTML='Αρχείο: '+escapeHtml(loadedDxfName||'—')
+    + (gis
+        ? '<br><span style="color:#8fe6f3">➕ Προστίθεται αυτόματα το GIS περίγραμμα ΚΑΕΚ '+escapeHtml(rec.kaek)+' ως PST_KAEK</span>'
+        : '<br><span style="color:#f0b0a8">⚠️ Χωρίς επιλεγμένο γεωτεμάχιο GIS — το DXF πρέπει να έχει δικό του layer PST_KAEK</span>');
   $('anoxisModal').style.display='flex';
 });
 $('anoxisCancel').addEventListener('click', ()=>{ $('anoxisModal').style.display='none'; });
@@ -1404,10 +1432,14 @@ $('anoxisModal').addEventListener('click', e=>{ if(e.target===$('anoxisModal')) 
 $('anoxisRun').addEventListener('click', ()=>{
   if(!loadedDxfText){ showToast('Δεν υπάρχει φορτωμένο DXF'); return; }
   const zone=(document.querySelector('input[name=anoxisZone]:checked')||{}).value||'urban';
-  const kaek=(selected[0]&&selected[0].kaek)||'';
+  const rec=selected[0];
+  const kaek=(rec&&rec.kaek)||'';
+  // Ενσωμάτωση GIS περιγράμματος επιλεγμένου ΚΑΕΚ ως PST_KAEK (αν υπάρχει)
+  let dxfOut=loadedDxfText;
+  if(rec && rec.ringsEGSA && rec.ringsEGSA.length){ dxfOut=injectGisKaek(loadedDxfText, rec.ringsEGSA); }
   $('anoxisModal').style.display='none';
   try{
-    localStorage.setItem('anoxis_handoff', JSON.stringify({dxf:loadedDxfText, name:loadedDxfName, zone, kaek, ts:Date.now()}));
+    localStorage.setItem('anoxis_handoff', JSON.stringify({dxf:dxfOut, name:loadedDxfName, zone, kaek, ts:Date.now()}));
     window.open('elegxos_anoxis_1.html','_blank');
     showToast('Άνοιγμα Ελέγχου Ανοχής σε νέα καρτέλα…');
   }catch(err){
