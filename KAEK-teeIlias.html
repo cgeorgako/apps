@@ -1320,7 +1320,9 @@ function addOverlayPolys(features, layerGroup, style, popupFn){
     const st = (typeof style==='function') ? style(f.attributes||{}) : style;
     const poly=L.polygon(f.geometry.rings.map(r=>r.map(p=>[p[1],p[0]])), st);
     const pu=popupFn ? popupFn(f.attributes||{}) : '';
-    if(pu) poly.bindPopup(pu);
+    // autoPan:false ώστε το άνοιγμα του popup να ΜΗΝ μετακινεί τον χάρτη (που θα προκαλούσε
+    // moveend → επαναφόρτωση overlay → κλείσιμο του popup). Μένει ανοικτό μέχρι κλικ αλλού.
+    if(pu) poly.bindPopup(pu, {autoPan:false, maxWidth:300});
     poly.addTo(layerGroup);
   }
 }
@@ -1331,10 +1333,11 @@ async function loadForest(){
     const fts=await queryFeatures(FS_FOREST, forestAbort);
     forestLayer.clearLayers();
     addOverlayPolys(fts, forestLayer, a=>{
-      // «ΑΑ» (μη δασικό τότε & τώρα): μόνο περίγραμμα, χωρίς πράσινο γέμισμα
-      const aa=(a.KATHGORDX||'').trim()==='ΑΑ';
-      return aa ? {color:'#1b5e20',weight:1,fill:false}
-                : {color:'#1b5e20',weight:1,fillColor:'#2e7d32',fillOpacity:0.28};
+      // «ΑΑ»/«ΠΑ» (μη δασικό): μόνο περίγραμμα, χωρίς πράσινο γέμισμα
+      const code=(a.KATHGORDX||'').trim();
+      const noFill = code==='ΑΑ' || code==='ΠΑ';
+      return noFill ? {color:'#1b5e20',weight:1,fill:false}
+                    : {color:'#1b5e20',weight:1,fillColor:'#2e7d32',fillOpacity:0.28};
     }, a=>{
       const dx=a.KATHGORDX||'—', al1=a.KATHGORAL1||'', al2=a.KATHGORAL2||'';
       return '<b>🌲 Δασικός χάρτης (κυρωμένος)</b><br>Χαρακτηρισμός: <b>'+escapeHtml(dx)+'</b>'
