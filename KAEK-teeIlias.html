@@ -1421,10 +1421,24 @@ $('mapAnoxisBtn').addEventListener('click', ()=>{
   if(!loadedDxfText){ showToast('Φόρτωσε πρώτα ένα DXF (📂 Φόρτωση DXF)'); return; }
   const rec=selected[0];
   const gis = rec && rec.ringsEGSA && rec.ringsEGSA.length;
+  // Προ-επιλογή Αστικού/Εξωαστικού από τα πολεοδομικά (ένδειξη, όχι βεβαίωση)
+  let zoneNote='';
+  const hint=(window.POL && window.POL.getZoneHint)?window.POL.getZoneHint():null;
+  if(hint && hint.kaek && rec && hint.kaek===rec.kaek && (hint.urban||hint.rural)){
+    if(hint.borderline){
+      zoneNote='<br><span style="color:#f0b0a8">🔎 Ένδειξη πολεοδομικών: ΟΡΙΑΚΟ εντός/εκτός — επίλεξε χειροκίνητα</span>';
+    } else if(hint.zone){
+      const rb=document.querySelector('input[name=anoxisZone][value="'+hint.zone+'"]'); if(rb) rb.checked=true;
+      zoneNote='<br><span style="color:#8fe6f3">🔎 Ένδειξη πολεοδομικών: προ-επιλέχθηκε «'+(hint.zone==='urban'?'Αστικός':'Εξωαστικός')+'» — επιβεβαίωση από Γραφείο Κτηματογράφησης</span>';
+    }
+  } else {
+    zoneNote='<br><span style="color:var(--text-muted)">ℹ️ Για αυτόματη ένδειξη Αστικού/Εξωαστικού, τρέξε πρώτα «🧭 Άντληση Πολεοδομικών».</span>';
+  }
   $('anoxisFile').innerHTML='Αρχείο: '+escapeHtml(loadedDxfName||'—')
     + (gis
         ? '<br><span style="color:#8fe6f3">➕ Προστίθεται αυτόματα το GIS περίγραμμα ΚΑΕΚ '+escapeHtml(rec.kaek)+' ως PST_KAEK</span>'
-        : '<br><span style="color:#f0b0a8">⚠️ Χωρίς επιλεγμένο γεωτεμάχιο GIS — το DXF πρέπει να έχει δικό του layer PST_KAEK</span>');
+        : '<br><span style="color:#f0b0a8">⚠️ Χωρίς επιλεγμένο γεωτεμάχιο GIS — το DXF πρέπει να έχει δικό του layer PST_KAEK</span>')
+    + zoneNote;
   $('anoxisModal').style.display='flex';
 });
 $('anoxisCancel').addEventListener('click', ()=>{ $('anoxisModal').style.display='none'; });
@@ -2250,6 +2264,7 @@ function buildTextReport({kaek, note, geo, w, buckets, allFek, ota, diag, hits, 
 /* ── Κατάσταση & render ── */
 let lastReportText='';
 let currentCentroid=null;
+let zoneHint={zone:'',urban:false,rural:false,borderline:false,kaek:''}; // ένδειξη αστικό/εξωαστικό από πολεοδομικά
 function setProgress(pct, txt){ $('polProgFill').style.width=Math.round(pct)+'%'; if(txt!==undefined) $('polProgTxt').textContent=txt; }
 
 function renderResults({kaek, note, geo, w, hits, diag}){
@@ -2284,6 +2299,14 @@ function renderResults({kaek, note, geo, w, hits, diag}){
   if(admin.koinot) chips.push('<span class="chip">📌 Κοινότητα: '+escapeHtml(admin.koinot)+'</span>');
   if(!anyTee) chips.push('<span class="chip warn">⚠️ Καμία απόκριση ΤΕΕ</span>');
   $('polVerdict').innerHTML = chips.join('');
+
+  // Ένδειξη αστικού/εξωαστικού χώρου (για προ-επιλογή στον Έλεγχο Ανοχής)
+  const svcOik = hits.some(h=>/UDM_SERVICE_POLEOD_RYM_SXD/i.test(h.service||''));
+  const svcExo = hits.some(h=>/UDM_SERVICE_RYTHMISEIS_EXOASTIKOU_CHOROU/i.test(h.service||''));
+  const lnOik = buckets.xor.some(h=>/οικισμ|εντος σχεδ|σχεδιο πολ/.test(norm(h.layerName)));
+  const lnExo = buckets.xor.some(h=>/εξωαστ|εκτος σχεδ/.test(norm(h.layerName)));
+  const urban = svcOik || lnOik, rural = svcExo || lnExo, borderline = urban && rural;
+  zoneHint = { zone: (urban&&!rural)?'urban':(rural&&!urban)?'rural':'', urban, rural, borderline, kaek };
 
   const raw=false;
   let html='';
@@ -2381,7 +2404,7 @@ $('polLinkArxaio').addEventListener('click', async ()=>{
   showToast('Αντιγράφηκαν ΕΓΣΑ87 (Χ='+X+'  Υ='+Y+'). Στον χάρτη: «Μετάβαση σε Χ,Υ» → καρτέλα ΕΓΣΑ87.');
 });
 
-window.POL = { run };
+window.POL = { run, getZoneHint:()=>zoneHint };
 })();
 
 /* ═══ Init ═══ */
