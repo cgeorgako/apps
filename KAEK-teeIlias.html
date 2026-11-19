@@ -409,6 +409,11 @@
 
       <details class="adv" style="margin-top:0.2rem;">
         <summary style="font-size:1.15rem;font-weight:700;padding:0.85rem 1rem;background:#17351c;border:1px solid #2e7d32;border-radius:12px;cursor:pointer;text-align:center;list-style:none;">🌲 Εξαγωγή Δασικών Πολυγώνων</summary>
+        <div class="actions" style="margin-top:0.6rem;">
+          <button id="actForestDxfOnline" class="act btn-primary" type="button" style="background:#2e7d32;color:#fff;">🌲 Λήψη DXF δασικών (online — απευθείας)</button>
+        </div>
+        <div class="hint" style="margin-top:0.4rem;">Αντλεί <b>απευθείας</b> τα δασικά πολύγωνα για τα επιλεγμένα ΚΑΕΚ από τον κυρωμένο δασικό χάρτη (Κτηματολόγιο) σε <b>ΕΓΣΑ87</b> και κατεβάζει DXF — χωρίς τοπικό αρχείο 400MB ή script. Το κείμενο κάθε πολυγώνου φέρει τον χαρακτηρισμό (π.χ. ΔΔ, ΑΑ, ΠΑ).</div>
+        <details class="adv" style="margin-top:0.6rem;"><summary>Εναλλακτικά: τοπικό script (extract_forest.py)</summary>
         <div class="hint" style="margin-top:0.5rem;">Φτιάχνει έτοιμη εντολή για το τοπικό <b>extract_forest.py</b> με τα επιλεγμένα ΚΑΕΚ (χειρίζεται τον δασικό χάρτη των 400MB στον υπολογιστή σου). Αντίγραψέ την και τρέξ' την σε παράθυρο εντολών.</div>
         <div style="margin-top:0.5rem;"><label for="forestPath">Διαδρομή δασικού DXF</label>
           <input type="text" id="forestPath" style="width:100%" value="Z:\Εγγραφα\XARTES-1\ΔΑΣΙΚΟΣ ΧΑΡΤΗΣ\KYRWSH-DXF.dxf"></div>
@@ -423,6 +428,7 @@
           <button id="forestCmdCopy" class="act btn-secondary" type="button">Αντιγραφή εντολής</button>
         </div>
         <div class="hint" style="margin-top:0.4rem;">Εναλλακτικά (χωρίς internet στο script): πάτα «📐 Λήψη DXF», και στην εντολή άλλαξε το <code>--kaek …</code> σε <code>--parcel &lt;το_αρχείο&gt;.dxf</code>.</div>
+        </details>
       </details>
 
       <button id="actClear" class="act btn-secondary">🗑️ Καθαρισμός επιλογής</button>
@@ -741,6 +747,59 @@ function downloadDxf(list){
   const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=name; document.body.appendChild(a); a.click(); document.body.removeChild(a);
   showToast('Λήψη DXF (διορθωμένο): '+recs.length+' γεωτεμάχιο(α)');
 }
+
+/* ═══ Online εξαγωγή δασικών πολυγώνων (DASIKA FeatureServer → DXF, ΕΓΣΑ87) ═══ */
+async function fetchForestEgsa(recs, buffer){
+  let minX=Infinity,minY=Infinity,maxX=-Infinity,maxY=-Infinity;
+  for(const r of recs){ for(const ring of (r.ringsEGSA||[])){ for(const p of ring){
+    if(p[0]<minX)minX=p[0]; if(p[1]<minY)minY=p[1]; if(p[0]>maxX)maxX=p[0]; if(p[1]>maxY)maxY=p[1];
+  } } }
+  if(!isFinite(minX)) throw new Error('χωρίς γεωμετρία');
+  const bf=buffer||0;
+  const env=[minX-bf,minY-bf,maxX+bf,maxY+bf].join(',');
+  const url=`${FS_FOREST}?f=json&geometry=${encodeURIComponent(env)}&geometryType=esriGeometryEnvelope&inSR=2100`
+    +`&spatialRel=esriSpatialRelIntersects&outFields=KATHGORDX,KATHGORAL1,KATHGORAL2,NOMOS,OTA&returnGeometry=true&outSR=2100`;
+  const res=await fetch(url); if(!res.ok) throw new Error('server '+res.status);
+  const data=await res.json(); if(data.error) throw new Error(data.error.message||'arcgis');
+  return data.features||[];
+}
+function buildForestDxf(features){
+  let dxf="  0\nSECTION\n  2\nENTITIES\n";
+  for(const f of features){
+    const g=f.geometry; if(!g||!g.rings) continue;
+    const code=((f.attributes&&f.attributes.KATHGORDX)||'').trim();
+    let big=null, bigA=-1;
+    for(const ring of g.rings){
+      if(!ring||ring.length<3) continue;
+      dxf+=writePolyline(ring, "DASIKOS_XARTHS", 0, 0);   // κλειστή polyline σε ΕΓΣΑ87 (1:1)
+      const a=polyArea(ring); if(a>bigA){ bigA=a; big=ring; }
+    }
+    if(big && code){
+      const [cx,cy]=ringCentroid(big);
+      const h=Math.max(3, Math.sqrt(bigA)/20);
+      dxf+=writeText(cx, cy, "DASIKOS_XARTHS_TEXT", code, h);
+    }
+  }
+  dxf+="  0\nENDSEC\n  0\nEOF\n";
+  return dxf;
+}
+$('actForestDxfOnline').addEventListener('click', async ()=>{
+  if(!selected.length){ showToast('Διάλεξε πρώτα ΚΑΕΚ'); return; }
+  const recs=selected.filter(r=>r.ringsEGSA&&r.ringsEGSA.length);
+  if(!recs.length){ showToast('Λείπει γεωμετρία GIS — επίλεξε ξανά το γεωτεμάχιο'); return; }
+  const btn=$('actForestDxfOnline'); const o=btn.textContent; btn.disabled=true; btn.textContent='🌲 Άντληση…';
+  try{
+    const feats=await fetchForestEgsa(recs, 50); // ~50m buffer γύρω από τα επιλεγμένα
+    if(!feats.length){ showToast('Δεν βρέθηκαν δασικά πολύγωνα στην περιοχή'); return; }
+    const dxf=buildForestDxf(feats);
+    const first=recs[0].kaek, name='DASIKA_'+first+(recs.length>1?('_syn'+(recs.length-1)):'')+'.dxf';
+    const blob=new Blob([dxf],{type:'application/dxf;charset=utf-8;'});
+    const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=name;
+    document.body.appendChild(a); a.click(); document.body.removeChild(a); setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+    showToast('Λήψη DXF δασικών: '+feats.length+' πολύγωνο(α)');
+  }catch(e){ console.error(e); showToast('Αποτυχία άντλησης δασικών: '+(e.message||e)); }
+  finally{ btn.disabled=false; btn.textContent=o; }
+});
 
 /* ═══ SYNOLIKO-12.dxf: εύρεση polyline & κειμένου στο κέντρο του ΚΑΕΚ ═══ */
 let synoliko=null; // { polylines:[{pts,closed}], texts:[{x,y,str}] }
