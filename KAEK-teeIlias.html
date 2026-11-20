@@ -945,11 +945,21 @@ async function fetchZonesForRec(rec){
   await Promise.all(jobs);
   return out;
 }
+/* Αγκύρωση popup στο ΒΟΡΕΙΟ άκρο του γεωτεμαχίου → ανοίγει προς τα πάνω,
+   χωρίς να καλύπτει το polyline του επιλεγμένου ΚΑΕΚ. */
+function parcelPopupLatLng(rec){
+  if(rec.ringsEGSA && rec.ringsEGSA.length){
+    let maxLat=-Infinity, sumLon=0, n=0;
+    for(const ring of egsaRingsToLatLngs(rec.ringsEGSA)){ for(const ll of ring){ if(ll[0]>maxLat) maxLat=ll[0]; sumLon+=ll[1]; n++; } }
+    if(n && isFinite(maxLat)) return [maxLat, sumLon/n];
+  }
+  return [rec.point.lat, rec.point.lon];
+}
 function openParcelDialog(rec){
   if(!mapObj || !rec || !rec.point) return;
   rec.zones=null; // πάντα εκ νέου, ώστε να αντικατοπτρίζει τα τρέχοντα ενεργά layers
-  parcelPopup = L.popup({maxWidth:320, minWidth:240, className:'parcel-popup', autoClose:true, closeOnClick:true})
-    .setLatLng([rec.point.lat, rec.point.lon])
+  parcelPopup = L.popup({maxWidth:320, minWidth:240, className:'parcel-popup', autoClose:true, closeOnClick:true, offset:[0,-4]})
+    .setLatLng(parcelPopupLatLng(rec))
     .setContent(buildParcelDialogHtml(rec))
     .openOn(mapObj);
   if(!rec.admin){
