@@ -178,6 +178,12 @@
   .parcel-dialog .pd-rows span{color:var(--text-muted);}
   .parcel-dialog .pd-rows b{color:var(--text);font-family:'IBM Plex Mono',monospace;font-weight:600;}
   .parcel-dialog .pd-na{color:var(--text-muted);}
+  .parcel-dialog .pd-zones{margin:0 0 0.6rem;}
+  .parcel-dialog .pd-ztitle{font-size:0.7rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.04em;margin:0.2rem 0 0.2rem;}
+  .parcel-dialog .pd-zr{display:flex;justify-content:space-between;gap:0.7rem;font-size:0.8rem;border-bottom:1px dashed var(--border);padding:0.16rem 0;}
+  .parcel-dialog .pd-zr:last-child{border-bottom:none;}
+  .parcel-dialog .pd-zr>span{color:var(--text-muted);white-space:nowrap;}
+  .parcel-dialog .pd-zr b{color:var(--text);text-align:right;}
   .parcel-dialog .pd-btns{display:flex;flex-wrap:wrap;gap:0.35rem;}
   .parcel-dialog .pd-btn{font-size:0.74rem;font-weight:600;border:1px solid var(--border);background:var(--surface-2);color:var(--text);border-radius:7px;padding:0.32rem 0.5rem;cursor:pointer;font-family:inherit;white-space:nowrap;}
   .parcel-dialog .pd-btn:hover{border-color:var(--gold-dim);color:var(--gold);}
@@ -539,8 +545,8 @@ const TILE_APAA   = "https://maps.gsis.gr/gspp/maps/rest/services/APAA_PUBLIC/PU
 // Αρχαιολογικές Ζώνες Προστασίας — vector (TEE SDI, EGSA87): layer 7 «Ζώνες Προστασίας - Πολύγωνα»
 const MS_ARCH     = "https://sdigmap.tee.gov.gr/mapping/rest/services/UDM/UDM_SERVICE_ARCHAIOLOGIKO/MapServer";
 const ARCH_ZONES_LAYER = 7;
-// Διοικητική διαίρεση (Κλεισθένης, EGSA87): 3 ΔΗΜΟΙ, 4 ΔΗΜ.ΕΝΟΤΗΤΕΣ, 5 ΚΟΙΝΟΤΗΤΕΣ (πεδίο NAME_1)
-const MS_KLEIS    = "https://maps.gsis.gr/gspp/maps/rest/services/APAA_PUBLIC/KLEISTHENIS_DD/MapServer";
+// Διοικητική διαίρεση από TEE SDI (ΕΛΣΤΑΤ 2021, EGSA87): 0 Δήμοι, 5 Δημ.Ενότητες, 6 Δημ.Κοινότητες
+const MS_ELSTAT   = "https://sdigmap.tee.gov.gr/mapping/rest/services/UDM/UDM_SERVICE_ELSTAT/MapServer";
 const KTIMA_VIEW = 'https://ktimatologio.gov.gr/Professionals/Inquiry/Main/viewResults/';
 const KTIMA_SUFFIX = '-0-0?p=1';
 const STORAGE_KEY = 'kaek_teeilias_history_v1';
@@ -861,12 +867,22 @@ $('actForestDxfOnline').addEventListener('click', ()=>{
 
 /* ═══ Πλαίσιο διαλόγου γεωτεμαχίου (popup στον χάρτη) ═══ */
 let parcelPopup=null;
-const PD_AR_LABEL={dimos:'Δήμος',dimEnot:'Δημοτική Ενότητα',koinot:'Κοινότητα',topiki:'Τοπική Κοινότητα'};
+const PD_AR_LABEL={dimos:'Δήμος',dimEnot:'Δημοτική Ενότητα',koinot:'Κοινότητα'};
 function pdAdminRow(rec, ar){
-  const key = ar==='topiki' ? 'koinot' : ar;   // Κλεισθένης: μία «Κοινότητα» = πρώην Τοπ./Δημ. Κοινότητα
   let val='<span class="pd-na">…</span>';
-  if(rec.admin){ const v=rec.admin[key]; val = v ? ('<b>'+escapeHtml(v)+'</b>') : '<span class="pd-na">—</span>'; }
+  if(rec.admin){ const v=rec.admin[ar]; val = v ? ('<b>'+escapeHtml(v)+'</b>') : '<span class="pd-na">—</span>'; }
   return '<div class="pd-ar" data-ar="'+ar+'"><span>'+PD_AR_LABEL[ar]+'</span>'+val+'</div>';
+}
+function pdZoneRow(label,val){ return '<div class="pd-zr"><span>'+label+'</span>'+(val?('<b>'+escapeHtml(val)+'</b>'):'<span class="pd-na">—</span>')+'</div>'; }
+function renderZoneRows(rec){
+  const anyOn = archZonesOn||forestOn||naturaOn;
+  if(!anyOn) return '';
+  if(!rec.zones) return '<div class="pd-ztitle">Ζώνες (ενεργά layers)</div><div class="pd-zr"><span class="pd-na">🔎 έλεγχος…</span></div>';
+  const z=rec.zones; let h='';
+  if(z.arch!=null)   h+=pdZoneRow('🏺 Αρχ. ζώνη', z.arch.length?z.arch.join(' / '):'εκτός');
+  if(z.forest!=null) h+=pdZoneRow('🌲 Δασικός', z.forest.length?z.forest.join(', '):'—');
+  if(z.natura!=null) h+=pdZoneRow('🔵 Natura', z.natura.length?z.natura.join(', '):'εκτός');
+  return h ? ('<div class="pd-ztitle">Ζώνες (ενεργά layers)</div>'+h) : '';
 }
 function buildParcelDialogHtml(rec){
   const area = rec.area ? ('~'+Math.round(rec.area).toLocaleString('el-GR')+' τ.μ.') : '—';
@@ -875,8 +891,9 @@ function buildParcelDialogHtml(rec){
     + '<div class="pd-kaek">'+k+'</div>'
     + '<div class="pd-rows">'
     +   '<div><span>Εμβαδόν</span><b>'+area+'</b></div>'
-    +   pdAdminRow(rec,'dimos')
+    +   pdAdminRow(rec,'dimos')+pdAdminRow(rec,'dimEnot')+pdAdminRow(rec,'koinot')
     + '</div>'
+    + '<div class="pd-zones" data-pdzones>'+renderZoneRows(rec)+'</div>'
     + '<div class="pd-btns">'
     +   '<button class="pd-btn" data-pact="dxf" data-kaek="'+k+'">📐 DXF</button>'
     +   '<button class="pd-btn" data-pact="ktima" data-kaek="'+k+'">🏛️ Κτηματολόγιο</button>'
@@ -886,25 +903,51 @@ function buildParcelDialogHtml(rec){
     +   '<button class="pd-btn" data-pact="arch" data-kaek="'+k+'">🏺 Αρχ.ζώνες</button>'
     + '</div></div>';
 }
-/* Διοικητική διαίρεση από KLEISTHENIS_DD identify (EGSA87) στο κεντροειδές του γεωτεμαχίου. */
+/* Διοικητική διαίρεση από TEE ELSTAT 2021 identify (EGSA87): 0 Δήμος, 5 Δημ.Ενότητα, 6 Δημ.Κοινότητα. */
 async function fetchAdminForRec(rec){
   if(!rec || !rec.centroidEGSA) return null;
   const x=rec.centroidEGSA[0], y=rec.centroidEGSA[1], d=50;
-  const qs='f=json&geometry='+x+','+y+'&geometryType=esriGeometryPoint&sr=2100&layers=all&tolerance=2'
+  const qs='f=json&geometry='+x+','+y+'&geometryType=esriGeometryPoint&sr=2100&layers=all:0,5,6&tolerance=2'
     +'&mapExtent='+(x-d)+','+(y-d)+','+(x+d)+','+(y+d)+'&imageDisplay=800,600,96&returnGeometry=false';
-  const res=await fetch(MS_KLEIS+'/identify?'+qs); const data=await res.json();
-  const by={};
-  (data.results||[]).forEach(r=>{ const a=r.attributes||{}; by[r.layerId]=(a.NAME_1||a.LEKTIKO||'').trim(); });
-  return { dimos:by[3]||'', dimEnot:by[4]||'', koinot:by[5]||'' };
+  const res=await fetch(MS_ELSTAT+'/identify?'+qs); const data=await res.json();
+  const nameOf = lid => { const r=(data.results||[]).find(rr=>rr.layerId===lid); if(!r) return ''; const a=r.attributes||{};
+    for(const key in a){ if(/ονομασ/i.test(key) && a[key] && String(a[key]).toLowerCase()!=='null') return String(a[key]).trim(); } return ''; };
+  return { dimos:nameOf(0), dimEnot:nameOf(5), koinot:nameOf(6) };
 }
 function updateParcelDialogAdmin(rec){
   if(!parcelPopup || !parcelPopup.getElement) return;
   const el=parcelPopup.getElement(); if(!el) return;
   const kaekEl=el.querySelector('.pd-kaek'); if(!kaekEl || kaekEl.textContent!==rec.kaek) return; // popup άλλου γεωτεμαχίου
-  ['dimos'].forEach(ar=>{ const dEl=el.querySelector('[data-ar="'+ar+'"]'); if(dEl) dEl.outerHTML=pdAdminRow(rec,ar); });
+  ['dimos','dimEnot','koinot'].forEach(ar=>{ const dEl=el.querySelector('[data-ar="'+ar+'"]'); if(dEl) dEl.outerHTML=pdAdminRow(rec,ar); });
+}
+function updateParcelDialogZones(rec){
+  if(!parcelPopup || !parcelPopup.getElement) return;
+  const el=parcelPopup.getElement(); if(!el) return;
+  const kaekEl=el.querySelector('.pd-kaek'); if(!kaekEl || kaekEl.textContent!==rec.kaek) return;
+  const z=el.querySelector('[data-pdzones]'); if(z) z.innerHTML=renderZoneRows(rec);
+}
+/* Πληροφορία ζωνών για το γεωτεμάχιο — ΜΟΝΟ για τα ενεργά overlays. */
+async function fetchZonesForRec(rec){
+  let minX=Infinity,minY=Infinity,maxX=-Infinity,maxY=-Infinity;
+  for(const ring of (rec.ringsEGSA||[])){ for(const p of ring){ if(p[0]<minX)minX=p[0]; if(p[1]<minY)minY=p[1]; if(p[0]>maxX)maxX=p[0]; if(p[1]>maxY)maxY=p[1]; } }
+  if(!isFinite(minX)){ if(rec.centroidEGSA){ minX=rec.centroidEGSA[0]-5;minY=rec.centroidEGSA[1]-5;maxX=rec.centroidEGSA[0]+5;maxY=rec.centroidEGSA[1]+5; } else return {}; }
+  const env2100=[minX,minY,maxX,maxY].join(',');
+  const sw=egsa87ToWgs84(minX,minY), ne=egsa87ToWgs84(maxX,maxY);
+  const env4326=[sw.lon,sw.lat,ne.lon,ne.lat].join(',');
+  const out={}, jobs=[];
+  const q=(env,sr,extra)=>'f=json&geometry='+encodeURIComponent(env)+'&geometryType=esriGeometryEnvelope&inSR='+sr+'&spatialRel=esriSpatialRelIntersects&returnGeometry=false&'+extra;
+  if(archZonesOn){ out.arch=[]; jobs.push(fetch(MS_ARCH+'/'+ARCH_ZONES_LAYER+'/query?'+q(env2100,2100,'outFields=NAME&outSR=2100')).then(r=>r.json()).then(d=>{ out.arch=[...new Set((d.features||[]).map(f=>f.attributes&&f.attributes.NAME).filter(Boolean))]; }).catch(()=>{})); }
+  if(forestOn){ out.forest=[]; jobs.push(fetch(FS_FOREST+'?'+q(env4326,4326,'outFields=KATHGORDX&outSR=4326')).then(r=>r.json()).then(d=>{ out.forest=[...new Set((d.features||[]).map(f=>f.attributes&&(f.attributes.KATHGORDX||'').trim()).filter(Boolean))]; }).catch(()=>{})); }
+  if(naturaOn){ out.natura=[]; jobs.push(Promise.all([
+      fetch(FS_NAT_SCI+'?'+q(env4326,4326,'outFields=SITECODE&outSR=4326')).then(r=>r.json()).catch(()=>({})),
+      fetch(FS_NAT_SPA+'?'+q(env4326,4326,'outFields=SITECODE&outSR=4326')).then(r=>r.json()).catch(()=>({}))
+    ]).then(([a,b])=>{ const c=[]; (a.features||[]).forEach(f=>f.attributes&&f.attributes.SITECODE&&c.push('SCI '+f.attributes.SITECODE)); (b.features||[]).forEach(f=>f.attributes&&f.attributes.SITECODE&&c.push('SPA '+f.attributes.SITECODE)); out.natura=[...new Set(c)]; }).catch(()=>{})); }
+  await Promise.all(jobs);
+  return out;
 }
 function openParcelDialog(rec){
   if(!mapObj || !rec || !rec.point) return;
+  rec.zones=null; // πάντα εκ νέου, ώστε να αντικατοπτρίζει τα τρέχοντα ενεργά layers
   parcelPopup = L.popup({maxWidth:320, minWidth:240, className:'parcel-popup', autoClose:true, closeOnClick:true})
     .setLatLng([rec.point.lat, rec.point.lon])
     .setContent(buildParcelDialogHtml(rec))
@@ -913,6 +956,9 @@ function openParcelDialog(rec){
     fetchAdminForRec(rec)
       .then(ad=>{ rec.admin = ad || {dimos:'',dimEnot:'',koinot:''}; updateParcelDialogAdmin(rec); })
       .catch(()=>{ rec.admin={dimos:'',dimEnot:'',koinot:''}; updateParcelDialogAdmin(rec); });
+  }
+  if(archZonesOn||forestOn||naturaOn){
+    fetchZonesForRec(rec).then(z=>{ rec.zones=z; updateParcelDialogZones(rec); }).catch(()=>{ rec.zones={}; updateParcelDialogZones(rec); });
   }
 }
 
@@ -1583,8 +1629,8 @@ async function loadForest(){
       // «ΑΑ»/«ΠΑ» (μη δασικό): μόνο περίγραμμα, χωρίς πράσινο γέμισμα
       const code=(a.KATHGORDX||'').trim();
       const noFill = code==='ΑΑ' || code==='ΠΑ';
-      return noFill ? {color:'#1b5e20',weight:1,fill:false}
-                    : {color:'#1b5e20',weight:1,fillColor:'#2e7d32',fillOpacity:0.28};
+      return noFill ? {color:'#1b5e20',weight:1,fill:false,interactive:false}
+                    : {color:'#1b5e20',weight:1,fillColor:'#2e7d32',fillOpacity:0.28,interactive:false};
     }, a=>{
       const dx=a.KATHGORDX||'—', al1=a.KATHGORAL1||'', al2=a.KATHGORAL2||'';
       return '<b>🌲 Δασικός χάρτης (κυρωμένος)</b><br>Χαρακτηρισμός: <b>'+escapeHtml(dx)+'</b>'
@@ -1599,9 +1645,9 @@ async function loadNatura(){
   try{
     const [sci,spa]=await Promise.all([ queryFeatures(FS_NAT_SCI, naturaAbort), queryFeatures(FS_NAT_SPA, {c:null}) ]);
     naturaLayer.clearLayers();
-    addOverlayPolys(sci, naturaLayer, {color:'#1565c0',weight:1.5,fillColor:'#1e88e5',fillOpacity:0.15}, a=>
+    addOverlayPolys(sci, naturaLayer, {color:'#1565c0',weight:1.5,fillColor:'#1e88e5',fillOpacity:0.15,interactive:false}, a=>
       '<b>🔵 Natura 2000 — SCI/SAC</b><br>Κωδικός: <b>'+escapeHtml(a.SITECODE||'—')+'</b>'+(a.SITETYPE?'<br>Τύπος: '+escapeHtml(a.SITETYPE):''));
-    addOverlayPolys(spa, naturaLayer, {color:'#1565c0',weight:1.5,dashArray:'6,4',fillColor:'#1e88e5',fillOpacity:0.15}, a=>
+    addOverlayPolys(spa, naturaLayer, {color:'#1565c0',weight:1.5,dashArray:'6,4',fillColor:'#1e88e5',fillOpacity:0.15,interactive:false}, a=>
       '<b>🔵 Natura 2000 — SPA</b><br>Κωδικός: <b>'+escapeHtml(a.SITECODE||'—')+'</b>'+(a.SITETYPE?'<br>Τύπος: '+escapeHtml(a.SITETYPE):''));
   }catch(e){}
 }
@@ -1611,7 +1657,7 @@ async function loadArchZones(){
   try{
     const fts=await queryFeatures(MS_ARCH+'/'+ARCH_ZONES_LAYER+'/query', archZonesAbort);
     archZonesLayer.clearLayers();
-    addOverlayPolys(fts, archZonesLayer, {color:'#6a1b9a',weight:1.5,fillColor:'#8e24aa',fillOpacity:0.2}, a=>
+    addOverlayPolys(fts, archZonesLayer, {color:'#6a1b9a',weight:1.5,fillColor:'#8e24aa',fillOpacity:0.2,interactive:false}, a=>
       '<b>🏺 Αρχαιολογική Ζώνη Προστασίας</b>'+(a.NAME?('<br>Ονομασία: <b>'+escapeHtml(a.NAME)+'</b>'):'')
       +(a.OTA?('<br>Δήμος: '+escapeHtml(a.OTA)):'')+(a.FOREAS?('<br>Φορέας: '+escapeHtml(a.FOREAS)):''));
   }catch(e){}
