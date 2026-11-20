@@ -1500,14 +1500,13 @@ function initMap(){
   // (έτσι ο δορυφόρος ESRI δεν «εξαφανίζεται»/γκριζάρει σε κοντινό zoom).
   const sat=L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',{maxZoom:22,maxNativeZoom:18,attribution:'Esri World Imagery',crossOrigin:true});
   const osm=L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:22,maxNativeZoom:19,attribution:'© OpenStreetMap',crossOrigin:true});
-  // Εναλλακτικό ελληνικό υπόβαθρο: Ορθοφωτοχάρτες Ελληνικού Κτηματολογίου (ΕΚΧΑ) — ανοιχτό WMS.
-  // Το WMS αποδίδει εικόνα ΜΟΝΟ σε EPSG:2100/4326· σε EPSG:3857/900913 επιστρέφει λευκό (κενό).
-  // Γι' αυτό ζητάμε κάθε tile σε EPSG:4326 (crs:L.CRS.EPSG4326) ενώ ο χάρτης παραμένει EPSG:3857.
-  // Χωρίς crossOrigin: ο host δεν στέλνει CORS και το υπόβαθρο δεν εξάγεται σε canvas.
-  const ktOrtho=L.tileLayer.wms('https://gis.ktimanet.gr/wms/wmsopen/wmsserver.aspx',{
-    layers:'BASEMAP', format:'image/jpeg', version:'1.1.1', transparent:false,
-    crs:L.CRS.EPSG4326, maxZoom:22, maxNativeZoom:20,
-    attribution:'© Ελληνικό Κτηματολόγιο — Ορθοφωτοχάρτες'
+  // Εναλλακτικό υπόβαθρο: Google (δορυφορική εικόνα, lyrs=s). Native EPSG:3857 XYZ,
+  // άρα συμπίπτει ακριβώς με τα διανυσματικά όρια ΚΑΕΚ (σε αντίθεση με το WMS ΕΚΧΑ
+  // που, λόγω αναπροβολής 4326→3857 ανά tile, εμφάνιζε μικρή μετατόπιση).
+  // Στέλνει access-control-allow-origin:* → canvas-safe με crossOrigin.
+  const gsat=L.tileLayer('https://mt{s}.google.com/vt/lyrs=s&x={x}&y={y}&z={z}',{
+    subdomains:['0','1','2','3'], maxZoom:22, maxNativeZoom:20,
+    attribution:'© Google', crossOrigin:true
   });
   const hist=loadHistory().filter(h=>h.lat&&h.lon);
   const center=hist.length?[hist[0].lat,hist[0].lon]:[37.8,21.35]; // Ηλεία
@@ -1533,7 +1532,7 @@ function initMap(){
   naturaLayer=L.layerGroup();
   archZonesLayer=L.layerGroup();
   L.control.layers(
-    {'Δορυφορικό':sat,'Ορθοφωτ. Κτηματολογίου':ktOrtho,'Χάρτης (OSM)':osm},
+    {'Δορυφορικό':sat,'Google Earth':gsat,'Χάρτης (OSM)':osm},
     {'Ετικέτες (οδοί/οικισμοί)':labels, '🏺 Αρχαιολογικές Ζώνες':archZonesLayer, '💶 Ζώνες Αντικ. Αξιών':apaa, '🌲 Δασικός χάρτης':forestLayer, '🔵 Natura 2000':naturaLayer},
     {position:'topright'}
   ).addTo(mapObj);
