@@ -166,6 +166,22 @@
   .my-loc-pin{background:none;border:none;filter:drop-shadow(0 1px 2px rgba(0,0,0,0.5));}
   .my-loc-pin svg{display:block;}
 
+  /* ═══ Πλαίσιο διαλόγου γεωτεμαχίου (Leaflet popup) ═══ */
+  .leaflet-popup.parcel-popup .leaflet-popup-content-wrapper{background:var(--surface);color:var(--text);border:1px solid var(--border);border-radius:12px;box-shadow:0 6px 20px rgba(0,0,0,0.45);}
+  .leaflet-popup.parcel-popup .leaflet-popup-content{margin:0.7rem 0.85rem;}
+  .leaflet-popup.parcel-popup .leaflet-popup-tip{background:var(--surface);border:1px solid var(--border);}
+  .leaflet-popup.parcel-popup a.leaflet-popup-close-button{color:var(--text-muted);}
+  .parcel-dialog .pd-kaek{font-family:'IBM Plex Mono',monospace;font-size:1rem;font-weight:700;color:var(--gold);word-break:break-all;margin-bottom:0.45rem;}
+  .parcel-dialog .pd-rows{display:flex;flex-direction:column;gap:0.1rem;font-size:0.8rem;margin-bottom:0.6rem;}
+  .parcel-dialog .pd-rows>div{display:flex;justify-content:space-between;gap:0.7rem;border-bottom:1px dashed var(--border);padding:0.16rem 0;}
+  .parcel-dialog .pd-rows>div:last-child{border-bottom:none;}
+  .parcel-dialog .pd-rows span{color:var(--text-muted);}
+  .parcel-dialog .pd-rows b{color:var(--text);font-family:'IBM Plex Mono',monospace;font-weight:600;}
+  .parcel-dialog .pd-na{color:var(--text-muted);}
+  .parcel-dialog .pd-btns{display:flex;flex-wrap:wrap;gap:0.35rem;}
+  .parcel-dialog .pd-btn{font-size:0.74rem;font-weight:600;border:1px solid var(--border);background:var(--surface-2);color:var(--text);border-radius:7px;padding:0.32rem 0.5rem;cursor:pointer;font-family:inherit;white-space:nowrap;}
+  .parcel-dialog .pd-btn:hover{border-color:var(--gold-dim);color:var(--gold);}
+
   /* ═══ Διάλογος Ελέγχου Ανοχής ═══ */
   .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.62);display:flex;align-items:center;justify-content:center;z-index:10000;padding:1rem;}
   .modal-box{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:1.3rem;max-width:430px;width:100%;}
@@ -409,6 +425,11 @@
 
       <details class="adv" style="margin-top:0.2rem;">
         <summary style="font-size:1.15rem;font-weight:700;padding:0.85rem 1rem;background:#17351c;border:1px solid #2e7d32;border-radius:12px;cursor:pointer;text-align:center;list-style:none;">🌲 Εξαγωγή Δασικών Πολυγώνων</summary>
+        <div class="actions" style="margin-top:0.6rem;">
+          <button id="actForestDxfOnline" class="act btn-primary" type="button" style="background:#2e7d32;color:#fff;">🌲 Λήψη DXF δασικών (online — απευθείας)</button>
+        </div>
+        <div class="hint" style="margin-top:0.4rem;">Αντλεί <b>απευθείας</b> τα δασικά πολύγωνα για τα επιλεγμένα ΚΑΕΚ από τον κυρωμένο δασικό χάρτη (Κτηματολόγιο) σε <b>ΕΓΣΑ87</b> και κατεβάζει DXF — χωρίς τοπικό αρχείο 400MB ή script. Το κείμενο κάθε πολυγώνου φέρει τον χαρακτηρισμό (π.χ. ΔΔ, ΑΑ, ΠΑ).</div>
+        <details class="adv" style="margin-top:0.6rem;"><summary>Εναλλακτικά: τοπικό script (extract_forest.py)</summary>
         <div class="hint" style="margin-top:0.5rem;">Φτιάχνει έτοιμη εντολή για το τοπικό <b>extract_forest.py</b> με τα επιλεγμένα ΚΑΕΚ (χειρίζεται τον δασικό χάρτη των 400MB στον υπολογιστή σου). Αντίγραψέ την και τρέξ' την σε παράθυρο εντολών.</div>
         <div style="margin-top:0.5rem;"><label for="forestPath">Διαδρομή δασικού DXF</label>
           <input type="text" id="forestPath" style="width:100%" value="Z:\Εγγραφα\XARTES-1\ΔΑΣΙΚΟΣ ΧΑΡΤΗΣ\KYRWSH-DXF.dxf"></div>
@@ -423,6 +444,7 @@
           <button id="forestCmdCopy" class="act btn-secondary" type="button">Αντιγραφή εντολής</button>
         </div>
         <div class="hint" style="margin-top:0.4rem;">Εναλλακτικά (χωρίς internet στο script): πάτα «📐 Λήψη DXF», και στην εντολή άλλαξε το <code>--kaek …</code> σε <code>--parcel &lt;το_αρχείο&gt;.dxf</code>.</div>
+        </details>
       </details>
 
       <button id="actClear" class="act btn-secondary">🗑️ Καθαρισμός επιλογής</button>
@@ -508,6 +530,17 @@
 
 const $ = id => document.getElementById(id);
 const ARCGIS_URL = "https://services-eu1.arcgis.com/40tFGWzosjaLJpmn/arcgis/rest/services/GEOTEMAXIA_LEITOURGOUN_ON_gdb/FeatureServer/0/query";
+// Θεματικά overlays (ίδιος ArcGIS org Κτηματολογίου, EPSG:3857, πολύγωνα)
+const FS_FOREST   = "https://services-eu1.arcgis.com/40tFGWzosjaLJpmn/arcgis/rest/services/DASIKA_KYROSH_P_gdb/FeatureServer/0/query";   // Δασικός χάρτης (κυρωμένος)
+const FS_NAT_SCI  = "https://services-eu1.arcgis.com/40tFGWzosjaLJpmn/arcgis/rest/services/NATURA_SCI_P_gdb/FeatureServer/0/query";      // Natura SCI
+const FS_NAT_SPA  = "https://services-eu1.arcgis.com/40tFGWzosjaLJpmn/arcgis/rest/services/NATURA_SPA_P_gdb/FeatureServer/0/query";      // Natura SPA
+// Αρχαιολογικές Ζώνες Προστασίας — cached XYZ tiles (EPSG:3857, PNG32 διαφανές, CORS για το site)
+const TILE_APAA   = "https://maps.gsis.gr/gspp/maps/rest/services/APAA_PUBLIC/PUBLIC_ZONES_APAA_2021_CACHED_NOVEC/MapServer/tile/{z}/{y}/{x}";
+// Αρχαιολογικές Ζώνες Προστασίας — vector (TEE SDI, EGSA87): layer 7 «Ζώνες Προστασίας - Πολύγωνα»
+const MS_ARCH     = "https://sdigmap.tee.gov.gr/mapping/rest/services/UDM/UDM_SERVICE_ARCHAIOLOGIKO/MapServer";
+const ARCH_ZONES_LAYER = 7;
+// Διοικητική διαίρεση (Κλεισθένης, EGSA87): 3 ΔΗΜΟΙ, 4 ΔΗΜ.ΕΝΟΤΗΤΕΣ, 5 ΚΟΙΝΟΤΗΤΕΣ (πεδίο NAME_1)
+const MS_KLEIS    = "https://maps.gsis.gr/gspp/maps/rest/services/APAA_PUBLIC/KLEISTHENIS_DD/MapServer";
 const KTIMA_VIEW = 'https://ktimatologio.gov.gr/Professionals/Inquiry/Main/viewResults/';
 const KTIMA_SUFFIX = '-0-0?p=1';
 const STORAGE_KEY = 'kaek_teeilias_history_v1';
@@ -574,6 +607,7 @@ function setResolved(kaek, ringsEGSA, area, perimeter, note){
     current=existing;
     showToast('Ήδη στη λίστα: '+digits);
     renderSelection(); drawSelectionHighlights();
+    openParcelDialog(existing);
     return;
   }
   if(selected.length>=MAX_SEL){ showToast('Μέγιστο '+MAX_SEL+' γεωτεμάχια — αφαίρεσε κάποιο πρώτα.'); return; }
@@ -587,6 +621,7 @@ function setResolved(kaek, ringsEGSA, area, perimeter, note){
   renderSelection();
   drawSelectionHighlights();
   computeSynolikoForRecord(rec);
+  openParcelDialog(rec);
   if(digits.length===12) addToHistory({ kaek:digits, note:note||'', lat:point?point.lat:null, lon:point?point.lon:null });
 }
 
@@ -736,6 +771,194 @@ function downloadDxf(list){
   const first=recs[0].kaek, name = recs.length>1 ? ("KAEK_"+first+"_+"+(recs.length-1)+".dxf") : ("KAEK_"+first+".dxf");
   const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=name; document.body.appendChild(a); a.click(); document.body.removeChild(a);
   showToast('Λήψη DXF (διορθωμένο): '+recs.length+' γεωτεμάχιο(α)');
+}
+
+/* ═══ Online εξαγωγή δασικών πολυγώνων (DASIKA FeatureServer → DXF, ΕΓΣΑ87) ═══ */
+async function fetchForestEgsa(recs, buffer){
+  let minX=Infinity,minY=Infinity,maxX=-Infinity,maxY=-Infinity;
+  for(const r of recs){ for(const ring of (r.ringsEGSA||[])){ for(const p of ring){
+    if(p[0]<minX)minX=p[0]; if(p[1]<minY)minY=p[1]; if(p[0]>maxX)maxX=p[0]; if(p[1]>maxY)maxY=p[1];
+  } } }
+  if(!isFinite(minX)) throw new Error('χωρίς γεωμετρία');
+  const bf=buffer||0;
+  const env=[minX-bf,minY-bf,maxX+bf,maxY+bf].join(',');
+  const url=`${FS_FOREST}?f=json&geometry=${encodeURIComponent(env)}&geometryType=esriGeometryEnvelope&inSR=2100`
+    +`&spatialRel=esriSpatialRelIntersects&outFields=KATHGORDX,KATHGORAL1,KATHGORAL2,NOMOS,OTA&returnGeometry=true&outSR=2100`;
+  const res=await fetch(url); if(!res.ok) throw new Error('server '+res.status);
+  const data=await res.json(); if(data.error) throw new Error(data.error.message||'arcgis');
+  return data.features||[];
+}
+/* Κωδικοποίηση κειμένου DXF σε Windows-1253 (ελληνικά) — ώστε τα ελληνικά
+   να μην εμφανίζονται «????». Το ASCII μένει ίδιο· τα ελληνικά bytes κατά CP1253. */
+function dxfToCp1253Bytes(s){
+  const out=new Uint8Array(s.length);
+  for(let i=0;i<s.length;i++){
+    const cp=s.charCodeAt(i); let b;
+    if(cp<0x80) b=cp;
+    else if(cp>=0x0391 && cp<=0x03A9) b=0xC1+(cp-0x0391);   // Α..Ω
+    else if(cp>=0x03B1 && cp<=0x03C9) b=0xE1+(cp-0x03B1);   // α..ω
+    else if(cp===0x0386) b=0xA2;                            // Ά
+    else if(cp===0x0388) b=0xB8;                            // Έ
+    else if(cp===0x0389) b=0xB9;                            // Ή
+    else if(cp===0x038A) b=0xBA;                            // Ί
+    else if(cp===0x038C) b=0xBC;                            // Ό
+    else if(cp===0x038E) b=0xBE;                            // Ύ
+    else if(cp===0x038F) b=0xBF;                            // Ώ
+    else if(cp===0x03AC) b=0xDC;                            // ά
+    else if(cp===0x03AD) b=0xDD;                            // έ
+    else if(cp===0x03AE) b=0xDE;                            // ή
+    else if(cp===0x03AF) b=0xDF;                            // ί
+    else if(cp===0x03CC) b=0xFC;                            // ό
+    else if(cp===0x03CD) b=0xFD;                            // ύ
+    else if(cp===0x03CE) b=0xFE;                            // ώ
+    else b=0x3F;                                            // '?'
+    out[i]=b;
+  }
+  return out;
+}
+function buildForestDxf(features){
+  // HEADER με δήλωση codepage (ελληνικά) + AC1009 (R12)
+  let dxf="  0\nSECTION\n  2\nHEADER\n  9\n$ACADVER\n  1\nAC1009\n  9\n$DWGCODEPAGE\n  3\nANSI_1253\n  0\nENDSEC\n";
+  dxf+="  0\nSECTION\n  2\nENTITIES\n";
+  for(const f of features){
+    const g=f.geometry; if(!g||!g.rings) continue;
+    const code=((f.attributes&&f.attributes.KATHGORDX)||'').trim();
+    let big=null, bigA=-1;
+    for(const ring of g.rings){
+      if(!ring||ring.length<3) continue;
+      dxf+=writePolyline(ring, "DASIKOS_XARTHS", 0, 0);   // κλειστή polyline σε ΕΓΣΑ87 (1:1)
+      const a=polyArea(ring); if(a>bigA){ bigA=a; big=ring; }
+    }
+    if(big && code){
+      const [cx,cy]=ringCentroid(big);
+      const h=Math.max(3, Math.sqrt(bigA)/20);
+      dxf+=writeText(cx, cy, "DASIKOS_XARTHS_TEXT", code, h);
+    }
+  }
+  dxf+="  0\nENDSEC\n  0\nEOF\n";
+  return dxf;
+}
+async function downloadForestDxfFor(list, btn){
+  const recs=(list||[]).filter(r=>r.ringsEGSA&&r.ringsEGSA.length);
+  if(!recs.length){ showToast('Λείπει γεωμετρία GIS — επίλεξε ξανά το γεωτεμάχιο'); return; }
+  let o; if(btn){ o=btn.textContent; btn.disabled=true; btn.textContent='🌲 Άντληση…'; }
+  try{
+    const feats=await fetchForestEgsa(recs, 50); // ~50m buffer γύρω από τα επιλεγμένα
+    if(!feats.length){ showToast('Δεν βρέθηκαν δασικά πολύγωνα στην περιοχή'); return; }
+    const dxf=buildForestDxf(feats);
+    const first=recs[0].kaek, name='DASIKA_'+first+(recs.length>1?('_syn'+(recs.length-1)):'')+'.dxf';
+    const blob=new Blob([dxfToCp1253Bytes(dxf)],{type:'application/dxf'}); // bytes CP1253 (ελληνικά)
+    const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=name;
+    document.body.appendChild(a); a.click(); document.body.removeChild(a); setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+    showToast('Λήψη DXF δασικών: '+feats.length+' πολύγωνο(α)');
+  }catch(e){ console.error(e); showToast('Αποτυχία άντλησης δασικών: '+(e.message||e)); }
+  finally{ if(btn){ btn.disabled=false; btn.textContent=o; } }
+}
+$('actForestDxfOnline').addEventListener('click', ()=>{
+  if(!selected.length){ showToast('Διάλεξε πρώτα ΚΑΕΚ'); return; }
+  downloadForestDxfFor(selected, $('actForestDxfOnline'));
+});
+
+/* ═══ Πλαίσιο διαλόγου γεωτεμαχίου (popup στον χάρτη) ═══ */
+let parcelPopup=null;
+const PD_AR_LABEL={dimos:'Δήμος',dimEnot:'Δημοτική Ενότητα',koinot:'Κοινότητα',topiki:'Τοπική Κοινότητα'};
+function pdAdminRow(rec, ar){
+  const key = ar==='topiki' ? 'koinot' : ar;   // Κλεισθένης: μία «Κοινότητα» = πρώην Τοπ./Δημ. Κοινότητα
+  let val='<span class="pd-na">…</span>';
+  if(rec.admin){ const v=rec.admin[key]; val = v ? ('<b>'+escapeHtml(v)+'</b>') : '<span class="pd-na">—</span>'; }
+  return '<div class="pd-ar" data-ar="'+ar+'"><span>'+PD_AR_LABEL[ar]+'</span>'+val+'</div>';
+}
+function buildParcelDialogHtml(rec){
+  const area = rec.area ? ('~'+Math.round(rec.area).toLocaleString('el-GR')+' τ.μ.') : '—';
+  const k=escapeHtml(rec.kaek||'—');
+  return '<div class="parcel-dialog">'
+    + '<div class="pd-kaek">'+k+'</div>'
+    + '<div class="pd-rows">'
+    +   '<div><span>Εμβαδόν</span><b>'+area+'</b></div>'
+    +   pdAdminRow(rec,'dimos')
+    + '</div>'
+    + '<div class="pd-btns">'
+    +   '<button class="pd-btn" data-pact="dxf" data-kaek="'+k+'">📐 DXF</button>'
+    +   '<button class="pd-btn" data-pact="ktima" data-kaek="'+k+'">🏛️ Κτηματολόγιο</button>'
+    +   '<button class="pd-btn" data-pact="pol" data-kaek="'+k+'">🧭 Πολεοδομικά</button>'
+    +   '<button class="pd-btn" data-pact="maps" data-kaek="'+k+'">📍 Maps</button>'
+    +   '<button class="pd-btn" data-pact="forest" data-kaek="'+k+'">🌲 Δασικά</button>'
+    +   '<button class="pd-btn" data-pact="arch" data-kaek="'+k+'">🏺 Αρχ.ζώνες</button>'
+    + '</div></div>';
+}
+/* Διοικητική διαίρεση από KLEISTHENIS_DD identify (EGSA87) στο κεντροειδές του γεωτεμαχίου. */
+async function fetchAdminForRec(rec){
+  if(!rec || !rec.centroidEGSA) return null;
+  const x=rec.centroidEGSA[0], y=rec.centroidEGSA[1], d=50;
+  const qs='f=json&geometry='+x+','+y+'&geometryType=esriGeometryPoint&sr=2100&layers=all&tolerance=2'
+    +'&mapExtent='+(x-d)+','+(y-d)+','+(x+d)+','+(y+d)+'&imageDisplay=800,600,96&returnGeometry=false';
+  const res=await fetch(MS_KLEIS+'/identify?'+qs); const data=await res.json();
+  const by={};
+  (data.results||[]).forEach(r=>{ const a=r.attributes||{}; by[r.layerId]=(a.NAME_1||a.LEKTIKO||'').trim(); });
+  return { dimos:by[3]||'', dimEnot:by[4]||'', koinot:by[5]||'' };
+}
+function updateParcelDialogAdmin(rec){
+  if(!parcelPopup || !parcelPopup.getElement) return;
+  const el=parcelPopup.getElement(); if(!el) return;
+  const kaekEl=el.querySelector('.pd-kaek'); if(!kaekEl || kaekEl.textContent!==rec.kaek) return; // popup άλλου γεωτεμαχίου
+  ['dimos'].forEach(ar=>{ const dEl=el.querySelector('[data-ar="'+ar+'"]'); if(dEl) dEl.outerHTML=pdAdminRow(rec,ar); });
+}
+function openParcelDialog(rec){
+  if(!mapObj || !rec || !rec.point) return;
+  parcelPopup = L.popup({maxWidth:320, minWidth:240, className:'parcel-popup', autoClose:true, closeOnClick:true})
+    .setLatLng([rec.point.lat, rec.point.lon])
+    .setContent(buildParcelDialogHtml(rec))
+    .openOn(mapObj);
+  if(!rec.admin){
+    fetchAdminForRec(rec)
+      .then(ad=>{ rec.admin = ad || {dimos:'',dimEnot:'',koinot:''}; updateParcelDialogAdmin(rec); })
+      .catch(()=>{ rec.admin={dimos:'',dimEnot:'',koinot:''}; updateParcelDialogAdmin(rec); });
+  }
+}
+
+/* ═══ Αρχαιολογικές Ζώνες Προστασίας → DXF (TEE layer 7, EGSA87) ═══ */
+async function fetchArchZonesEgsa(recs, buffer){
+  let minX=Infinity,minY=Infinity,maxX=-Infinity,maxY=-Infinity;
+  for(const r of recs){ for(const ring of (r.ringsEGSA||[])){ for(const p of ring){
+    if(p[0]<minX)minX=p[0]; if(p[1]<minY)minY=p[1]; if(p[0]>maxX)maxX=p[0]; if(p[1]>maxY)maxY=p[1];
+  } } }
+  if(!isFinite(minX)) throw new Error('χωρίς γεωμετρία');
+  const bf=buffer||0;
+  const env=[minX-bf,minY-bf,maxX+bf,maxY+bf].join(',');
+  const url=MS_ARCH+'/'+ARCH_ZONES_LAYER+'/query?f=json&geometry='+encodeURIComponent(env)
+    +'&geometryType=esriGeometryEnvelope&inSR=2100&spatialRel=esriSpatialRelIntersects'
+    +'&outFields=NAME,OTA,FOREAS&returnGeometry=true&outSR=2100';
+  const res=await fetch(url); if(!res.ok) throw new Error('server '+res.status);
+  const data=await res.json(); if(data.error) throw new Error(data.error.message||'arcgis');
+  return data.features||[];
+}
+function buildArchDxf(features){
+  let dxf="  0\nSECTION\n  2\nHEADER\n  9\n$ACADVER\n  1\nAC1009\n  9\n$DWGCODEPAGE\n  3\nANSI_1253\n  0\nENDSEC\n";
+  dxf+="  0\nSECTION\n  2\nENTITIES\n";
+  for(const f of features){
+    const g=f.geometry; if(!g||!g.rings) continue;
+    const name=((f.attributes&&f.attributes.NAME)||'ΖΩΝΗ ΠΡΟΣΤΑΣΙΑΣ').trim();
+    let big=null,bigA=-1;
+    for(const ring of g.rings){ if(!ring||ring.length<3) continue; dxf+=writePolyline(ring,"ARXAIOL_ZWNES",0,0); const a=polyArea(ring); if(a>bigA){bigA=a;big=ring;} }
+    if(big && name){ const [cx,cy]=ringCentroid(big); const h=Math.max(4, Math.sqrt(bigA)/18); dxf+=writeText(cx,cy,"ARXAIOL_ZWNES_TEXT",name,h); }
+  }
+  dxf+="  0\nENDSEC\n  0\nEOF\n";
+  return dxf;
+}
+async function downloadArchDxfFor(list){
+  const recs=(list||[]).filter(r=>r.ringsEGSA&&r.ringsEGSA.length);
+  if(!recs.length){ showToast('Λείπει γεωμετρία GIS'); return; }
+  showToast('🏺 Άντληση αρχαιολογικών ζωνών…');
+  try{
+    const feats=await fetchArchZonesEgsa(recs, 50);
+    if(!feats.length){ showToast('Δεν βρέθηκαν ζώνες προστασίας που να τέμνουν το γεωτεμάχιο'); return; }
+    const dxf=buildArchDxf(feats);
+    const first=recs[0].kaek, name='ARXAIOLOGIKES_ZWNES_'+first+'.dxf';
+    const blob=new Blob([dxfToCp1253Bytes(dxf)],{type:'application/dxf'});
+    const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=name;
+    document.body.appendChild(a); a.click(); document.body.removeChild(a); setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+    showToast('Λήψη DXF αρχαιολογικών ζωνών: '+feats.length+' πολύγωνο(α)');
+  }catch(e){ console.error(e); showToast('Αποτυχία: '+(e.message||e)); }
 }
 
 /* ═══ SYNOLIKO-12.dxf: εύρεση polyline & κειμένου στο κέντρο του ΚΑΕΚ ═══ */
@@ -1206,6 +1429,9 @@ $('xyConvertBtn').addEventListener('click', ()=>{
 
 /* ═══ Χάρτης ═══ */
 let mapObj=null, mapInited=false, parcelsLayer=null, highlightsLayer=null, parcelsAbort=null, dxfLayer=null;
+let forestLayer=null, naturaLayer=null, forestOn=false, naturaOn=false, forestAbort={c:null}, naturaAbort={c:null};
+let archZonesLayer=null, archZonesOn=false, archZonesAbort={c:null};
+const FOREST_MINZOOM=14, NATURA_MINZOOM=10, ARCHZONES_MINZOOM=12;
 let measureLayer=null, measureMode=false, measurePts=[], measureClickTimer=null;
 let areaMode=false, areaPts=[], areaClickTimer=null;
 let myLocationLayer=null;
@@ -1232,7 +1458,33 @@ function initMap(){
   mapObj.getPane('labelsPane').style.zIndex=350;
   mapObj.getPane('labelsPane').style.pointerEvents='none';
   labels.addTo(mapObj); // ενεργό εξ ορισμού (default base = Δορυφορικό)
-  L.control.layers({'Δορυφορικό':sat,'Χάρτης (OSM)':osm},{'Ετικέτες (οδοί/οικισμοί)':labels},{position:'topright'}).addTo(mapObj);
+  // Αρχαιολογικές Ζώνες Προστασίας (cached raster overlay, κάτω από ετικέτες/διανύσματα)
+  mapObj.createPane('apaaPane');
+  mapObj.getPane('apaaPane').style.zIndex=340;
+  mapObj.getPane('apaaPane').style.pointerEvents='none';
+  const apaa=L.tileLayer(TILE_APAA,{maxZoom:22,maxNativeZoom:19,opacity:0.85,crossOrigin:true,pane:'apaaPane',attribution:'ΑΑΔΕ — Ζώνες Αντικειμενικών Αξιών'});
+  // Θεματικά overlays (ανά viewport)
+  forestLayer=L.layerGroup();
+  naturaLayer=L.layerGroup();
+  archZonesLayer=L.layerGroup();
+  L.control.layers(
+    {'Δορυφορικό':sat,'Χάρτης (OSM)':osm},
+    {'Ετικέτες (οδοί/οικισμοί)':labels, '🏺 Αρχαιολογικές Ζώνες':archZonesLayer, '💶 Ζώνες Αντικ. Αξιών':apaa, '🌲 Δασικός χάρτης':forestLayer, '🔵 Natura 2000':naturaLayer},
+    {position:'topright'}
+  ).addTo(mapObj);
+  mapObj.on('overlayadd', e=>{
+    if(e.layer===forestLayer){ forestOn=true;
+      if(mapObj.getZoom()<FOREST_MINZOOM) showToast('🌲 Κάνε zoom (≥'+FOREST_MINZOOM+') για να εμφανιστεί ο δασικός χάρτης'); else loadForest(); }
+    else if(e.layer===naturaLayer){ naturaOn=true; loadNatura(); }
+    else if(e.layer===archZonesLayer){ archZonesOn=true;
+      if(mapObj.getZoom()<ARCHZONES_MINZOOM) showToast('🏺 Κάνε zoom (≥'+ARCHZONES_MINZOOM+') για τις αρχαιολογικές ζώνες'); else loadArchZones(); }
+  });
+  mapObj.on('overlayremove', e=>{
+    if(e.layer===forestLayer){ forestOn=false; if(forestAbort.c) forestAbort.c.abort(); forestLayer.clearLayers(); }
+    else if(e.layer===naturaLayer){ naturaOn=false; if(naturaAbort.c) naturaAbort.c.abort(); naturaLayer.clearLayers(); }
+    else if(e.layer===archZonesLayer){ archZonesOn=false; if(archZonesAbort.c) archZonesAbort.c.abort(); archZonesLayer.clearLayers(); }
+  });
+  mapObj.on('moveend', ()=>{ if(forestOn) loadForest(); if(naturaOn) loadNatura(); if(archZonesOn) loadArchZones(); });
   // Στον OSM οι ετικέτες υπάρχουν ήδη → αφαίρεσέ τες· στον δορυφόρο πρόσθεσέ τες.
   mapObj.on('baselayerchange', e=>{
     const isOsm = /osm/i.test(e.name||'');
@@ -1261,6 +1513,24 @@ function initMap(){
     else if(areaMode){ clearTimeout(areaClickTimer); if(areaPts.length){ areaPts.pop(); redrawArea(); } }
   });
   mapObj.on('moveend', loadViewportParcels);
+  // Κουμπιά μέσα στο πλαίσιο διαλόγου γεωτεμαχίου (event delegation στο popup)
+  mapObj.on('popupopen', e=>{
+    const el=e.popup && e.popup.getElement && e.popup.getElement(); if(!el) return;
+    el.querySelectorAll('[data-pact]').forEach(btn=>{
+      if(btn.__wired) return; btn.__wired=true;
+      btn.addEventListener('click', ()=>{
+        const kaek=btn.dataset.kaek, act=btn.dataset.pact;
+        const rec=selected.find(s=>s.kaek===kaek) || ((current&&current.kaek===kaek)?current:null);
+        if(!rec){ showToast('Το γεωτεμάχιο δεν είναι στη λίστα'); return; }
+        if(act==='dxf') downloadDxf([rec]);
+        else if(act==='ktima'){ if((rec.kaek||'').length===12) window.open(buildKtimaUrl(rec.kaek),'_blank','noopener'); else showToast('Μη έγκυρος ΚΑΕΚ'); }
+        else if(act==='pol'){ if(rec.centroidEGSA && window.POL) window.POL.run(rec); else showToast('Λείπει κεντροειδές'); }
+        else if(act==='maps'){ if(rec.point) openGoogleMaps(rec.point.lat,rec.point.lon); else showToast('Λείπει σημείο'); }
+        else if(act==='forest') downloadForestDxfFor([rec]);
+        else if(act==='arch') downloadArchDxfFor([rec]);
+      });
+    });
+  });
   setTimeout(()=>{ mapObj.invalidateSize(); loadViewportParcels(); drawSelectionHighlights(); },80);
 }
 async function loadViewportParcels(){
@@ -1277,6 +1547,76 @@ async function loadViewportParcels(){
     (data.features||[]).forEach(f=>{ if(!f.geometry||!f.geometry.rings) return; L.polygon(f.geometry.rings.map(r=>r.map(p=>[p[1],p[0]])),{color:'#c9a227',weight:1,fill:true,fillOpacity:0.04,interactive:false}).addTo(parcelsLayer); });
   }catch(err){}
 }
+/* ═══ Θεματικά overlays: Δασικός χάρτης & Natura (ArcGIS FeatureServer ανά viewport) ═══ */
+async function queryFeatures(url, abortRef){
+  const b=mapObj.getBounds();
+  const env=[b.getWest(),b.getSouth(),b.getEast(),b.getNorth()].join(',');
+  const z=mapObj.getZoom();
+  const off=360/(256*Math.pow(2,z))*1.2; // γενίκευση ~1px (σε μοίρες) για ταχύτητα
+  // σημ.: το DASIKA FeatureServer ΔΕΝ δέχεται resultRecordCount (ο server κόβει στα 2000 μόνος του)
+  const u=`${url}?f=json&geometry=${encodeURIComponent(env)}&geometryType=esriGeometryEnvelope&inSR=4326`
+    +`&spatialRel=esriSpatialRelIntersects&outFields=*&returnGeometry=true&outSR=4326&maxAllowableOffset=${off}`;
+  if(abortRef.c) abortRef.c.abort();
+  abortRef.c=new AbortController();
+  const res=await fetch(u,{signal:abortRef.c.signal}); const data=await res.json();
+  return (data.features||[]);
+}
+function addOverlayPolys(features, layerGroup, style, popupFn){
+  for(const f of features){
+    if(!f.geometry||!f.geometry.rings) continue;
+    const st = (typeof style==='function') ? style(f.attributes||{}) : style;
+    const poly=L.polygon(f.geometry.rings.map(r=>r.map(p=>[p[1],p[0]])), st);
+    const pu=popupFn ? popupFn(f.attributes||{}) : '';
+    // autoPan:false ώστε το άνοιγμα του popup να ΜΗΝ μετακινεί τον χάρτη (που θα προκαλούσε
+    // moveend → επαναφόρτωση overlay → κλείσιμο του popup). Μένει ανοικτό μέχρι κλικ αλλού.
+    if(pu) poly.bindPopup(pu, {autoPan:false, maxWidth:300});
+    poly.addTo(layerGroup);
+  }
+}
+async function loadForest(){
+  if(!mapObj||!forestLayer) return;
+  if(mapObj.getZoom()<FOREST_MINZOOM){ forestLayer.clearLayers(); return; }
+  try{
+    const fts=await queryFeatures(FS_FOREST, forestAbort);
+    forestLayer.clearLayers();
+    addOverlayPolys(fts, forestLayer, a=>{
+      // «ΑΑ»/«ΠΑ» (μη δασικό): μόνο περίγραμμα, χωρίς πράσινο γέμισμα
+      const code=(a.KATHGORDX||'').trim();
+      const noFill = code==='ΑΑ' || code==='ΠΑ';
+      return noFill ? {color:'#1b5e20',weight:1,fill:false}
+                    : {color:'#1b5e20',weight:1,fillColor:'#2e7d32',fillOpacity:0.28};
+    }, a=>{
+      const dx=a.KATHGORDX||'—', al1=a.KATHGORAL1||'', al2=a.KATHGORAL2||'';
+      return '<b>🌲 Δασικός χάρτης (κυρωμένος)</b><br>Χαρακτηρισμός: <b>'+escapeHtml(dx)+'</b>'
+        +(al1?'<br>Κατηγ. ΑΛ1: '+escapeHtml(al1):'')+(al2?'<br>Κατηγ. ΑΛ2: '+escapeHtml(al2):'')
+        +(a.NOMOS?'<br>Νομός: '+escapeHtml(a.NOMOS):'')+(a.OTA?' · ΟΤΑ: '+escapeHtml(a.OTA):'');
+    });
+  }catch(e){}
+}
+async function loadNatura(){
+  if(!mapObj||!naturaLayer) return;
+  if(mapObj.getZoom()<NATURA_MINZOOM){ naturaLayer.clearLayers(); return; }
+  try{
+    const [sci,spa]=await Promise.all([ queryFeatures(FS_NAT_SCI, naturaAbort), queryFeatures(FS_NAT_SPA, {c:null}) ]);
+    naturaLayer.clearLayers();
+    addOverlayPolys(sci, naturaLayer, {color:'#1565c0',weight:1.5,fillColor:'#1e88e5',fillOpacity:0.15}, a=>
+      '<b>🔵 Natura 2000 — SCI/SAC</b><br>Κωδικός: <b>'+escapeHtml(a.SITECODE||'—')+'</b>'+(a.SITETYPE?'<br>Τύπος: '+escapeHtml(a.SITETYPE):''));
+    addOverlayPolys(spa, naturaLayer, {color:'#1565c0',weight:1.5,dashArray:'6,4',fillColor:'#1e88e5',fillOpacity:0.15}, a=>
+      '<b>🔵 Natura 2000 — SPA</b><br>Κωδικός: <b>'+escapeHtml(a.SITECODE||'—')+'</b>'+(a.SITETYPE?'<br>Τύπος: '+escapeHtml(a.SITETYPE):''));
+  }catch(e){}
+}
+async function loadArchZones(){
+  if(!mapObj||!archZonesLayer) return;
+  if(mapObj.getZoom()<ARCHZONES_MINZOOM){ archZonesLayer.clearLayers(); return; }
+  try{
+    const fts=await queryFeatures(MS_ARCH+'/'+ARCH_ZONES_LAYER+'/query', archZonesAbort);
+    archZonesLayer.clearLayers();
+    addOverlayPolys(fts, archZonesLayer, {color:'#6a1b9a',weight:1.5,fillColor:'#8e24aa',fillOpacity:0.2}, a=>
+      '<b>🏺 Αρχαιολογική Ζώνη Προστασίας</b>'+(a.NAME?('<br>Ονομασία: <b>'+escapeHtml(a.NAME)+'</b>'):'')
+      +(a.OTA?('<br>Δήμος: '+escapeHtml(a.OTA)):'')+(a.FOREAS?('<br>Φορέας: '+escapeHtml(a.FOREAS)):''));
+  }catch(e){}
+}
+
 /* Σχεδίαση όλων των επιλεγμένων: κόκκινο περίγραμμα + κόκκινος κύκλος όταν
    υπάρχει επικάλυψη με polyline του SYNOLIKO-12.dxf, αλλιώς μπλε. */
 function drawSelectionHighlights(){
@@ -1602,6 +1942,9 @@ function buildMapCanvas(){
 
   // 2) Όρια γεωτεμαχίων (parcels) — όπως φαίνονται στον χάρτη
   drawVectorLayer(ctx, parcelsLayer);
+  if(archZonesOn && archZonesLayer) drawVectorLayer(ctx, archZonesLayer);
+  if(forestOn && forestLayer) drawVectorLayer(ctx, forestLayer);
+  if(naturaOn && naturaLayer) drawVectorLayer(ctx, naturaLayer);
 
   // 3) Επιλεγμένα ΚΑΕΚ (ίδια χρώματα με τον χάρτη)
   for(const rec of selected){
@@ -2160,6 +2503,12 @@ function renderSummary(hits){
         if(srcCell==='—' && archSite.layerName) srcCell='<div class="sum-src">'+escapeHtml(archSite.layerName)+(archSite.layerId!=null?(' · L'+archSite.layerId):'')+'</div>';
         if(fekCell==='—' && archSite.fek) fekCell=`<a href="${escapeHtml(archSite.fek.url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(archSite.fek.text)}</a>`;
       }
+      if(archContain){ // εξ ολοκλήρου εντός ζώνης προστασίας → πρώτο-πρώτο στο Ο.Τ.
+        anyFound=true;
+        let t='🏺 ΕΞ ΟΛΟΚΛΗΡΟΥ ΕΝΤΟΣ ΑΡΧΑΙΟΛΟΓΙΚΗΣ ΖΩΝΗΣ ΠΡΟΣΤΑΣΙΑΣ'+(archContain.name?(': '+archContain.name):'');
+        valParts.unshift('<div class="sum-val" style="color:var(--red);font-weight:700">'+escapeHtml(t)+'</div>');
+        if(srcCell==='—') srcCell='<div class="sum-src">Αρχαιολογικό (ΤΕΕ) · Ζώνες Προστασίας</div>';
+      }
       if(!valParts.length) valParts.push('<span class="sum-none">— δεν εντοπίστηκε αυτόματα</span>');
       rows+=mkRow(escapeHtml(label), valParts.join(''), srcCell, fekCell);
       continue;
@@ -2230,6 +2579,7 @@ function summaryText(hits){
       if(arch) parts.push(archNoteText(arch));
       if(borderline) parts.unshift(MSG_BORDERLINE);
       if(archSite) parts.unshift(archSiteNoteText(archSite)); // στην αρχή του Ο.Τ.
+      if(archContain) parts.unshift('ΕΞ ΟΛΟΚΛΗΡΟΥ ΕΝΤΟΣ ΑΡΧΑΙΟΛΟΓΙΚΗΣ ΖΩΝΗΣ ΠΡΟΣΤΑΣΙΑΣ'+(archContain.name?(': '+archContain.name):'')); // πρώτο
       if(!parts.length) parts.push('(δεν εντοπίστηκε αυτόματα)');
       L.push('  Οικοδομικό Τετράγωνο (Ο.Τ.) - Λοιπή πληροφορία: '+parts.join('  ·  '));
       continue;
@@ -2369,6 +2719,41 @@ function buildTextReport({kaek, note, geo, w, buckets, allFek, ota, diag, hits, 
 let lastReportText='';
 let currentCentroid=null;
 let zoneHint={zone:'',urban:false,rural:false,borderline:false,kaek:''}; // ένδειξη αστικό/εξωαστικό από πολεοδομικά
+let archContain=null; // {name,ota,foreas} όταν το ΚΑΕΚ είναι εξ ολοκλήρου εντός ζώνης προστασίας
+/* point-in-polygon με συνυπολογισμό οπών (even-odd σε όλα τα rings του ArcGIS πολυγώνου). */
+function pointInRings(x,y,rings){
+  let inside=false;
+  for(const ring of (rings||[])){
+    for(let i=0,j=ring.length-1;i<ring.length;j=i++){
+      const xi=ring[i][0],yi=ring[i][1],xj=ring[j][0],yj=ring[j][1];
+      if(((yi>y)!==(yj>y)) && (x < (xj-xi)*(y-yi)/((yj-yi)||1e-12)+xi)) inside=!inside;
+    }
+  }
+  return inside;
+}
+/* Ελέγχει αν το γεωτεμάχιο βρίσκεται ΕΞ ΟΛΟΚΛΗΡΟΥ εντός αρχαιολογικής ζώνης προστασίας
+   (TEE layer 7, EGSA87): όλες οι κορυφές του να είναι εντός του ίδιου πολυγώνου ζώνης. */
+async function queryArchContainment(rec){
+  archContain=null;
+  if(!rec || !rec.ringsEGSA || !rec.ringsEGSA.length) return;
+  try{
+    let minX=Infinity,minY=Infinity,maxX=-Infinity,maxY=-Infinity;
+    for(const ring of rec.ringsEGSA){ for(const p of ring){ if(p[0]<minX)minX=p[0]; if(p[1]<minY)minY=p[1]; if(p[0]>maxX)maxX=p[0]; if(p[1]>maxY)maxY=p[1]; } }
+    const env=minX+','+minY+','+maxX+','+maxY;
+    const url=MS_ARCH+'/'+ARCH_ZONES_LAYER+'/query?f=json&geometry='+encodeURIComponent(env)
+      +'&geometryType=esriGeometryEnvelope&inSR=2100&spatialRel=esriSpatialRelIntersects'
+      +'&outFields=NAME,OTA,FOREAS&returnGeometry=true&outSR=2100';
+    const data=await fetchJson(url, 15000);
+    const parcel=rec.ringsEGSA[0];
+    for(const f of (data.features||[])){
+      if(!f.geometry||!f.geometry.rings) continue;
+      if(parcel.every(pt=>pointInRings(pt[0],pt[1],f.geometry.rings))){
+        archContain={ name:(f.attributes&&f.attributes.NAME)||'', ota:(f.attributes&&f.attributes.OTA)||'', foreas:(f.attributes&&f.attributes.FOREAS)||'' };
+        break;
+      }
+    }
+  }catch(e){ archContain=null; }
+}
 function setProgress(pct, txt){ $('polProgFill').style.width=Math.round(pct)+'%'; if(txt!==undefined) $('polProgTxt').textContent=txt; }
 
 function renderResults({kaek, note, geo, w, hits, diag}){
@@ -2478,6 +2863,8 @@ async function run(rec){
       done++; setProgress(15 + 80*done/services.length, `Ανάγνωση θεματικών επιπέδων… (${done}/${services.length})`);
     }
   }));
+
+  await queryArchContainment(rec); // εξ ολοκλήρου εντός αρχαιολογικής ζώνης;
 
   setProgress(100,'Ολοκληρώθηκε.');
   $('polProgress').style.display='none';
