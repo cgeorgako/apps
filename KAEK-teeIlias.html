@@ -166,6 +166,22 @@
   .my-loc-pin{background:none;border:none;filter:drop-shadow(0 1px 2px rgba(0,0,0,0.5));}
   .my-loc-pin svg{display:block;}
 
+  /* ═══ Πλαίσιο διαλόγου γεωτεμαχίου (Leaflet popup) ═══ */
+  .leaflet-popup.parcel-popup .leaflet-popup-content-wrapper{background:var(--surface);color:var(--text);border:1px solid var(--border);border-radius:12px;box-shadow:0 6px 20px rgba(0,0,0,0.45);}
+  .leaflet-popup.parcel-popup .leaflet-popup-content{margin:0.7rem 0.85rem;}
+  .leaflet-popup.parcel-popup .leaflet-popup-tip{background:var(--surface);border:1px solid var(--border);}
+  .leaflet-popup.parcel-popup a.leaflet-popup-close-button{color:var(--text-muted);}
+  .parcel-dialog .pd-kaek{font-family:'IBM Plex Mono',monospace;font-size:1rem;font-weight:700;color:var(--gold);word-break:break-all;margin-bottom:0.45rem;}
+  .parcel-dialog .pd-rows{display:flex;flex-direction:column;gap:0.1rem;font-size:0.8rem;margin-bottom:0.6rem;}
+  .parcel-dialog .pd-rows>div{display:flex;justify-content:space-between;gap:0.7rem;border-bottom:1px dashed var(--border);padding:0.16rem 0;}
+  .parcel-dialog .pd-rows>div:last-child{border-bottom:none;}
+  .parcel-dialog .pd-rows span{color:var(--text-muted);}
+  .parcel-dialog .pd-rows b{color:var(--text);font-family:'IBM Plex Mono',monospace;font-weight:600;}
+  .parcel-dialog .pd-na{color:var(--text-muted);}
+  .parcel-dialog .pd-btns{display:flex;flex-wrap:wrap;gap:0.35rem;}
+  .parcel-dialog .pd-btn{font-size:0.74rem;font-weight:600;border:1px solid var(--border);background:var(--surface-2);color:var(--text);border-radius:7px;padding:0.32rem 0.5rem;cursor:pointer;font-family:inherit;white-space:nowrap;}
+  .parcel-dialog .pd-btn:hover{border-color:var(--gold-dim);color:var(--gold);}
+
   /* ═══ Διάλογος Ελέγχου Ανοχής ═══ */
   .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.62);display:flex;align-items:center;justify-content:center;z-index:10000;padding:1rem;}
   .modal-box{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:1.3rem;max-width:430px;width:100%;}
@@ -584,6 +600,7 @@ function setResolved(kaek, ringsEGSA, area, perimeter, note){
     current=existing;
     showToast('Ήδη στη λίστα: '+digits);
     renderSelection(); drawSelectionHighlights();
+    openParcelDialog(existing);
     return;
   }
   if(selected.length>=MAX_SEL){ showToast('Μέγιστο '+MAX_SEL+' γεωτεμάχια — αφαίρεσε κάποιο πρώτα.'); return; }
@@ -597,6 +614,7 @@ function setResolved(kaek, ringsEGSA, area, perimeter, note){
   renderSelection();
   drawSelectionHighlights();
   computeSynolikoForRecord(rec);
+  openParcelDialog(rec);
   if(digits.length===12) addToHistory({ kaek:digits, note:note||'', lat:point?point.lat:null, lon:point?point.lon:null });
 }
 
@@ -813,11 +831,10 @@ function buildForestDxf(features){
   dxf+="  0\nENDSEC\n  0\nEOF\n";
   return dxf;
 }
-$('actForestDxfOnline').addEventListener('click', async ()=>{
-  if(!selected.length){ showToast('Διάλεξε πρώτα ΚΑΕΚ'); return; }
-  const recs=selected.filter(r=>r.ringsEGSA&&r.ringsEGSA.length);
+async function downloadForestDxfFor(list, btn){
+  const recs=(list||[]).filter(r=>r.ringsEGSA&&r.ringsEGSA.length);
   if(!recs.length){ showToast('Λείπει γεωμετρία GIS — επίλεξε ξανά το γεωτεμάχιο'); return; }
-  const btn=$('actForestDxfOnline'); const o=btn.textContent; btn.disabled=true; btn.textContent='🌲 Άντληση…';
+  let o; if(btn){ o=btn.textContent; btn.disabled=true; btn.textContent='🌲 Άντληση…'; }
   try{
     const feats=await fetchForestEgsa(recs, 50); // ~50m buffer γύρω από τα επιλεγμένα
     if(!feats.length){ showToast('Δεν βρέθηκαν δασικά πολύγωνα στην περιοχή'); return; }
@@ -828,8 +845,43 @@ $('actForestDxfOnline').addEventListener('click', async ()=>{
     document.body.appendChild(a); a.click(); document.body.removeChild(a); setTimeout(()=>URL.revokeObjectURL(a.href),1000);
     showToast('Λήψη DXF δασικών: '+feats.length+' πολύγωνο(α)');
   }catch(e){ console.error(e); showToast('Αποτυχία άντλησης δασικών: '+(e.message||e)); }
-  finally{ btn.disabled=false; btn.textContent=o; }
+  finally{ if(btn){ btn.disabled=false; btn.textContent=o; } }
+}
+$('actForestDxfOnline').addEventListener('click', ()=>{
+  if(!selected.length){ showToast('Διάλεξε πρώτα ΚΑΕΚ'); return; }
+  downloadForestDxfFor(selected, $('actForestDxfOnline'));
 });
+
+/* ═══ Πλαίσιο διαλόγου γεωτεμαχίου (popup στον χάρτη) ═══ */
+let parcelPopup=null;
+function buildParcelDialogHtml(rec){
+  const area = rec.area ? ('~'+Math.round(rec.area).toLocaleString('el-GR')+' τ.μ.') : '—';
+  const dash='<span class="pd-na">—</span>';
+  const k=escapeHtml(rec.kaek||'—');
+  return '<div class="parcel-dialog">'
+    + '<div class="pd-kaek">'+k+'</div>'
+    + '<div class="pd-rows">'
+    +   '<div><span>Εμβαδόν</span><b>'+area+'</b></div>'
+    +   '<div><span>Δήμος</span>'+dash+'</div>'
+    +   '<div><span>Δημοτική Ενότητα</span>'+dash+'</div>'
+    +   '<div><span>Κοινότητα</span>'+dash+'</div>'
+    +   '<div><span>Τοπική Κοινότητα</span>'+dash+'</div>'
+    + '</div>'
+    + '<div class="pd-btns">'
+    +   '<button class="pd-btn" data-pact="dxf" data-kaek="'+k+'">📐 DXF</button>'
+    +   '<button class="pd-btn" data-pact="ktima" data-kaek="'+k+'">🏛️ Κτηματολόγιο</button>'
+    +   '<button class="pd-btn" data-pact="pol" data-kaek="'+k+'">🧭 Πολεοδομικά</button>'
+    +   '<button class="pd-btn" data-pact="maps" data-kaek="'+k+'">📍 Maps</button>'
+    +   '<button class="pd-btn" data-pact="forest" data-kaek="'+k+'">🌲 Δασικά</button>'
+    + '</div></div>';
+}
+function openParcelDialog(rec){
+  if(!mapObj || !rec || !rec.point) return;
+  parcelPopup = L.popup({maxWidth:300, minWidth:230, className:'parcel-popup', autoClose:true, closeOnClick:true})
+    .setLatLng([rec.point.lat, rec.point.lon])
+    .setContent(buildParcelDialogHtml(rec))
+    .openOn(mapObj);
+}
 
 /* ═══ SYNOLIKO-12.dxf: εύρεση polyline & κειμένου στο κέντρο του ΚΑΕΚ ═══ */
 let synoliko=null; // { polylines:[{pts,closed}], texts:[{x,y,str}] }
@@ -1373,6 +1425,23 @@ function initMap(){
     else if(areaMode){ clearTimeout(areaClickTimer); if(areaPts.length){ areaPts.pop(); redrawArea(); } }
   });
   mapObj.on('moveend', loadViewportParcels);
+  // Κουμπιά μέσα στο πλαίσιο διαλόγου γεωτεμαχίου (event delegation στο popup)
+  mapObj.on('popupopen', e=>{
+    const el=e.popup && e.popup.getElement && e.popup.getElement(); if(!el) return;
+    el.querySelectorAll('[data-pact]').forEach(btn=>{
+      if(btn.__wired) return; btn.__wired=true;
+      btn.addEventListener('click', ()=>{
+        const kaek=btn.dataset.kaek, act=btn.dataset.pact;
+        const rec=selected.find(s=>s.kaek===kaek) || ((current&&current.kaek===kaek)?current:null);
+        if(!rec){ showToast('Το γεωτεμάχιο δεν είναι στη λίστα'); return; }
+        if(act==='dxf') downloadDxf([rec]);
+        else if(act==='ktima'){ if((rec.kaek||'').length===12) window.open(buildKtimaUrl(rec.kaek),'_blank','noopener'); else showToast('Μη έγκυρος ΚΑΕΚ'); }
+        else if(act==='pol'){ if(rec.centroidEGSA && window.POL) window.POL.run(rec); else showToast('Λείπει κεντροειδές'); }
+        else if(act==='maps'){ if(rec.point) openGoogleMaps(rec.point.lat,rec.point.lon); else showToast('Λείπει σημείο'); }
+        else if(act==='forest') downloadForestDxfFor([rec]);
+      });
+    });
+  });
   setTimeout(()=>{ mapObj.invalidateSize(); loadViewportParcels(); drawSelectionHighlights(); },80);
 }
 async function loadViewportParcels(){
