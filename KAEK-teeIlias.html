@@ -534,6 +534,8 @@ const ARCGIS_URL = "https://services-eu1.arcgis.com/40tFGWzosjaLJpmn/arcgis/rest
 const FS_FOREST   = "https://services-eu1.arcgis.com/40tFGWzosjaLJpmn/arcgis/rest/services/DASIKA_KYROSH_P_gdb/FeatureServer/0/query";   // Δασικός χάρτης (κυρωμένος)
 const FS_NAT_SCI  = "https://services-eu1.arcgis.com/40tFGWzosjaLJpmn/arcgis/rest/services/NATURA_SCI_P_gdb/FeatureServer/0/query";      // Natura SCI
 const FS_NAT_SPA  = "https://services-eu1.arcgis.com/40tFGWzosjaLJpmn/arcgis/rest/services/NATURA_SPA_P_gdb/FeatureServer/0/query";      // Natura SPA
+// Αρχαιολογικές Ζώνες Προστασίας — cached XYZ tiles (EPSG:3857, PNG32 διαφανές, CORS για το site)
+const TILE_APAA   = "https://maps.gsis.gr/gspp/maps/rest/services/APAA_PUBLIC/PUBLIC_ZONES_APAA_2021_CACHED_NOVEC/MapServer/tile/{z}/{y}/{x}";
 const KTIMA_VIEW = 'https://ktimatologio.gov.gr/Professionals/Inquiry/Main/viewResults/';
 const KTIMA_SUFFIX = '-0-0?p=1';
 const STORAGE_KEY = 'kaek_teeilias_history_v1';
@@ -1379,12 +1381,17 @@ function initMap(){
   mapObj.getPane('labelsPane').style.zIndex=350;
   mapObj.getPane('labelsPane').style.pointerEvents='none';
   labels.addTo(mapObj); // ενεργό εξ ορισμού (default base = Δορυφορικό)
+  // Αρχαιολογικές Ζώνες Προστασίας (cached raster overlay, κάτω από ετικέτες/διανύσματα)
+  mapObj.createPane('apaaPane');
+  mapObj.getPane('apaaPane').style.zIndex=340;
+  mapObj.getPane('apaaPane').style.pointerEvents='none';
+  const apaa=L.tileLayer(TILE_APAA,{maxZoom:22,maxNativeZoom:19,opacity:0.85,crossOrigin:true,pane:'apaaPane',attribution:'ΑΑΔΕ/ΥΠΠΟΑ — Αρχαιολογικές Ζώνες'});
   // Θεματικά overlays (ανά viewport)
   forestLayer=L.layerGroup();
   naturaLayer=L.layerGroup();
   L.control.layers(
     {'Δορυφορικό':sat,'Χάρτης (OSM)':osm},
-    {'Ετικέτες (οδοί/οικισμοί)':labels, '🌲 Δασικός χάρτης':forestLayer, '🔵 Natura 2000':naturaLayer},
+    {'Ετικέτες (οδοί/οικισμοί)':labels, '🏺 Αρχαιολογικές Ζώνες':apaa, '🌲 Δασικός χάρτης':forestLayer, '🔵 Natura 2000':naturaLayer},
     {position:'topright'}
   ).addTo(mapObj);
   mapObj.on('overlayadd', e=>{
