@@ -299,7 +299,7 @@
     <button class="tab active" data-tab="map" id="tabMap">Χάρτης</button>
     <button class="tab" data-tab="kaek" id="tabKaek">ΚΑΕΚ</button>
     <button class="tab" data-tab="xy" id="tabXy">Χ,Υ</button>
-    <button class="tab" data-tab="add" id="tabAdd">Καταχώριση</button>
+    <button class="tab" data-tab="add" id="tabAdd" style="display:none;">Καταχώριση</button>
   </div>
 
   <!-- ── Χάρτης ── -->
@@ -2959,7 +2959,21 @@ window.POL = { run, getZoneHint:()=>zoneHint };
 renderSelection();
 renderHistory();
 initMap();
-checkSynolikoUpdate();
+/* Το banner «νεότερο SYNOLIKO-12» αποκρύπτεται (δεν γίνεται έλεγχος). Χειροκίνητη
+   ανανέωση παραμένει διαθέσιμη. */
+hideSynBanner();
+
+/* Καρτέλα «Καταχώριση»: κρυφή· εμφάνιση/απόκρυψη ΜΟΝΟ με Alt+P (ανεξαρτήτως διάταξης πληκτρολογίου). */
+let addTabVisible=false;
+document.addEventListener('keydown', e=>{
+  if(e.altKey && e.code==='KeyP'){
+    e.preventDefault();
+    addTabVisible=!addTabVisible;
+    $('tabAdd').style.display = addTabVisible ? '' : 'none';
+    if(addTabVisible){ $('tabAdd').click(); }
+    else if($('tabAdd').classList.contains('active')){ $('tabMap').click(); }
+  }
+});
 </script>
 </body>
 </html>
