@@ -688,7 +688,8 @@ async function resolveByKaek(kaek, note){
     const f=data.features[0];
     if(!f.geometry||!f.geometry.rings){ showToast('Δεν βρέθηκε γεωμετρία γεωτεμαχίου'); return; }
     setResolved(digits, f.geometry.rings, f.attributes&&f.attributes.AREA, f.attributes&&f.attributes.PERIMETER, note);
-    if(mapObj && current.point) mapObj.setView([current.point.lat,current.point.lon], Math.max(mapObj.getZoom(),18));
+    /* Το πλαισίωμα του χάρτη γίνεται από το framePopup() μέσα στο openParcelDialog(),
+       ώστε να φαίνεται ολόκληρο το popup χωρίς να καλύπτεται το polyline του ΚΑΕΚ. */
   }catch(err){ console.error(err); showToast('Αποτυχία σύνδεσης με το Κτηματολόγιο — έλεγξε το internet'); }
 }
 
@@ -955,13 +956,34 @@ function parcelPopupLatLng(rec){
   }
   return [rec.point.lat, rec.point.lon];
 }
+/* Πλαισιώνει τον χάρτη ώστε ολόκληρο το γεωτεμάχιο να βρίσκεται στο κάτω μέρος
+   και να μένει ελεύθερος χώρος πάνω για το πλήρες popup (αγκυρωμένο στο βόρειο
+   άκρο). Έτσι το αναδυόμενο παράθυρο εμφανίζεται ολόκληρο χωρίς να επικαλύπτει
+   το polyline του επιλεγμένου ΚΑΕΚ. */
+function framePopup(rec){
+  if(!mapObj || !rec) return;
+  let bounds=null;
+  if(rec.ringsEGSA && rec.ringsEGSA.length){
+    bounds=L.latLngBounds([]);
+    for(const ring of egsaRingsToLatLngs(rec.ringsEGSA)){ for(const ll of ring){ bounds.extend(ll); } }
+  }
+  if(!bounds || !bounds.isValid()){
+    if(rec.point) mapObj.setView([rec.point.lat, rec.point.lon], Math.max(mapObj.getZoom(),18));
+    return;
+  }
+  const size=mapObj.getSize();
+  // Δέσμευση χώρου στην κορυφή ≈ ύψος popup (όσο το επιτρέπει το ύψος του χάρτη).
+  const topPad=Math.min(330, Math.max(140, Math.round(size.y*0.55)));
+  mapObj.fitBounds(bounds, {paddingTopLeft:[30, topPad], paddingBottomRight:[30, 40], maxZoom:19, animate:true});
+}
 function openParcelDialog(rec){
   if(!mapObj || !rec || !rec.point) return;
   rec.zones=null; // πάντα εκ νέου, ώστε να αντικατοπτρίζει τα τρέχοντα ενεργά layers
-  parcelPopup = L.popup({maxWidth:320, minWidth:240, className:'parcel-popup', autoClose:true, closeOnClick:true, offset:[0,-4]})
+  parcelPopup = L.popup({maxWidth:320, minWidth:240, className:'parcel-popup', autoClose:true, closeOnClick:true, autoPan:false, offset:[0,-4]})
     .setLatLng(parcelPopupLatLng(rec))
     .setContent(buildParcelDialogHtml(rec))
     .openOn(mapObj);
+  framePopup(rec);
   if(!rec.admin){
     fetchAdminForRec(rec)
       .then(ad=>{ rec.admin = ad || {dimos:'',dimEnot:'',koinot:''}; updateParcelDialogAdmin(rec); })
