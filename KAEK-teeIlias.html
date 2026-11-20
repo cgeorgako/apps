@@ -136,19 +136,6 @@
   .sso-note{font-size:0.73rem;color:var(--text-muted);margin-top:0.7rem;line-height:1.5;}
   .sso-note b{color:var(--gold);}
 
-  /* Ιστορικό */
-  .history-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:0.75rem;}
-  .history-head h2{font-size:0.82rem;font-weight:600;margin:0;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.04em;}
-  .clear-link{background:none;border:none;color:var(--text-muted);font-size:0.75rem;padding:0.2rem;text-decoration:underline;cursor:pointer;font-family:inherit;}
-  .clear-link:hover{color:var(--red);}
-  .history-list{display:flex;flex-direction:column;gap:0.5rem;}
-  .history-item{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:0.65rem 0.8rem;display:flex;align-items:center;gap:0.6rem;cursor:pointer;}
-  .history-item:hover{border-color:var(--gold-dim);}
-  .history-info{flex:1;min-width:0;}
-  .history-title{font-family:'IBM Plex Mono',monospace;font-size:0.85rem;letter-spacing:0.02em;}
-  .history-sub{font-size:0.74rem;color:var(--text-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-  .history-del{background:none;border:none;color:var(--text-muted);font-size:1rem;padding:0.2rem 0.4rem;line-height:1;cursor:pointer;}
-  .history-del:hover{color:var(--red);}
   .empty{text-align:center;color:var(--text-muted);font-size:0.82rem;padding:1.2rem 0.5rem;border:1px dashed var(--border);border-radius:10px;}
 
   .toast{position:fixed;bottom:1.2rem;left:50%;transform:translateX(-50%) translateY(160%);background:var(--surface-2);border:1px solid var(--border);color:var(--text);padding:0.65rem 1rem;border-radius:10px;font-size:0.82rem;transition:transform .25s;z-index:50;max-width:90vw;text-align:center;line-height:1.4;}
@@ -498,15 +485,6 @@
     <div id="polReportBody" style="margin-top:1rem;"></div>
     <div class="diag" id="polDiag"></div>
     <div class="sso-note" style="margin-top:0.8rem;">Τα στοιχεία είναι ενδεικτικά/ενημερωτικά· η επίσημη πολεοδομική πληροφορία επιβεβαιώνεται από την αρμόδια Υπηρεσία Δόμησης. Πηγή: ΤΕΕ — Σύστημα Γεωχωρικών Πληροφοριών (sdigmap.tee.gov.gr).</div>
-  </div>
-
-  <!-- ── Ιστορικό ── -->
-  <div class="card">
-    <div class="history-head">
-      <h2>Πρόσφατα</h2>
-      <button id="clearHistoryBtn" class="clear-link">Καθαρισμός</button>
-    </div>
-    <div id="historyList" class="history-list"></div>
   </div>
 
   <footer>Ενοποιημένο εργαλείο ΚΑΕΚ — Χάρτης · DXF · Κτηματολόγιο</footer>
@@ -2112,23 +2090,10 @@ $('synUpdateBtn').addEventListener('click', async ()=>{
 });
 $('synUpdateDismiss').addEventListener('click', hideSynBanner);
 
-/* ═══ Ιστορικό ═══ */
+/* ═══ Ιστορικό (χωρίς ορατή λίστα «Πρόσφατα» — διατηρείται μόνο για αρχικό κέντρο χάρτη) ═══ */
 function loadHistory(){ try{ return JSON.parse(localStorage.getItem(STORAGE_KEY))||[]; }catch(e){ return []; } }
 function saveHistory(list){ try{ localStorage.setItem(STORAGE_KEY,JSON.stringify(list)); }catch(e){} }
-function addToHistory(item){ let list=loadHistory(); list=list.filter(x=>x.kaek!==item.kaek); list.unshift({...item,ts:Date.now()}); if(list.length>MAX_HISTORY) list=list.slice(0,MAX_HISTORY); saveHistory(list); renderHistory(); }
-function removeFromHistory(ts){ saveHistory(loadHistory().filter(x=>x.ts!==ts)); renderHistory(); }
-function fmtDate(ts){ const d=new Date(ts); return d.toLocaleDateString('el-GR',{day:'2-digit',month:'2-digit',year:'2-digit'})+' '+d.toLocaleTimeString('el-GR',{hour:'2-digit',minute:'2-digit'}); }
-function renderHistory(){
-  const list=loadHistory(), el=$('historyList');
-  if(!list.length){ el.innerHTML='<div class="empty">Δεν υπάρχουν πρόσφατα</div>'; return; }
-  el.innerHTML=list.map(x=>`<div class="history-item" data-ts="${x.ts}"><div class="history-info"><div class="history-title">${x.kaek}</div><div class="history-sub">${x.note?x.note+' · ':''}${fmtDate(x.ts)}</div></div><button class="history-del" data-del="${x.ts}" title="Διαγραφή">✕</button></div>`).join('');
-}
-$('historyList').addEventListener('click', e=>{
-  const del=e.target.closest('[data-del]'); if(del){ removeFromHistory(Number(del.dataset.del)); return; }
-  const item=e.target.closest('.history-item');
-  if(item){ const rec=loadHistory().find(x=>x.ts===Number(item.dataset.ts)); if(rec) resolveByKaek(rec.kaek, rec.note); }
-});
-$('clearHistoryBtn').addEventListener('click', ()=>{ if(!loadHistory().length) return; if(confirm('Διαγραφή όλου του ιστορικού;')){ saveHistory([]); renderHistory(); } });
+function addToHistory(item){ let list=loadHistory(); list=list.filter(x=>x.kaek!==item.kaek); list.unshift({...item,ts:Date.now()}); if(list.length>MAX_HISTORY) list=list.slice(0,MAX_HISTORY); saveHistory(list); }
 
 /* ═══════════════════════════════════════════════════════════════════════
    Πολεοδομικά στοιχεία (ΤΕΕ SDI) — αυτόνομο module.
@@ -2979,7 +2944,6 @@ window.POL = { run, getZoneHint:()=>zoneHint };
 
 /* ═══ Init ═══ */
 renderSelection();
-renderHistory();
 initMap();
 /* Το banner «νεότερο SYNOLIKO-12» αποκρύπτεται (δεν γίνεται έλεγχος). Χειροκίνητη
    ανανέωση παραμένει διαθέσιμη. */
