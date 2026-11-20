@@ -80,10 +80,10 @@
   /* Χάρτης */
   #map{width:100%;height:52vh;min-height:300px;border-radius:12px;border:1px solid var(--border);background:var(--surface-2);}
 
-  /* Desktop: πλατύτερη διάταξη & μεγάλος χάρτης */
-  @media (min-width:900px){
-    .wrap{max-width:1060px;}
-    #map{height:74vh;min-height:560px;}
+  /* Desktop & tablet: πλατύτερη διάταξη & μεγάλος χάρτης (+25% ύψος/πλάτος) */
+  @media (min-width:768px){
+    .wrap{max-width:1325px;}
+    #map{height:92.5vh;min-height:700px;}
     /* Οι φόρμες μένουν σε αναγνώσιμο πλάτος, ο χάρτης απλώνεται */
     #panelKaek,#panelXy,#panelAdd,#actionsCard{max-width:620px;margin-left:auto;margin-right:auto;}
   }
