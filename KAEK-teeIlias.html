@@ -763,8 +763,38 @@ async function fetchForestEgsa(recs, buffer){
   const data=await res.json(); if(data.error) throw new Error(data.error.message||'arcgis');
   return data.features||[];
 }
+/* Κωδικοποίηση κειμένου DXF σε Windows-1253 (ελληνικά) — ώστε τα ελληνικά
+   να μην εμφανίζονται «????». Το ASCII μένει ίδιο· τα ελληνικά bytes κατά CP1253. */
+function dxfToCp1253Bytes(s){
+  const out=new Uint8Array(s.length);
+  for(let i=0;i<s.length;i++){
+    const cp=s.charCodeAt(i); let b;
+    if(cp<0x80) b=cp;
+    else if(cp>=0x0391 && cp<=0x03A9) b=0xC1+(cp-0x0391);   // Α..Ω
+    else if(cp>=0x03B1 && cp<=0x03C9) b=0xE1+(cp-0x03B1);   // α..ω
+    else if(cp===0x0386) b=0xA2;                            // Ά
+    else if(cp===0x0388) b=0xB8;                            // Έ
+    else if(cp===0x0389) b=0xB9;                            // Ή
+    else if(cp===0x038A) b=0xBA;                            // Ί
+    else if(cp===0x038C) b=0xBC;                            // Ό
+    else if(cp===0x038E) b=0xBE;                            // Ύ
+    else if(cp===0x038F) b=0xBF;                            // Ώ
+    else if(cp===0x03AC) b=0xDC;                            // ά
+    else if(cp===0x03AD) b=0xDD;                            // έ
+    else if(cp===0x03AE) b=0xDE;                            // ή
+    else if(cp===0x03AF) b=0xDF;                            // ί
+    else if(cp===0x03CC) b=0xFC;                            // ό
+    else if(cp===0x03CD) b=0xFD;                            // ύ
+    else if(cp===0x03CE) b=0xFE;                            // ώ
+    else b=0x3F;                                            // '?'
+    out[i]=b;
+  }
+  return out;
+}
 function buildForestDxf(features){
-  let dxf="  0\nSECTION\n  2\nENTITIES\n";
+  // HEADER με δήλωση codepage (ελληνικά) + AC1009 (R12)
+  let dxf="  0\nSECTION\n  2\nHEADER\n  9\n$ACADVER\n  1\nAC1009\n  9\n$DWGCODEPAGE\n  3\nANSI_1253\n  0\nENDSEC\n";
+  dxf+="  0\nSECTION\n  2\nENTITIES\n";
   for(const f of features){
     const g=f.geometry; if(!g||!g.rings) continue;
     const code=((f.attributes&&f.attributes.KATHGORDX)||'').trim();
@@ -793,7 +823,7 @@ $('actForestDxfOnline').addEventListener('click', async ()=>{
     if(!feats.length){ showToast('Δεν βρέθηκαν δασικά πολύγωνα στην περιοχή'); return; }
     const dxf=buildForestDxf(feats);
     const first=recs[0].kaek, name='DASIKA_'+first+(recs.length>1?('_syn'+(recs.length-1)):'')+'.dxf';
-    const blob=new Blob([dxf],{type:'application/dxf;charset=utf-8;'});
+    const blob=new Blob([dxfToCp1253Bytes(dxf)],{type:'application/dxf'}); // bytes CP1253 (ελληνικά)
     const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=name;
     document.body.appendChild(a); a.click(); document.body.removeChild(a); setTimeout(()=>URL.revokeObjectURL(a.href),1000);
     showToast('Λήψη DXF δασικών: '+feats.length+' πολύγωνο(α)');
