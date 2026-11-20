@@ -875,7 +875,7 @@ function buildParcelDialogHtml(rec){
     + '<div class="pd-kaek">'+k+'</div>'
     + '<div class="pd-rows">'
     +   '<div><span>Εμβαδόν</span><b>'+area+'</b></div>'
-    +   pdAdminRow(rec,'dimos')+pdAdminRow(rec,'dimEnot')+pdAdminRow(rec,'koinot')+pdAdminRow(rec,'topiki')
+    +   pdAdminRow(rec,'dimos')
     + '</div>'
     + '<div class="pd-btns">'
     +   '<button class="pd-btn" data-pact="dxf" data-kaek="'+k+'">📐 DXF</button>'
@@ -901,7 +901,7 @@ function updateParcelDialogAdmin(rec){
   if(!parcelPopup || !parcelPopup.getElement) return;
   const el=parcelPopup.getElement(); if(!el) return;
   const kaekEl=el.querySelector('.pd-kaek'); if(!kaekEl || kaekEl.textContent!==rec.kaek) return; // popup άλλου γεωτεμαχίου
-  ['dimos','dimEnot','koinot','topiki'].forEach(ar=>{ const dEl=el.querySelector('[data-ar="'+ar+'"]'); if(dEl) dEl.outerHTML=pdAdminRow(rec,ar); });
+  ['dimos'].forEach(ar=>{ const dEl=el.querySelector('[data-ar="'+ar+'"]'); if(dEl) dEl.outerHTML=pdAdminRow(rec,ar); });
 }
 function openParcelDialog(rec){
   if(!mapObj || !rec || !rec.point) return;
@@ -1430,7 +1430,8 @@ $('xyConvertBtn').addEventListener('click', ()=>{
 /* ═══ Χάρτης ═══ */
 let mapObj=null, mapInited=false, parcelsLayer=null, highlightsLayer=null, parcelsAbort=null, dxfLayer=null;
 let forestLayer=null, naturaLayer=null, forestOn=false, naturaOn=false, forestAbort={c:null}, naturaAbort={c:null};
-const FOREST_MINZOOM=14, NATURA_MINZOOM=10;
+let archZonesLayer=null, archZonesOn=false, archZonesAbort={c:null};
+const FOREST_MINZOOM=14, NATURA_MINZOOM=10, ARCHZONES_MINZOOM=12;
 let measureLayer=null, measureMode=false, measurePts=[], measureClickTimer=null;
 let areaMode=false, areaPts=[], areaClickTimer=null;
 let myLocationLayer=null;
@@ -1461,25 +1462,29 @@ function initMap(){
   mapObj.createPane('apaaPane');
   mapObj.getPane('apaaPane').style.zIndex=340;
   mapObj.getPane('apaaPane').style.pointerEvents='none';
-  const apaa=L.tileLayer(TILE_APAA,{maxZoom:22,maxNativeZoom:19,opacity:0.85,crossOrigin:true,pane:'apaaPane',attribution:'ΑΑΔΕ/ΥΠΠΟΑ — Αρχαιολογικές Ζώνες'});
+  const apaa=L.tileLayer(TILE_APAA,{maxZoom:22,maxNativeZoom:19,opacity:0.85,crossOrigin:true,pane:'apaaPane',attribution:'ΑΑΔΕ — Ζώνες Αντικειμενικών Αξιών'});
   // Θεματικά overlays (ανά viewport)
   forestLayer=L.layerGroup();
   naturaLayer=L.layerGroup();
+  archZonesLayer=L.layerGroup();
   L.control.layers(
     {'Δορυφορικό':sat,'Χάρτης (OSM)':osm},
-    {'Ετικέτες (οδοί/οικισμοί)':labels, '🏺 Αρχαιολογικές Ζώνες':apaa, '🌲 Δασικός χάρτης':forestLayer, '🔵 Natura 2000':naturaLayer},
+    {'Ετικέτες (οδοί/οικισμοί)':labels, '🏺 Αρχαιολογικές Ζώνες':archZonesLayer, '💶 Ζώνες Αντικ. Αξιών':apaa, '🌲 Δασικός χάρτης':forestLayer, '🔵 Natura 2000':naturaLayer},
     {position:'topright'}
   ).addTo(mapObj);
   mapObj.on('overlayadd', e=>{
     if(e.layer===forestLayer){ forestOn=true;
       if(mapObj.getZoom()<FOREST_MINZOOM) showToast('🌲 Κάνε zoom (≥'+FOREST_MINZOOM+') για να εμφανιστεί ο δασικός χάρτης'); else loadForest(); }
     else if(e.layer===naturaLayer){ naturaOn=true; loadNatura(); }
+    else if(e.layer===archZonesLayer){ archZonesOn=true;
+      if(mapObj.getZoom()<ARCHZONES_MINZOOM) showToast('🏺 Κάνε zoom (≥'+ARCHZONES_MINZOOM+') για τις αρχαιολογικές ζώνες'); else loadArchZones(); }
   });
   mapObj.on('overlayremove', e=>{
     if(e.layer===forestLayer){ forestOn=false; if(forestAbort.c) forestAbort.c.abort(); forestLayer.clearLayers(); }
     else if(e.layer===naturaLayer){ naturaOn=false; if(naturaAbort.c) naturaAbort.c.abort(); naturaLayer.clearLayers(); }
+    else if(e.layer===archZonesLayer){ archZonesOn=false; if(archZonesAbort.c) archZonesAbort.c.abort(); archZonesLayer.clearLayers(); }
   });
-  mapObj.on('moveend', ()=>{ if(forestOn) loadForest(); if(naturaOn) loadNatura(); });
+  mapObj.on('moveend', ()=>{ if(forestOn) loadForest(); if(naturaOn) loadNatura(); if(archZonesOn) loadArchZones(); });
   // Στον OSM οι ετικέτες υπάρχουν ήδη → αφαίρεσέ τες· στον δορυφόρο πρόσθεσέ τες.
   mapObj.on('baselayerchange', e=>{
     const isOsm = /osm/i.test(e.name||'');
@@ -1598,6 +1603,17 @@ async function loadNatura(){
       '<b>🔵 Natura 2000 — SCI/SAC</b><br>Κωδικός: <b>'+escapeHtml(a.SITECODE||'—')+'</b>'+(a.SITETYPE?'<br>Τύπος: '+escapeHtml(a.SITETYPE):''));
     addOverlayPolys(spa, naturaLayer, {color:'#1565c0',weight:1.5,dashArray:'6,4',fillColor:'#1e88e5',fillOpacity:0.15}, a=>
       '<b>🔵 Natura 2000 — SPA</b><br>Κωδικός: <b>'+escapeHtml(a.SITECODE||'—')+'</b>'+(a.SITETYPE?'<br>Τύπος: '+escapeHtml(a.SITETYPE):''));
+  }catch(e){}
+}
+async function loadArchZones(){
+  if(!mapObj||!archZonesLayer) return;
+  if(mapObj.getZoom()<ARCHZONES_MINZOOM){ archZonesLayer.clearLayers(); return; }
+  try{
+    const fts=await queryFeatures(MS_ARCH+'/'+ARCH_ZONES_LAYER+'/query', archZonesAbort);
+    archZonesLayer.clearLayers();
+    addOverlayPolys(fts, archZonesLayer, {color:'#6a1b9a',weight:1.5,fillColor:'#8e24aa',fillOpacity:0.2}, a=>
+      '<b>🏺 Αρχαιολογική Ζώνη Προστασίας</b>'+(a.NAME?('<br>Ονομασία: <b>'+escapeHtml(a.NAME)+'</b>'):'')
+      +(a.OTA?('<br>Δήμος: '+escapeHtml(a.OTA)):'')+(a.FOREAS?('<br>Φορέας: '+escapeHtml(a.FOREAS)):''));
   }catch(e){}
 }
 
@@ -1926,6 +1942,7 @@ function buildMapCanvas(){
 
   // 2) Όρια γεωτεμαχίων (parcels) — όπως φαίνονται στον χάρτη
   drawVectorLayer(ctx, parcelsLayer);
+  if(archZonesOn && archZonesLayer) drawVectorLayer(ctx, archZonesLayer);
   if(forestOn && forestLayer) drawVectorLayer(ctx, forestLayer);
   if(naturaOn && naturaLayer) drawVectorLayer(ctx, naturaLayer);
 
