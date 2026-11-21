@@ -348,7 +348,7 @@
     </div>
     <div class="map-toolbar">
       <button id="mapLocateBtn" class="act btn-secondary" type="button">📍 Η θέση μου</button>
-      <button id="mapKtimaBtn" class="act btn-secondary" type="button">Επίσημο GIS ↗</button>
+      <button id="mapDxfAllBtn" class="act btn-secondary" type="button" title="Λήψη DXF των polyline όλων των επιλεγμένων ΚΑΕΚ σε ένα αρχείο">📐 Λήψη DXF όλων</button>
       <button id="mapCopyImg" class="act btn-secondary" type="button" title="Αντιγραφή αποσπάσματος χάρτη (με επιλεγμένα ΚΑΕΚ) στο πρόχειρο">📋 Αντιγραφή χάρτη</button>
       <button id="mapSaveImg" class="act btn-secondary" type="button" title="Λήψη αποσπάσματος χάρτη ως εικόνα PNG">🖼️ Λήψη εικόνας</button>
       <button id="mapDxfBtn" class="act btn-secondary" type="button" title="Φόρτωση DXF — απεικόνιση polylines του layer TOPO_PROP στον χάρτη">📂 Φόρτωση DXF</button>
@@ -1708,7 +1708,7 @@ $('mapLocateBtn').addEventListener('click', ()=>{
     showToast('📍 Η θέση σου'+(acc?(' (ακρίβεια ±'+Math.round(acc)+' m)'):''));
   }, ()=>showToast('Δεν ήταν δυνατός ο εντοπισμός θέσης'), {enableHighAccuracy:true,timeout:8000,maximumAge:0});
 });
-$('mapKtimaBtn').addEventListener('click', ()=>window.open('https://gis.ktimanet.gr/gis/map','_blank','noopener'));
+$('mapDxfAllBtn').addEventListener('click', ()=>{ if(!selected.length){ showToast('Καμία επιλογή για DXF'); return; } downloadDxf(selected); });
 
 /* ═══ Μέτρηση απόστασης (great-circle, WGS84) ═══ */
 function fmtMeters(m){ return m.toLocaleString('el-GR',{minimumFractionDigits:2,maximumFractionDigits:2})+' m'; }
