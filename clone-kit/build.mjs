@@ -12,6 +12,7 @@
  */
 import fs from 'node:fs';
 import vm from 'node:vm';
+import path from 'node:path';
 
 const [,, src, out] = process.argv;
 if (!src || !out) { console.error('Χρήση: node build.mjs <πηγή.html> <έξοδος.html>'); process.exit(2); }
@@ -68,5 +69,6 @@ const dynamic = new Set((code.match(/id="([A-Za-z0-9_-]+)"/g) || []).map(s => s.
 const missing = used.filter(id => !ids.has(id) && !dynamic.has(id));
 if (missing.length) fail('το script αναφέρεται σε στοιχεία που δεν υπάρχουν πια στη σελίδα: ' + missing.join(', '));
 
+fs.mkdirSync(path.dirname(path.resolve(out)), { recursive: true });
 fs.writeFileSync(out, html, 'utf8');
 console.log(`✓ OK — αφαιρέθηκαν ${open} τμήματα, ${scripts.length} script ελέγχθηκαν, ${(html.length/1024).toFixed(0)} KB → ${out}`);
