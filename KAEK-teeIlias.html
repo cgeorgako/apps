@@ -331,6 +331,7 @@
       <button id="mapAnoxisBtn" class="act btn-secondary" type="button" title="Έλεγχος ανοχής εμβαδού (ΟΚΧΕ 461/03) για το φορτωμένο DXF" style="display:none;background:#123038;color:#8fe6f3;border:1px solid var(--cyan);">🔍 Έλεγχος ανοχής εμβαδού</button>
       <button id="mapMeasureBtn" class="act btn-secondary" type="button" title="Μέτρηση απόστασης στον χάρτη (σε μέτρα)">📏 Μέτρηση</button>
       <button id="mapAreaBtn" class="act btn-secondary" type="button" title="Υπολογισμός εμβαδού έκτασης από σημεία στον χάρτη (τ.μ./στρ.)">📐 Εμβαδόν</button>
+      <button id="mapClearBtn" class="act btn-secondary" type="button" title="Διαγραφή όλων των επιλεγμένων ΚΑΕΚ από τον χάρτη και τη λίστα">🧹 Καθαρισμός</button>
       <input type="file" id="mapDxfFile" accept=".dxf,.DXF" style="display:none">
     </div>
     <div id="map"></div>
@@ -631,7 +632,14 @@ async function resolveByPoint(x, y, inSR, note){
 
 /* ═══ Ενέργειες ═══ */
 $('actDxfAll').addEventListener('click', ()=>{ if(!selected.length){ showToast('Καμία επιλογή για DXF'); return; } downloadDxf(selected); });
-$('actClear').addEventListener('click', ()=>{ selected=[]; current=null; renderSelection(); drawSelectionHighlights(); $('actionsCard').classList.remove('show'); });
+/* Διαγραφή ΟΛΩΝ των επιλεγμένων ΚΑΕΚ (χάρτης + λίστα) και κλείσιμο του popup. */
+function clearSelection(){
+  selected=[]; current=null;
+  renderSelection(); drawSelectionHighlights();
+  $('actionsCard').classList.remove('show');
+  if(mapObj) mapObj.closePopup();
+}
+$('actClear').addEventListener('click', clearSelection);
 
 /* ═══ DXF (ΕΓΣΑ87) ═══ */
 function fmt(n){ return Number(n.toFixed(9)).toString(); }
@@ -1775,6 +1783,7 @@ function toggleArea(){
   }
 }
 $('mapAreaBtn').addEventListener('click', toggleArea);
+$('mapClearBtn').addEventListener('click', ()=>{ if(!selected.length){ showToast('Δεν υπάρχουν επιλεγμένα ΚΑΕΚ'); return; } const n=selected.length; clearSelection(); showToast('Διαγράφηκαν '+n+' επιλεγμένα ΚΑΕΚ'); });
 
 /* Φόρτωση DXF → απεικόνιση polylines του layer TOPO_PROP (κόκκινα) στον χάρτη.
    Όλα γίνονται τοπικά στον browser· το αρχείο δεν ανεβαίνει πουθενά. */
