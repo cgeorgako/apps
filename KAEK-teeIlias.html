@@ -813,6 +813,7 @@ function buildParcelDialogHtml(rec){
     +   '<button class="pd-btn" data-pact="pol" data-kaek="'+k+'">🧭 Πολεοδομικά</button>'
     +   '<button class="pd-btn" data-pact="maps" data-kaek="'+k+'">📍 Maps</button>'
     +   '<button class="pd-btn" data-pact="forest" data-kaek="'+k+'">🌲 Δασικά</button>'
+    +   '<button class="pd-btn" data-pact="natura" data-kaek="'+k+'" title="DXF ζώνης Natura — μόνο αν το ΚΑΕΚ τέμνει/εμπίπτει">🔵 Natura</button>'
     +   '<button class="pd-btn" data-pact="arch" data-kaek="'+k+'">🏺 Αρχ.ζώνες</button>'
     + '</div></div>';
 }
@@ -949,6 +950,58 @@ async function downloadArchDxfFor(list){
     document.body.appendChild(a); a.click(); document.body.removeChild(a); setTimeout(()=>URL.revokeObjectURL(a.href),1000);
     showToast('Λήψη DXF αρχαιολογικών ζωνών: '+feats.length+' πολύγωνο(α)');
   }catch(e){ console.error(e); showToast('Αποτυχία: '+(e.message||e)); }
+}
+
+/* ═══ Ζώνες Natura 2000 → DXF (SCI + SPA, EGSA87) ═══
+   Ερώτημα με το ΙΔΙΟ το πολύγωνο του ΚΑΕΚ (esriGeometryPolygon, intersects),
+   ώστε να επιστρέφονται ζώνες ΜΟΝΟ όταν το ΚΑΕΚ τέμνει ή εμπίπτει εντός Natura. */
+async function fetchNaturaEgsa(recs){
+  const rings=[];
+  for(const r of (recs||[])){ for(const ring of (r.ringsEGSA||[])){ if(ring && ring.length>=3) rings.push(ring); } }
+  if(!rings.length) throw new Error('χωρίς γεωμετρία');
+  const geom=encodeURIComponent(JSON.stringify({rings, spatialReference:{wkid:2100}}));
+  const qs='f=json&geometry='+geom+'&geometryType=esriGeometryPolygon&inSR=2100'
+    +'&spatialRel=esriSpatialRelIntersects&outFields=SITECODE,SITETYPE&returnGeometry=true&outSR=2100';
+  const [sci,spa]=await Promise.all([
+    fetch(FS_NAT_SCI+'?'+qs).then(r=>r.json()).catch(()=>({})),
+    fetch(FS_NAT_SPA+'?'+qs).then(r=>r.json()).catch(()=>({}))
+  ]);
+  if(sci.error) throw new Error(sci.error.message||'arcgis SCI');
+  if(spa.error) throw new Error(spa.error.message||'arcgis SPA');
+  const feats=[];
+  (sci.features||[]).forEach(f=>{ f.__kind='SCI'; feats.push(f); });
+  (spa.features||[]).forEach(f=>{ f.__kind='SPA'; feats.push(f); });
+  return feats;
+}
+function buildNaturaDxf(features){
+  let dxf="  0\nSECTION\n  2\nHEADER\n  9\n$ACADVER\n  1\nAC1009\n  9\n$DWGCODEPAGE\n  3\nANSI_1253\n  0\nENDSEC\n";
+  dxf+="  0\nSECTION\n  2\nENTITIES\n";
+  for(const f of features){
+    const g=f.geometry; if(!g||!g.rings) continue;
+    const code=((f.attributes&&f.attributes.SITECODE)||'').trim();
+    const kind=f.__kind||((f.attributes&&f.attributes.SITETYPE)||'').trim();
+    const label=((kind?kind+' ':'')+code).trim();
+    let big=null,bigA=-1;
+    for(const ring of g.rings){ if(!ring||ring.length<3) continue; dxf+=writePolyline(ring,"NATURA_2000",0,0); const a=polyArea(ring); if(a>bigA){bigA=a;big=ring;} }
+    if(big && label){ const [cx,cy]=ringCentroid(big); const h=Math.max(5, Math.sqrt(bigA)/18); dxf+=writeText(cx,cy,"NATURA_2000_TEXT",label,h); }
+  }
+  dxf+="  0\nENDSEC\n  0\nEOF\n";
+  return dxf;
+}
+async function downloadNaturaDxfFor(list){
+  const recs=(list||[]).filter(r=>r.ringsEGSA&&r.ringsEGSA.length);
+  if(!recs.length){ showToast('Λείπει γεωμετρία GIS — επίλεξε ξανά το γεωτεμάχιο'); return; }
+  showToast('🔵 Έλεγχος Natura 2000…');
+  try{
+    const feats=await fetchNaturaEgsa(recs);
+    if(!feats.length){ showToast('Το ΚΑΕΚ δεν τέμνει ζώνη Natura 2000 — δεν παράγεται DXF'); return; }
+    const dxf=buildNaturaDxf(feats);
+    const first=recs[0].kaek, name='NATURA_'+first+'.dxf';
+    const blob=new Blob([dxfToCp1253Bytes(dxf)],{type:'application/dxf'});
+    const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=name;
+    document.body.appendChild(a); a.click(); document.body.removeChild(a); setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+    showToast('Λήψη DXF Natura 2000: '+feats.length+' ζώνη(ες)');
+  }catch(e){ console.error(e); showToast('Αποτυχία άντλησης Natura: '+(e.message||e)); }
 }
 
 /* ═══ SYNOLIKO-12.dxf: εύρεση polyline & κειμένου στο κέντρο του ΚΑΕΚ ═══ */
@@ -1526,6 +1579,7 @@ function initMap(){
         else if(act==='pol'){ if(rec.centroidEGSA && window.POL) window.POL.run(rec); else showToast('Λείπει κεντροειδές'); }
         else if(act==='maps'){ if(rec.point) openGoogleMaps(rec.point.lat,rec.point.lon); else showToast('Λείπει σημείο'); }
         else if(act==='forest') downloadForestDxfFor([rec]);
+        else if(act==='natura') downloadNaturaDxfFor([rec]);
         else if(act==='arch') downloadArchDxfFor([rec]);
       });
     });
