@@ -34,8 +34,6 @@
   header .eyebrow{font-family:'IBM Plex Mono',monospace;font-size:0.72rem;letter-spacing:0.14em;text-transform:uppercase;color:var(--gold);margin-bottom:0.4rem;}
   header h1{font-size:1.35rem;font-weight:700;margin:0;letter-spacing:-0.01em;}
   header p{color:var(--text-muted);font-size:0.85rem;margin:0.4rem 0 0;}
-  .back{display:inline-block;font-family:'IBM Plex Mono',monospace;font-size:0.72rem;color:var(--text-muted);text-decoration:none;margin-bottom:0.8rem;}
-  .back:hover{color:var(--gold);}
 
   .card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:1.4rem;margin-bottom:1.1rem;}
 
@@ -56,10 +54,6 @@
   .hint{font-size:0.76rem;color:var(--text-muted);margin-top:0.5rem;min-height:1.1em;line-height:1.4;}
   .hint.err{color:var(--red);} .hint.ok{color:var(--green);}
 
-  .swap-btn{background:none;border:1px solid var(--border);color:var(--text-muted);border-radius:8px;font-size:0.74rem;padding:0.4rem 0.6rem;cursor:pointer;margin-top:0.6rem;font-family:inherit;}
-  .swap-btn:hover{border-color:var(--gold-dim);color:var(--text);}
-  .note-field{margin-top:1rem;}
-  .note-field input{font-family:'IBM Plex Sans',sans-serif;font-size:0.92rem;letter-spacing:normal;text-align:left;}
 
   .actions{display:flex;gap:0.6rem;margin-top:1.2rem;flex-direction:column;}
   button.act{font-family:'IBM Plex Sans',sans-serif;font-weight:600;font-size:0.95rem;border:none;border-radius:11px;padding:0.85rem 1rem;cursor:pointer;transition:transform .08s,opacity .15s,background .15s;display:flex;align-items:center;justify-content:center;gap:0.5rem;}
@@ -291,7 +285,6 @@
 <body>
 
 <div class="wrap">
-  <a class="back" href="index.html">← Εργαλεία Γραφείου</a>
   <header>
     <h1>my_ktima</h1>
   </header>
@@ -317,31 +310,15 @@
         <button id="kaekFindBtn" class="act btn-primary icon-btn" disabled title="Εύρεση ΚΑΕΚ στον χάρτη">🔍</button>
       </div>
       <div id="kaekHint" class="hint"></div>
-      <details class="adv" style="margin-top:0.4rem;">
-        <summary>σημείωση (προαιρετικό)</summary>
-        <div class="note-field field" style="margin-top:0.5rem;">
-          <label for="kaekNote">Σημείωση (προαιρετικό)</label>
-          <input id="kaekNote" type="text" placeholder="π.χ. Οικόπεδο Παπαδόπουλου, Αμαλιάδα">
-        </div>
-      </details>
     </div>
     <!-- Εντοπισμός ΚΑΕΚ από συντεταγμένες Χ,Υ (ΕΓΣΑ87) -->
     <div class="map-search">
-      <div class="rlabel">ή εντοπισμός με συντεταγμένες ΕΓΣΑ87 (Χ, Υ)</div>
       <div class="map-search-row">
         <input id="xInput" type="text" inputmode="decimal" autocomplete="off" placeholder="Χ" size="10" title="Χ (Easting, ΕΓΣΑ87) — έως 9 χαρακτήρες">
         <input id="yInput" type="text" inputmode="decimal" autocomplete="off" placeholder="Υ" size="11" title="Υ (Northing, ΕΓΣΑ87) — έως 10 χαρακτήρες">
         <button id="xyConvertBtn" class="act btn-primary icon-btn" title="Εντοπισμός ΚΑΕΚ από Χ,Υ">🎯</button>
       </div>
-      <button id="swapBtn" class="swap-btn" type="button">⇄ Εναλλαγή Χ ↔ Υ</button>
       <div id="xyHint" class="hint"></div>
-      <details class="adv" style="margin-top:0.3rem;">
-        <summary>σημείωση (προαιρετικό)</summary>
-        <div class="note-field field" style="margin-top:0.5rem;">
-          <label for="xyNote">Σημείωση</label>
-          <input id="xyNote" type="text" placeholder="π.χ. Στάση Α1">
-        </div>
-      </details>
     </div>
     </div><!-- /.map-search-wrap -->
     <div class="map-toolbar">
@@ -1411,13 +1388,12 @@ kaekInput.addEventListener('paste', e=>{
   const cb=e.clipboardData||window.clipboardData; if(!cb) return;
   e.preventDefault(); kaekInput.value=cleanDigits(cb.getData('text')); validateKaek();
 });
-kaekFindBtn.addEventListener('click', ()=>{ const d=cleanDigits(kaekInput.value); if(d.length===12) resolveByKaek(d, $('kaekNote').value.trim()); });
+kaekFindBtn.addEventListener('click', ()=>{ const d=cleanDigits(kaekInput.value); if(d.length===12) resolveByKaek(d); });
 
 
 /* ═══ Χ,Υ tab ═══ */
 const xInput=$('xInput'), yInput=$('yInput');
 function parseCoord(s){ let t=String(s).trim(); if(t==='') return NaN; if(t.indexOf(',')>-1&&t.indexOf('.')>-1){ if(t.lastIndexOf(',')>t.lastIndexOf('.')) t=t.replace(/\./g,'').replace(',','.'); else t=t.replace(/,/g,''); } else t=t.replace(',','.'); return parseFloat(t); }
-$('swapBtn').addEventListener('click', ()=>{ const tmp=xInput.value; xInput.value=yInput.value; yInput.value=tmp; $('xyHint').textContent=''; });
 [xInput,yInput].forEach(inp=>inp.addEventListener('keydown', e=>{ if(e.key==='Enter') $('xyConvertBtn').click(); }));
 $('xyConvertBtn').addEventListener('click', ()=>{
   let X=parseCoord(xInput.value), Y=parseCoord(yInput.value); const hint=$('xyHint');
@@ -1425,7 +1401,7 @@ $('xyConvertBtn').addEventListener('click', ()=>{
   let swapped=false; if(X>1000000&&Y<1000000){ const t=X; X=Y; Y=t; swapped=true; }
   if(X<90000||X>900000||Y<3800000||Y>4700000){ hint.textContent='Προσοχή: οι τιμές δεν μοιάζουν με ΕΓΣΑ87 εντός Ελλάδας.'; hint.className='hint err'; }
   else{ hint.textContent=swapped?'Έγινε αυτόματη εναλλαγή Χ↔Υ.':''; hint.className='hint'; }
-  resolveByPoint(X, Y, 2100, $('xyNote').value.trim());
+  resolveByPoint(X, Y, 2100);
 });
 
 /* ═══ Χάρτης ═══ */
