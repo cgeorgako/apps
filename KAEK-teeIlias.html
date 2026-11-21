@@ -53,9 +53,6 @@
   input.valid{border-color:var(--green);} input.invalid{border-color:var(--red);}
   .xy-row{display:flex;gap:0.7rem;} .xy-row .field{flex:1;margin-bottom:0;}
 
-  .breakdown{display:flex;justify-content:center;gap:0.35rem;margin-top:0.6rem;font-family:'IBM Plex Mono',monospace;font-size:0.68rem;color:var(--text-muted);flex-wrap:wrap;}
-  .breakdown span{background:var(--surface-2);border:1px solid var(--border);border-radius:6px;padding:0.15rem 0.4rem;}
-  .breakdown span b{color:var(--gold);font-weight:600;}
   .hint{font-size:0.76rem;color:var(--text-muted);margin-top:0.5rem;min-height:1.1em;line-height:1.4;}
   .hint.err{color:var(--red);} .hint.ok{color:var(--green);}
 
@@ -152,8 +149,6 @@
   .sel-sub .syn{color:var(--green);}
   .sel-del{background:none;border:none;color:var(--text-muted);font-size:0.85rem;padding:0.1rem 0.25rem;line-height:1;cursor:pointer;flex-shrink:0;}
   .sel-del:hover{color:var(--red);}
-  .sel-first-btn{background:none;border:1px solid var(--border);color:var(--text-muted);font-size:0.6rem;font-weight:600;padding:0.1rem 0.4rem;border-radius:6px;cursor:pointer;flex-shrink:0;font-family:inherit;white-space:nowrap;}
-  .sel-first-btn:hover{border-color:var(--gold-dim);color:var(--gold);}
   .login-row{margin-top:1rem;border-top:1px dashed var(--border);padding-top:0.9rem;}
   .quick-link{display:flex;align-items:center;gap:0.6rem;background:var(--surface-2);border:1px solid var(--border);border-radius:10px;padding:0.65rem 0.8rem;color:var(--text);text-decoration:none;font-size:0.85rem;font-weight:500;}
   .quick-link:hover{border-color:var(--gold-dim);}
@@ -321,7 +316,6 @@
         <input id="kaekInput" type="text" inputmode="numeric" autocomplete="off" placeholder="150192801004" maxlength="14" size="13" title="Αριθμός ΚΑΕΚ (12 ψηφία)">
         <button id="kaekFindBtn" class="act btn-primary icon-btn" disabled title="Εύρεση ΚΑΕΚ στον χάρτη">🔍</button>
       </div>
-      <div id="kaekBreakdown" class="breakdown"></div>
       <div id="kaekHint" class="hint"></div>
       <details class="adv" style="margin-top:0.4rem;">
         <summary>σημείωση (προαιρετικό)</summary>
@@ -614,25 +608,12 @@ function renderSelection(){
     else if(s.synolikoState==='notext') syn='<span class="syn">SYNOLIKO: επικάλυψη (χωρίς κείμενο)</span>';
     else if(s.synolikoState==='none') syn='<span>SYNOLIKO: χωρίς επικάλυψη</span>';
     const sub=[areaTxt, syn].filter(Boolean).join(' · ');
-    const promote = i>0 ? `<button class="sel-first-btn" data-first="${s.kaek}" title="Να γίνει 1ο (για τις ενέργειες «1ο»: Κτηματολόγιο, Google Maps, Πολεοδομικά)">⭐ 1ο</button>` : '';
     return `<div class="sel-item${s.overlaps?' overlap':''}" data-kaek="${s.kaek}">
       <div class="sel-info"><div class="sel-kaek">${first}${s.kaek||'(—)'}${ovl}</div><div class="sel-sub">${sub}</div></div>
-      ${promote}<button class="sel-del" data-del="${s.kaek}" title="Αφαίρεση">✕</button></div>`;
+      <button class="sel-del" data-del="${s.kaek}" title="Αφαίρεση">✕</button></div>`;
   }).join('');
 }
-function makeFirst(kaek){
-  const idx=selected.findIndex(s=>s.kaek===kaek);
-  if(idx<=0) return;
-  const [rec]=selected.splice(idx,1);
-  selected.unshift(rec);
-  current=rec;
-  if($('kaekInput').value.replace(/\D/g,'')!==rec.kaek){ $('kaekInput').value=rec.kaek; validateKaek(); }
-  renderSelection(); drawSelectionHighlights();
-  if(mapObj && rec.point) mapObj.setView([rec.point.lat,rec.point.lon], Math.max(mapObj.getZoom(),18));
-  showToast('1ο στη λίστα: '+rec.kaek);
-}
 $('selList').addEventListener('click', e=>{
-  const first=e.target.closest('[data-first]'); if(first){ makeFirst(first.dataset.first); return; }
   const del=e.target.closest('[data-del]'); if(del) removeSelected(del.dataset.del);
 });
 
@@ -1417,16 +1398,8 @@ document.querySelectorAll('.tab').forEach(tab=>{
 /* ═══ ΚΑΕΚ tab ═══ */
 const kaekInput=$('kaekInput'), kaekFindBtn=$('kaekFindBtn');
 function cleanDigits(raw){ return raw.replace(/\D/g,'').slice(0,12); }
-function renderKaekBreakdown(digits){
-  const el=$('kaekBreakdown');
-  if(!digits.length){ el.innerHTML=''; return; }
-  const parts=[{label:'Νομός',len:2},{label:'ΟΤΑ',len:3},{label:'Τομέας',len:2},{label:'Ενότητα',len:2},{label:'Αύξων',len:3}];
-  let i=0,html='';
-  for(const p of parts){ const c=digits.slice(i,i+p.len); if(!c.length) break; html+=`<span><b>${c}</b> ${p.label}</span>`; i+=p.len; }
-  el.innerHTML=html;
-}
 function validateKaek(){
-  const digits=cleanDigits(kaekInput.value); kaekInput.value=digits; renderKaekBreakdown(digits);
+  const digits=cleanDigits(kaekInput.value); kaekInput.value=digits;
   kaekInput.classList.remove('valid','invalid'); const hint=$('kaekHint');
   if(!digits.length){ hint.textContent=''; hint.className='hint'; kaekFindBtn.disabled=true; return; }
   if(digits.length<12){ hint.textContent=digits.length+'/12 ψηφία'; hint.className='hint'; kaekInput.classList.add('invalid'); kaekFindBtn.disabled=true; return; }
