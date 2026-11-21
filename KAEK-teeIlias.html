@@ -85,12 +85,16 @@
     .wrap{max-width:1325px;}
     #map{height:780px;min-height:0;}
     /* Οι φόρμες μένουν σε αναγνώσιμο πλάτος, ο χάρτης απλώνεται */
-    #panelKaek,#panelXy,#panelAdd,#actionsCard{max-width:620px;margin-left:auto;margin-right:auto;}
+    #panelXy,#panelAdd,#actionsCard{max-width:620px;margin-left:auto;margin-right:auto;}
   }
   /* Desktop: +20% πλάτος διάταξης (1325→1590px). Το ύψος έχει ήδη αυξηθεί παραπάνω. */
   @media (min-width:1200px){
     .wrap{max-width:1590px;}
   }
+  .map-search{margin-bottom:0.8rem;}
+  .map-search-row{display:flex;gap:0.5rem;align-items:stretch;}
+  .map-search-row input{flex:1;min-width:0;}
+  .map-search-row .act{flex-shrink:0;white-space:nowrap;}
   .map-toolbar{display:flex;gap:0.5rem;margin-bottom:0.7rem;flex-wrap:wrap;}
   .map-toolbar .act{flex:1;min-width:120px;font-size:0.82rem;padding:0.6rem 0.5rem;}
   .map-tip{font-size:0.76rem;color:var(--text-muted);margin:0.7rem 0 0;line-height:1.45;}
@@ -295,13 +299,33 @@
 
   <div class="tabs">
     <button class="tab active" data-tab="map" id="tabMap">Χάρτης</button>
-    <button class="tab" data-tab="kaek" id="tabKaek">ΚΑΕΚ</button>
     <button class="tab" data-tab="xy" id="tabXy">Χ,Υ</button>
     <button class="tab" data-tab="add" id="tabAdd" style="display:none;">Καταχώριση</button>
   </div>
 
   <!-- ── Χάρτης ── -->
   <div class="card" id="panelMap">
+    <!-- Αναζήτηση ΚΑΕΚ απευθείας στον χάρτη -->
+    <div class="map-search">
+      <div class="map-search-row">
+        <input id="kaekInput" type="text" inputmode="numeric" autocomplete="off" placeholder="Αριθμός ΚΑΕΚ (12 ψηφία) — π.χ. 150192801004" maxlength="14">
+        <button id="kaekFindBtn" class="act btn-primary" disabled>🔍 Εύρεση στον χάρτη</button>
+      </div>
+      <div id="kaekBreakdown" class="breakdown"></div>
+      <div id="kaekHint" class="hint"></div>
+      <details class="adv" style="margin-top:0.4rem;">
+        <summary>ή επικόλληση εικόνας με τον ΚΑΕΚ (OCR) · σημείωση</summary>
+        <div id="pasteZone" class="paste-zone" tabindex="0" role="button" aria-label="Επικόλληση ή ανέβασμα εικόνας με τον ΚΑΕΚ" style="margin-top:0.5rem;">
+          <div class="paste-icon">🖼️</div>
+          <div id="pasteText" class="paste-text">Επικόλληση εικόνας (Ctrl+V) με τον ΚΑΕΚ, ή <span class="link">επιλογή αρχείου / φωτογραφία</span></div>
+          <input type="file" id="fileInput" accept="image/*" style="display:none">
+        </div>
+        <div class="note-field field" style="margin-top:0.5rem;">
+          <label for="kaekNote">Σημείωση (προαιρετικό)</label>
+          <input id="kaekNote" type="text" placeholder="π.χ. Οικόπεδο Παπαδόπουλου, Αμαλιάδα">
+        </div>
+      </details>
+    </div>
     <div class="map-toolbar">
       <button id="mapLocateBtn" class="act btn-secondary" type="button">📍 Η θέση μου</button>
       <button id="mapKtimaBtn" class="act btn-secondary" type="button">Επίσημο GIS ↗</button>
@@ -318,29 +342,6 @@
     <p class="map-tip">Κάνε <b>κλικ πάνω σε ένα γεωτεμάχιο</b> για να βρεθεί ο ΚΑΕΚ.</p>
     <div id="measureStatus" class="map-measure-status" style="display:none;"></div>
     <div id="areaStatus" class="map-measure-status" style="display:none;"></div>
-  </div>
-
-  <!-- ── ΚΑΕΚ ── -->
-  <div class="card" id="panelKaek" style="display:none;">
-    <div class="field">
-      <label for="kaekInput">Αριθμός ΚΑΕΚ (12 ψηφία)</label>
-      <input id="kaekInput" type="text" inputmode="numeric" autocomplete="off" placeholder="150192801004" maxlength="14">
-      <div id="kaekBreakdown" class="breakdown"></div>
-      <div id="kaekHint" class="hint"></div>
-    </div>
-    <div class="divider">ή</div>
-    <div id="pasteZone" class="paste-zone" tabindex="0" role="button" aria-label="Επικόλληση ή ανέβασμα εικόνας με τον ΚΑΕΚ">
-      <div class="paste-icon">🖼️</div>
-      <div id="pasteText" class="paste-text">Επικόλληση εικόνας (Ctrl+V) με τον ΚΑΕΚ, ή <span class="link">επιλογή αρχείου / φωτογραφία</span></div>
-      <input type="file" id="fileInput" accept="image/*" style="display:none">
-    </div>
-    <div class="note-field field">
-      <label for="kaekNote">Σημείωση (προαιρετικό)</label>
-      <input id="kaekNote" type="text" placeholder="π.χ. Οικόπεδο Παπαδόπουλου, Αμαλιάδα">
-    </div>
-    <div class="actions">
-      <button id="kaekFindBtn" class="act btn-primary" disabled>Εύρεση γεωτεμαχίου</button>
-    </div>
   </div>
 
   <!-- ── Χ,Υ ── -->
@@ -1400,7 +1401,6 @@ document.querySelectorAll('.tab').forEach(tab=>{
     tab.classList.add('active');
     const w=tab.dataset.tab;
     $('panelMap').style.display = w==='map'?'':'none';
-    $('panelKaek').style.display= w==='kaek'?'':'none';
     $('panelXy').style.display  = w==='xy'?'':'none';
     $('panelAdd').style.display = w==='add'?'':'none';
     $('actionsCard').style.display = w==='add'?'none':'';
