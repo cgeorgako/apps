@@ -77,15 +77,19 @@
   .spinner-dim{border:2px solid rgba(201,162,39,0.25);border-top-color:var(--gold);}
   @keyframes spin{to{transform:rotate(360deg);}}
 
-  /* Χάρτης */
-  #map{width:100%;height:52vh;min-height:300px;border-radius:12px;border:1px solid var(--border);background:var(--surface-2);}
+  /* Χάρτης — κινητό (android): +20% ύψος (52vh→62,4vh), ίδιο πλάτος */
+  #map{width:100%;height:62.4vh;min-height:360px;border-radius:12px;border:1px solid var(--border);background:var(--surface-2);}
 
-  /* Desktop & tablet: πλατύτερη διάταξη & μεγάλος χάρτης (+25% ύψος/πλάτος) */
+  /* Tablet & desktop: +20% ύψος χάρτη (650→780px). Το πλάτος εδώ μένει ίδιο (tablet). */
   @media (min-width:768px){
     .wrap{max-width:1325px;}
-    #map{height:650px;min-height:0;}
+    #map{height:780px;min-height:0;}
     /* Οι φόρμες μένουν σε αναγνώσιμο πλάτος, ο χάρτης απλώνεται */
     #panelKaek,#panelXy,#panelAdd,#actionsCard{max-width:620px;margin-left:auto;margin-right:auto;}
+  }
+  /* Desktop: +20% πλάτος διάταξης (1325→1590px). Το ύψος έχει ήδη αυξηθεί παραπάνω. */
+  @media (min-width:1200px){
+    .wrap{max-width:1590px;}
   }
   .map-toolbar{display:flex;gap:0.5rem;margin-bottom:0.7rem;flex-wrap:wrap;}
   .map-toolbar .act{flex:1;min-width:120px;font-size:0.82rem;padding:0.6rem 0.5rem;}
@@ -408,39 +412,10 @@
     </div>
 
     <div class="actions">
-      <button id="actDxf" class="act btn-dxf">📐 Λήψη DXF (διορθωμένο) — όλα</button>
-      <button id="actKtima" class="act btn-primary">🏛️ Κτηματολόγιο (1ο)</button>
-      <button id="actPoleodomia" class="act btn-pol">🧭 Άντληση Πολεοδομικών Στοιχείων (1ο)</button>
       <div class="btn-mini-row">
-        <button id="actMaps" class="act btn-maps">📍 Google Maps (1ο)</button>
         <button id="actCopy" class="act btn-secondary">Αντιγραφή ΚΑΕΚ</button>
+        <button id="actClear" class="act btn-secondary">🗑️ Καθαρισμός επιλογής</button>
       </div>
-
-      <details class="adv" style="margin-top:0.2rem;">
-        <summary style="font-size:1.15rem;font-weight:700;padding:0.85rem 1rem;background:#17351c;border:1px solid #2e7d32;border-radius:12px;cursor:pointer;text-align:center;list-style:none;">🌲 Εξαγωγή Δασικών Πολυγώνων</summary>
-        <div class="actions" style="margin-top:0.6rem;">
-          <button id="actForestDxfOnline" class="act btn-primary" type="button" style="background:#2e7d32;color:#fff;">🌲 Λήψη DXF δασικών (online — απευθείας)</button>
-        </div>
-        <div class="hint" style="margin-top:0.4rem;">Αντλεί <b>απευθείας</b> τα δασικά πολύγωνα για τα επιλεγμένα ΚΑΕΚ από τον κυρωμένο δασικό χάρτη (Κτηματολόγιο) σε <b>ΕΓΣΑ87</b> και κατεβάζει DXF — χωρίς τοπικό αρχείο 400MB ή script. Το κείμενο κάθε πολυγώνου φέρει τον χαρακτηρισμό (π.χ. ΔΔ, ΑΑ, ΠΑ).</div>
-        <details class="adv" style="margin-top:0.6rem;"><summary>Εναλλακτικά: τοπικό script (extract_forest.py)</summary>
-        <div class="hint" style="margin-top:0.5rem;">Φτιάχνει έτοιμη εντολή για το τοπικό <b>extract_forest.py</b> με τα επιλεγμένα ΚΑΕΚ (χειρίζεται τον δασικό χάρτη των 400MB στον υπολογιστή σου). Αντίγραψέ την και τρέξ' την σε παράθυρο εντολών.</div>
-        <div style="margin-top:0.5rem;"><label for="forestPath">Διαδρομή δασικού DXF</label>
-          <input type="text" id="forestPath" style="width:100%" value="Z:\Εγγραφα\XARTES-1\ΔΑΣΙΚΟΣ ΧΑΡΤΗΣ\KYRWSH-DXF.dxf"></div>
-        <div style="margin-top:0.4rem;"><label for="forestLayer">Layer δασικών (προαιρετικό)</label>
-          <input type="text" id="forestLayer" style="width:100%" value="DX_KYROSH_PER_DYTIKHS_ELLADAS_20260406.shp"></div>
-        <div class="actions" style="margin-top:0.6rem;">
-          <button id="actForestCmd" class="act btn-primary" type="button">🌲 Δημιουργία εντολής</button>
-          <button id="forestOpenDir" class="act btn-secondary" type="button">📁 Φάκελος δασικών</button>
-        </div>
-        <textarea id="forestCmd" readonly rows="4" style="width:100%;margin-top:0.5rem;font-family:monospace;font-size:0.8rem;display:none;" onclick="this.select()"></textarea>
-        <div class="btn-mini-row" id="forestCmdActions" style="margin-top:0.4rem;display:none;">
-          <button id="forestCmdCopy" class="act btn-secondary" type="button">Αντιγραφή εντολής</button>
-        </div>
-        <div class="hint" style="margin-top:0.4rem;">Εναλλακτικά (χωρίς internet στο script): πάτα «📐 Λήψη DXF», και στην εντολή άλλαξε το <code>--kaek …</code> σε <code>--parcel &lt;το_αρχείο&gt;.dxf</code>.</div>
-        </details>
-      </details>
-
-      <button id="actClear" class="act btn-secondary">🗑️ Καθαρισμός επιλογής</button>
     </div>
 
     <details class="adv">
@@ -689,41 +664,8 @@ async function resolveByPoint(x, y, inSR, note){
 }
 
 /* ═══ Ενέργειες ═══ */
-$('actKtima').addEventListener('click', ()=>{ const r=selected[0]; if(!r||r.kaek.length!==12){ showToast('Δεν υπάρχει έγκυρος ΚΑΕΚ'); return; } window.open(buildKtimaUrl(r.kaek),'_blank','noopener'); });
-$('actMaps').addEventListener('click', ()=>{ const r=selected[0]; if(r&&r.point) openGoogleMaps(r.point.lat,r.point.lon); else showToast('Δεν υπάρχει σημείο'); });
 $('actCopy').addEventListener('click', ()=>{ if(!selected.length){ showToast('Καμία επιλογή'); return; } copyText(selected.map(s=>s.kaek).join('\n'), 'Αντιγράφηκαν '+selected.length+' ΚΑΕΚ'); });
 $('actClear').addEventListener('click', ()=>{ selected=[]; current=null; renderSelection(); drawSelectionHighlights(); $('actionsCard').classList.remove('show'); });
-$('actDxf').addEventListener('click', ()=>{ if(selected.length) downloadDxf(selected); else showToast('Καμία επιλογή για DXF'); });
-$('actPoleodomia').addEventListener('click', ()=>{
-  const r=selected[0];
-  if(!r || String(r.kaek||'').length!==12){ showToast('Δεν υπάρχει έγκυρος ΚΑΕΚ (12 ψηφία)'); return; }
-  if(!r.centroidEGSA){ showToast('Λείπει γεωμετρία/κεντροειδές — επίλεξε ξανά το γεωτεμάχιο'); return; }
-  POL.run(r);
-});
-
-/* ═══ Εντολή εξαγωγής δασικών (για το τοπικό extract_forest.py) ═══ */
-(function initForestCmd(){
-  const fp=localStorage.getItem('forest_path'); if(fp) $('forestPath').value=fp;
-  const fl=localStorage.getItem('forest_layer'); if(fl!==null) $('forestLayer').value=fl;
-  $('actForestCmd').addEventListener('click', ()=>{
-    if(!selected.length){ showToast('Διάλεξε πρώτα ΚΑΕΚ'); return; }
-    const kaeks=selected.map(s=>String(s.kaek||'').replace(/\D/g,'')).filter(k=>k.length===12);
-    if(!kaeks.length){ showToast('Δεν υπάρχουν έγκυροι 12ψήφιοι ΚΑΕΚ'); return; }
-    const fpath=($('forestPath').value||'').trim();
-    const layer=($('forestLayer').value||'').trim();
-    localStorage.setItem('forest_path',fpath); localStorage.setItem('forest_layer',layer);
-    const out='dasika_'+kaeks[0]+(kaeks.length>1?('_syn'+(kaeks.length-1)):'')+'.dxf';
-    let cmd='python extract_forest.py "'+fpath+'" '+out+' --kaek '+kaeks.join(' ');
-    if(layer) cmd+=' --layer "'+layer+'"';
-    $('forestCmd').value=cmd; $('forestCmd').style.display='block'; $('forestCmdActions').style.display='flex';
-  });
-  $('forestCmdCopy').addEventListener('click', ()=>{ const t=$('forestCmd').value; if(t) copyText(t,'Αντιγράφηκε η εντολή'); });
-  $('forestOpenDir').addEventListener('click', ()=>{
-    // Άνοιγμα φακέλου με ένα κλικ μέσω του protocol dasika:// (εφάπαξ εγκατάσταση του dasika.reg).
-    try{ window.location.href='dasika://open'; }catch(e){}
-    showToast('Άνοιγμα φακέλου… (αν δεν ανοίξει, εγκατέστησε μία φορά το dasika.reg)');
-  });
-})();
 
 /* ═══ DXF (ΕΓΣΑ87) ═══ */
 function fmt(n){ return Number(n.toFixed(9)).toString(); }
@@ -839,10 +781,6 @@ async function downloadForestDxfFor(list, btn){
   }catch(e){ console.error(e); showToast('Αποτυχία άντλησης δασικών: '+(e.message||e)); }
   finally{ if(btn){ btn.disabled=false; btn.textContent=o; } }
 }
-$('actForestDxfOnline').addEventListener('click', ()=>{
-  if(!selected.length){ showToast('Διάλεξε πρώτα ΚΑΕΚ'); return; }
-  downloadForestDxfFor(selected, $('actForestDxfOnline'));
-});
 
 /* ═══ Πλαίσιο διαλόγου γεωτεμαχίου (popup στον χάρτη) ═══ */
 let parcelPopup=null;
@@ -2884,8 +2822,7 @@ async function run(rec){
   const geo={ cx, cy, area:rec.area||null };
   const w=egsa87ToWgs84(cx,cy);
 
-  const btn=$('actPoleodomia'); const orig=btn.innerHTML; btn.disabled=true;
-  btn.innerHTML='<span class="spinner spinner-dim"></span> Άντληση…';
+  const btn=$('actPoleodomia'); const orig=btn?btn.innerHTML:''; if(btn){ btn.disabled=true; btn.innerHTML='<span class="spinner spinner-dim"></span> Άντληση…'; }
   $('polCard').style.display='block';
   $('polKaek').textContent=kaek;
   $('polMeta').innerHTML='';
@@ -2919,7 +2856,7 @@ async function run(rec){
 
   setProgress(100,'Ολοκληρώθηκε.');
   $('polProgress').style.display='none';
-  btn.disabled=false; btn.innerHTML=orig;
+  if(btn){ btn.disabled=false; btn.innerHTML=orig; }
 
   renderResults({kaek, note, geo, w, hits, diag});
 }
