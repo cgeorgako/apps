@@ -85,14 +85,15 @@
     .wrap{max-width:1325px;}
     #map{height:780px;min-height:0;}
     /* Οι φόρμες μένουν σε αναγνώσιμο πλάτος, ο χάρτης απλώνεται */
-    #panelXy,#panelAdd,#actionsCard{max-width:620px;margin-left:auto;margin-right:auto;}
+    #panelAdd,#actionsCard{max-width:620px;margin-left:auto;margin-right:auto;}
   }
   /* Desktop: +20% πλάτος διάταξης (1325→1590px). Το ύψος έχει ήδη αυξηθεί παραπάνω. */
   @media (min-width:1200px){
     .wrap{max-width:1590px;}
   }
   .map-search{margin-bottom:0.8rem;}
-  .map-search-row{display:flex;gap:0.5rem;align-items:stretch;}
+  .map-search-row{display:flex;gap:0.5rem;align-items:stretch;flex-wrap:wrap;}
+  .map-search-row input{min-width:120px;}
   .map-search-row input{flex:1;min-width:0;}
   .map-search-row .act{flex-shrink:0;white-space:nowrap;}
   .map-toolbar{display:flex;gap:0.5rem;margin-bottom:0.7rem;flex-wrap:wrap;}
@@ -299,7 +300,6 @@
 
   <div class="tabs">
     <button class="tab active" data-tab="map" id="tabMap">Χάρτης</button>
-    <button class="tab" data-tab="xy" id="tabXy">Χ,Υ</button>
     <button class="tab" data-tab="add" id="tabAdd" style="display:none;">Καταχώριση</button>
   </div>
 
@@ -326,6 +326,24 @@
         </div>
       </details>
     </div>
+    <!-- Εντοπισμός ΚΑΕΚ από συντεταγμένες Χ,Υ (ΕΓΣΑ87) -->
+    <div class="map-search">
+      <div class="rlabel">ή εντοπισμός με συντεταγμένες ΕΓΣΑ87 (Χ, Υ)</div>
+      <div class="map-search-row">
+        <input id="xInput" type="text" inputmode="decimal" autocomplete="off" placeholder="Χ (Easting) — π.χ. 267540">
+        <input id="yInput" type="text" inputmode="decimal" autocomplete="off" placeholder="Υ (Northing) — π.χ. 4189320">
+        <button id="xyConvertBtn" class="act btn-primary">🎯 Εντοπισμός ΚΑΕΚ</button>
+      </div>
+      <button id="swapBtn" class="swap-btn" type="button">⇄ Εναλλαγή Χ ↔ Υ</button>
+      <div id="xyHint" class="hint"></div>
+      <details class="adv" style="margin-top:0.3rem;">
+        <summary>σημείωση (προαιρετικό)</summary>
+        <div class="note-field field" style="margin-top:0.5rem;">
+          <label for="xyNote">Σημείωση</label>
+          <input id="xyNote" type="text" placeholder="π.χ. Στάση Α1">
+        </div>
+      </details>
+    </div>
     <div class="map-toolbar">
       <button id="mapLocateBtn" class="act btn-secondary" type="button">📍 Η θέση μου</button>
       <button id="mapKtimaBtn" class="act btn-secondary" type="button">Επίσημο GIS ↗</button>
@@ -342,23 +360,6 @@
     <p class="map-tip">Κάνε <b>κλικ πάνω σε ένα γεωτεμάχιο</b> για να βρεθεί ο ΚΑΕΚ.</p>
     <div id="measureStatus" class="map-measure-status" style="display:none;"></div>
     <div id="areaStatus" class="map-measure-status" style="display:none;"></div>
-  </div>
-
-  <!-- ── Χ,Υ ── -->
-  <div class="card" id="panelXy" style="display:none;">
-    <div class="xy-row">
-      <div class="field"><label for="xInput">Χ (Easting)</label><input id="xInput" type="text" inputmode="decimal" autocomplete="off" placeholder="π.χ. 267540"></div>
-      <div class="field"><label for="yInput">Υ (Northing)</label><input id="yInput" type="text" inputmode="decimal" autocomplete="off" placeholder="π.χ. 4189320"></div>
-    </div>
-    <button id="swapBtn" class="swap-btn" type="button">⇄ Εναλλαγή Χ ↔ Υ</button>
-    <div id="xyHint" class="hint"></div>
-    <div class="note-field field">
-      <label for="xyNote">Σημείωση (προαιρετικό)</label>
-      <input id="xyNote" type="text" placeholder="π.χ. Στάση Α1">
-    </div>
-    <div class="actions">
-      <button id="xyConvertBtn" class="act btn-primary">Εντοπισμός γεωτεμαχίου (ΚΑΕΚ)</button>
-    </div>
   </div>
 
   <!-- ── Καταχώριση γεωτεμαχίου στο SYNOLIKO-12 ── -->
@@ -1401,7 +1402,6 @@ document.querySelectorAll('.tab').forEach(tab=>{
     tab.classList.add('active');
     const w=tab.dataset.tab;
     $('panelMap').style.display = w==='map'?'':'none';
-    $('panelXy').style.display  = w==='xy'?'':'none';
     $('panelAdd').style.display = w==='add'?'':'none';
     $('actionsCard').style.display = w==='add'?'none':'';
     if(w==='map') initMap();
