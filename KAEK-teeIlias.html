@@ -119,19 +119,25 @@
   details.adv input[type=number]{font-size:0.95rem;}
   .check{display:flex;align-items:center;gap:0.5rem;margin-top:0.8rem;font-size:0.82rem;color:var(--text);cursor:pointer;}
   .check input{width:16px;height:16px;accent-color:var(--gold);}
-  .sel-list{display:flex;flex-direction:column;gap:0.5rem;margin-top:0.6rem;}
-  .sel-empty{text-align:center;color:var(--text-muted);font-size:0.82rem;padding:0.9rem 0.5rem;border:1px dashed var(--border);border-radius:10px;}
-  .sel-item{background:var(--surface-2);border:1px solid var(--border);border-radius:10px;padding:0.6rem 0.75rem;display:flex;align-items:center;gap:0.6rem;}
+  /* Κεφαλίδα «Επιλεγμένα γεωτεμάχια» με κουμπί διαγραφής δίπλα στον τίτλο */
+  .sel-head{display:flex;align-items:center;justify-content:space-between;gap:0.5rem;margin-bottom:0.35rem;}
+  .sel-head .rlabel{margin:0;}
+  .sel-clear-btn{background:none;border:1px solid var(--border);color:var(--text-muted);font-size:0.68rem;font-weight:600;padding:0.18rem 0.5rem;border-radius:7px;cursor:pointer;font-family:inherit;white-space:nowrap;flex-shrink:0;}
+  .sel-clear-btn:hover{border-color:var(--red);color:var(--red);}
+  /* Επιλεγμένα γεωτεμάχια — συμπαγής (μικρή) μορφή */
+  .sel-list{display:flex;flex-direction:column;gap:0.28rem;margin-top:0.4rem;}
+  .sel-empty{text-align:center;color:var(--text-muted);font-size:0.76rem;padding:0.7rem 0.5rem;border:1px dashed var(--border);border-radius:9px;}
+  .sel-item{background:var(--surface-2);border:1px solid var(--border);border-radius:8px;padding:0.28rem 0.5rem;display:flex;align-items:center;gap:0.4rem;}
   .sel-item.overlap{border-color:var(--red);}
   .sel-info{flex:1;min-width:0;}
-  .sel-kaek{font-family:'IBM Plex Mono',monospace;font-size:0.95rem;font-weight:600;color:var(--gold);display:flex;align-items:center;gap:0.4rem;flex-wrap:wrap;}
-  .sel-kaek .first{background:var(--gold);color:#1a1305;border-radius:5px;font-size:0.62rem;padding:1px 5px;letter-spacing:0.03em;}
-  .ovl-badge{background:var(--red);color:#fff;border-radius:5px;font-size:0.62rem;padding:1px 6px;font-weight:600;font-family:'IBM Plex Sans',sans-serif;}
-  .sel-sub{font-size:0.74rem;color:var(--text-muted);margin-top:0.2rem;word-break:break-word;line-height:1.35;}
+  .sel-kaek{font-family:'IBM Plex Mono',monospace;font-size:0.8rem;font-weight:600;color:var(--gold);display:flex;align-items:center;gap:0.35rem;flex-wrap:wrap;}
+  .sel-kaek .first{background:var(--gold);color:#1a1305;border-radius:4px;font-size:0.56rem;padding:0 4px;letter-spacing:0.03em;}
+  .ovl-badge{background:var(--red);color:#fff;border-radius:4px;font-size:0.56rem;padding:0 5px;font-weight:600;font-family:'IBM Plex Sans',sans-serif;}
+  .sel-sub{font-size:0.66rem;color:var(--text-muted);margin-top:0.08rem;word-break:break-word;line-height:1.3;}
   .sel-sub .syn{color:var(--green);}
-  .sel-del{background:none;border:none;color:var(--text-muted);font-size:1rem;padding:0.2rem 0.35rem;line-height:1;cursor:pointer;flex-shrink:0;}
+  .sel-del{background:none;border:none;color:var(--text-muted);font-size:0.85rem;padding:0.1rem 0.25rem;line-height:1;cursor:pointer;flex-shrink:0;}
   .sel-del:hover{color:var(--red);}
-  .sel-first-btn{background:none;border:1px solid var(--border);color:var(--text-muted);font-size:0.72rem;font-weight:600;padding:0.25rem 0.5rem;border-radius:7px;cursor:pointer;flex-shrink:0;font-family:inherit;white-space:nowrap;}
+  .sel-first-btn{background:none;border:1px solid var(--border);color:var(--text-muted);font-size:0.6rem;font-weight:600;padding:0.1rem 0.4rem;border-radius:6px;cursor:pointer;flex-shrink:0;font-family:inherit;white-space:nowrap;}
   .sel-first-btn:hover{border-color:var(--gold-dim);color:var(--gold);}
   .login-row{margin-top:1rem;border-top:1px dashed var(--border);padding-top:0.9rem;}
   .quick-link{display:flex;align-items:center;gap:0.6rem;background:var(--surface-2);border:1px solid var(--border);border-radius:10px;padding:0.65rem 0.8rem;color:var(--text);text-decoration:none;font-size:0.85rem;font-weight:500;}
@@ -403,19 +409,15 @@
 
   <!-- ── Ενέργειες τρέχοντος ΚΑΕΚ ── -->
   <div class="card" id="actionsCard">
-    <div class="rlabel">Επιλεγμένα γεωτεμάχια · <span id="selCount">0</span>/20</div>
+    <div class="sel-head">
+      <div class="rlabel">Επιλεγμένα γεωτεμάχια · <span id="selCount">0</span>/20</div>
+      <button id="actClear" class="sel-clear-btn" title="Διαγραφή όλων των επιλεγμένων">🗑️ Διαγραφή επιλεγμένων</button>
+    </div>
     <div id="selList" class="sel-list"></div>
 
     <div id="synolikoLoad" style="display:none;margin-top:0.6rem;">
       <span class="paste-text">Το <b>SYNOLIKO-12.dxf</b> δεν βρέθηκε. <span class="link" id="synolikoPick">Φόρτωση αρχείου</span> (αποθηκεύεται τοπικά).</span>
       <input type="file" id="synolikoFile" accept=".dxf,.DXF" style="display:none">
-    </div>
-
-    <div class="actions">
-      <div class="btn-mini-row">
-        <button id="actCopy" class="act btn-secondary">Αντιγραφή ΚΑΕΚ</button>
-        <button id="actClear" class="act btn-secondary">🗑️ Καθαρισμός επιλογής</button>
-      </div>
     </div>
 
     <details class="adv">
@@ -664,7 +666,6 @@ async function resolveByPoint(x, y, inSR, note){
 }
 
 /* ═══ Ενέργειες ═══ */
-$('actCopy').addEventListener('click', ()=>{ if(!selected.length){ showToast('Καμία επιλογή'); return; } copyText(selected.map(s=>s.kaek).join('\n'), 'Αντιγράφηκαν '+selected.length+' ΚΑΕΚ'); });
 $('actClear').addEventListener('click', ()=>{ selected=[]; current=null; renderSelection(); drawSelectionHighlights(); $('actionsCard').classList.remove('show'); });
 
 /* ═══ DXF (ΕΓΣΑ87) ═══ */
@@ -812,6 +813,7 @@ function buildParcelDialogHtml(rec){
     + '</div>'
     + '<div class="pd-zones" data-pdzones>'+renderZoneRows(rec)+'</div>'
     + '<div class="pd-btns">'
+    +   '<button class="pd-btn" data-pact="copy" data-kaek="'+k+'" title="Αντιγραφή ΚΑΕΚ">📋 ΚΑΕΚ</button>'
     +   '<button class="pd-btn" data-pact="dxf" data-kaek="'+k+'">📐 DXF</button>'
     +   '<button class="pd-btn" data-pact="ktima" data-kaek="'+k+'">🏛️ Κτηματολόγιο</button>'
     +   '<button class="pd-btn" data-pact="pol" data-kaek="'+k+'">🧭 Πολεοδομικά</button>'
@@ -1524,7 +1526,8 @@ function initMap(){
         const kaek=btn.dataset.kaek, act=btn.dataset.pact;
         const rec=selected.find(s=>s.kaek===kaek) || ((current&&current.kaek===kaek)?current:null);
         if(!rec){ showToast('Το γεωτεμάχιο δεν είναι στη λίστα'); return; }
-        if(act==='dxf') downloadDxf([rec]);
+        if(act==='copy') copyText(rec.kaek||'', 'Αντιγράφηκε το ΚΑΕΚ: '+(rec.kaek||''));
+        else if(act==='dxf') downloadDxf([rec]);
         else if(act==='ktima'){ if((rec.kaek||'').length===12) window.open(buildKtimaUrl(rec.kaek),'_blank','noopener'); else showToast('Μη έγκυρος ΚΑΕΚ'); }
         else if(act==='pol'){ if(rec.centroidEGSA && window.POL) window.POL.run(rec); else showToast('Λείπει κεντροειδές'); }
         else if(act==='maps'){ if(rec.point) openGoogleMaps(rec.point.lat,rec.point.lon); else showToast('Λείπει σημείο'); }
