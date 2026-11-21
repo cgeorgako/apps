@@ -92,10 +92,17 @@
     .wrap{max-width:1590px;}
   }
   .map-search{margin-bottom:0.8rem;}
+  /* ΚΑΕΚ + Χ,Υ: στοίχιση κάθετα (κινητό), δίπλα-δίπλα σε desktop */
+  .map-search-wrap{display:flex;flex-direction:column;gap:0.2rem;}
+  @media (min-width:768px){
+    .map-search-wrap{flex-direction:row;flex-wrap:wrap;align-items:flex-start;gap:1.5rem;}
+    .map-search-wrap .map-search{margin-bottom:0;}
+  }
   .map-search-row{display:flex;gap:0.5rem;align-items:center;flex-wrap:wrap;}
   .map-search-row .act{flex-shrink:0;white-space:nowrap;}
   /* Πεδία οριακά στο μέγεθος των ψηφίων (το πλάτος δίνεται από το attribute size) */
-  #kaekInput,#xInput,#yInput{flex:0 0 auto;width:auto;min-width:0;}
+  /* Πεδία στο ~60% του μεγέθους τους (μικρότερη γραμματοσειρά/padding, πλάτος από το size) */
+  #kaekInput,#xInput,#yInput{flex:0 0 auto;width:auto;min-width:0;font-size:0.69rem;padding:0.42rem 0.5rem;letter-spacing:0.02em;}
   /* Εικονικά κουμπιά (μόνο σύμβολο) */
   .icon-btn{flex:0 0 auto;padding:0.4rem 0.7rem;font-size:1.1rem;line-height:1;}
   .map-toolbar{display:flex;gap:0.5rem;margin-bottom:0.7rem;flex-wrap:wrap;}
@@ -307,6 +314,7 @@
 
   <!-- ── Χάρτης ── -->
   <div class="card" id="panelMap">
+    <div class="map-search-wrap">
     <!-- Αναζήτηση ΚΑΕΚ απευθείας στον χάρτη -->
     <div class="map-search">
       <div class="map-search-row">
@@ -316,12 +324,7 @@
       <div id="kaekBreakdown" class="breakdown"></div>
       <div id="kaekHint" class="hint"></div>
       <details class="adv" style="margin-top:0.4rem;">
-        <summary>ή επικόλληση εικόνας με τον ΚΑΕΚ (OCR) · σημείωση</summary>
-        <div id="pasteZone" class="paste-zone" tabindex="0" role="button" aria-label="Επικόλληση ή ανέβασμα εικόνας με τον ΚΑΕΚ" style="margin-top:0.5rem;">
-          <div class="paste-icon">🖼️</div>
-          <div id="pasteText" class="paste-text">Επικόλληση εικόνας (Ctrl+V) με τον ΚΑΕΚ, ή <span class="link">επιλογή αρχείου / φωτογραφία</span></div>
-          <input type="file" id="fileInput" accept="image/*" style="display:none">
-        </div>
+        <summary>σημείωση (προαιρετικό)</summary>
         <div class="note-field field" style="margin-top:0.5rem;">
           <label for="kaekNote">Σημείωση (προαιρετικό)</label>
           <input id="kaekNote" type="text" placeholder="π.χ. Οικόπεδο Παπαδόπουλου, Αμαλιάδα">
@@ -346,6 +349,7 @@
         </div>
       </details>
     </div>
+    </div><!-- /.map-search-wrap -->
     <div class="map-toolbar">
       <button id="mapLocateBtn" class="act btn-secondary" type="button">📍 Η θέση μου</button>
       <button id="mapDxfAllBtn" class="act btn-secondary" type="button" title="Λήψη DXF των polyline όλων των επιλεγμένων ΚΑΕΚ σε ένα αρχείο">📐 Λήψη DXF όλων</button>
@@ -1431,37 +1435,11 @@ function validateKaek(){
 kaekInput.addEventListener('input', validateKaek);
 kaekInput.addEventListener('keydown', e=>{ if(e.key==='Enter'&&!kaekFindBtn.disabled) kaekFindBtn.click(); });
 kaekInput.addEventListener('paste', e=>{
-  const cb=e.clipboardData||window.clipboardData;
-  const hasImg=cb&&cb.items&&Array.from(cb.items).some(it=>it.type&&it.type.startsWith('image/'));
-  if(hasImg) return;
+  const cb=e.clipboardData||window.clipboardData; if(!cb) return;
   e.preventDefault(); kaekInput.value=cleanDigits(cb.getData('text')); validateKaek();
 });
 kaekFindBtn.addEventListener('click', ()=>{ const d=cleanDigits(kaekInput.value); if(d.length===12) resolveByKaek(d, $('kaekNote').value.trim()); });
 
-/* ═══ OCR (Tesseract lazy) ═══ */
-const pasteZone=$('pasteZone'), pasteText=$('pasteText'), fileInput=$('fileInput');
-const DEFAULT_PASTE=pasteText.innerHTML;
-let tessPromise=null;
-function loadTesseract(){ if(window.Tesseract) return Promise.resolve(); if(!tessPromise){ tessPromise=new Promise((res,rej)=>{ const s=document.createElement('script'); s.src='https://cdn.jsdelivr.net/npm/tesseract.js@5.0.4/dist/tesseract.min.js'; s.onload=()=>res(); s.onerror=()=>rej(new Error('OCR load')); document.head.appendChild(s); }); } return tessPromise; }
-async function ocrImage(file){
-  if(!file||!file.type||!file.type.startsWith('image/')){ showToast('Το αρχείο δεν είναι εικόνα'); return; }
-  pasteZone.classList.add('loading'); pasteText.textContent='Φόρτωση OCR…';
-  try{
-    await loadTesseract(); pasteText.textContent='Ανάλυση εικόνας…';
-    const r=await Tesseract.recognize(file,'eng',{tessedit_char_whitelist:'0123456789'});
-    const digits=cleanDigits(r.data.text||'');
-    if(!digits.length){ showToast('Δεν βρέθηκαν ψηφία — δοκίμασε πιο καθαρή φωτογραφία'); }
-    else{ kaekInput.value=digits; validateKaek(); showToast(digits.length===12?('Αναγνωρίστηκε '+digits+' — έλεγξέ τον'):('Αναγνωρίστηκαν '+digits.length+'/12 ψηφία')); kaekInput.focus(); }
-  }catch(err){ console.error(err); showToast('Σφάλμα αναγνώρισης εικόνας'); }
-  finally{ pasteZone.classList.remove('loading'); pasteText.innerHTML=DEFAULT_PASTE; }
-}
-document.addEventListener('paste', e=>{ const items=(e.clipboardData||window.clipboardData)&&(e.clipboardData||window.clipboardData).items; if(!items) return; for(const it of items){ if(it.type&&it.type.startsWith('image/')){ e.preventDefault(); const b=it.getAsFile(); if(b) ocrImage(b); return; } } });
-pasteZone.addEventListener('click', ()=>fileInput.click());
-pasteZone.addEventListener('keydown', e=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); fileInput.click(); } });
-fileInput.addEventListener('change', ()=>{ if(fileInput.files&&fileInput.files[0]) ocrImage(fileInput.files[0]); fileInput.value=''; });
-['dragover','dragenter'].forEach(ev=>pasteZone.addEventListener(ev,e=>{e.preventDefault();pasteZone.classList.add('drag');}));
-['dragleave','dragend'].forEach(ev=>pasteZone.addEventListener(ev,()=>pasteZone.classList.remove('drag')));
-pasteZone.addEventListener('drop', e=>{ e.preventDefault(); pasteZone.classList.remove('drag'); const f=e.dataTransfer.files&&e.dataTransfer.files[0]; if(f) ocrImage(f); });
 
 /* ═══ Χ,Υ tab ═══ */
 const xInput=$('xInput'), yInput=$('yInput');
