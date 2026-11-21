@@ -289,16 +289,20 @@
     <h1>my_ktima</h1>
   </header>
 
+<!--@SYN-->
   <div id="synUpdateBanner" style="display:none;align-items:center;gap:0.6rem;flex-wrap:wrap;background:#2a2410;border:1px solid #8a701e;color:#e6edf3;border-radius:10px;padding:0.6rem 0.8rem;margin-bottom:0.8rem;font-size:0.85rem;">
     <span style="flex:1;min-width:160px;">🔔 Υπάρχει νεότερο <b>SYNOLIKO-12</b> στο repo.</span>
     <button id="synUpdateBtn" class="act btn-primary" type="button" style="flex:0 0 auto;padding:0.5rem 0.9rem;">Ανανέωση τώρα</button>
     <button id="synUpdateDismiss" class="act btn-secondary" type="button" style="flex:0 0 auto;padding:0.5rem 0.9rem;">Αργότερα</button>
   </div>
+<!--@/SYN-->
 
+<!--@SYN-->
   <div class="tabs" id="tabsBar" style="display:none;">
     <button class="tab active" data-tab="map" id="tabMap">Χάρτης</button>
     <button class="tab" data-tab="add" id="tabAdd" style="display:none;">Καταχώριση</button>
   </div>
+<!--@/SYN-->
 
   <!-- ── Χάρτης ── -->
   <div class="card" id="panelMap">
@@ -340,6 +344,7 @@
     <div id="areaStatus" class="map-measure-status" style="display:none;"></div>
   </div>
 
+<!--@SYN-->
   <!-- ── Καταχώριση γεωτεμαχίου στο SYNOLIKO-12 ── -->
   <div class="card" id="panelAdd" style="display:none;">
     <div class="rlabel">Προσθήκη γεωτεμαχίου στο SYNOLIKO-12.dxf</div>
@@ -387,6 +392,7 @@
       <div class="sso-note">Το token μένει <b>μόνο σε αυτή τη συσκευή</b> (localStorage) και στέλνεται απευθείας στο api.github.com. Επειδή η σελίδα είναι δημόσια, χρησιμοποίησε fine-grained token μόνο για αυτό το repo και ανακάλεσέ το αν χρειαστεί. Κάθε αποθήκευση = commit ~19MB.</div>
     </details>
   </div>
+<!--@/SYN-->
 
   <!-- ── Ενέργειες τρέχοντος ΚΑΕΚ ── -->
   <div class="card" id="actionsCard">
@@ -399,10 +405,12 @@
     </div>
     <div id="selList" class="sel-list"></div>
 
+<!--@SYN-->
     <div id="synolikoLoad" style="display:none;margin-top:0.6rem;">
       <span class="paste-text">Το <b>SYNOLIKO-12.dxf</b> δεν βρέθηκε. <span class="link" id="synolikoPick">Φόρτωση αρχείου</span> (αποθηκεύεται τοπικά).</span>
       <input type="file" id="synolikoFile" accept=".dxf,.DXF" style="display:none">
     </div>
+<!--@/SYN-->
 
     <details class="adv">
       <summary>Επιλογές DXF (διόρθωση / shift)</summary>
@@ -529,8 +537,8 @@ function buildKtimaUrl(kaek){ return KTIMA_VIEW + kaek + KTIMA_SUFFIX; }
 
 /* ═══ ΕΠΙΛΟΓΗ ΓΕΩΤΕΜΑΧΙΩΝ (έως 20) ═══ */
 const MAX_SEL = 20;
-let selected = [];   // [{ kaek, point, ringsEGSA, area, perimeter, centroidEGSA, synolikoText, synolikoState, overlaps }]
-let current = null;  // το τελευταίο (context για SYNOLIKO/χάρτη)
+let selected = [];   // [{ kaek, point, ringsEGSA, area, perimeter, centroidEGSA, ... }]
+let current = null;  // το τελευταίο (context για τον χάρτη)
 
 function setResolved(kaek, ringsEGSA, area, perimeter, note){
   const digits = String(kaek||'').replace(/\D/g,'').slice(0,12);
@@ -551,7 +559,7 @@ function setResolved(kaek, ringsEGSA, area, perimeter, note){
   }
   if(selected.length>=MAX_SEL){ showToast('Μέγιστο '+MAX_SEL+' γεωτεμάχια — αφαίρεσε κάποιο πρώτα.'); return; }
 
-  const rec={ kaek:digits, ringsEGSA:ringsEGSA||null, area:area||null, perimeter:perimeter||null, point, centroidEGSA, synolikoText:null, synolikoState:'pending', overlaps:false };
+  const rec={ kaek:digits, ringsEGSA:ringsEGSA||null, area:area||null, perimeter:perimeter||null, point, centroidEGSA/*@SYN*/, synolikoText:null, synolikoState:'pending', overlaps:false/*@/SYN*/ };
   selected.push(rec);
   current=rec;
 
@@ -559,7 +567,7 @@ function setResolved(kaek, ringsEGSA, area, perimeter, note){
   if($('kaekInput').value.replace(/\D/g,'') !== digits){ $('kaekInput').value=digits; validateKaek(); }
   renderSelection();
   drawSelectionHighlights();
-  computeSynolikoForRecord(rec);
+  /*@SYN*/computeSynolikoForRecord(rec);/*@/SYN*/
   openParcelDialog(rec);
   if(digits.length===12) addToHistory({ kaek:digits, note:note||'', lat:point?point.lat:null, lon:point?point.lon:null });
 }
@@ -578,13 +586,16 @@ function renderSelection(){
   if(!selected.length){ el.innerHTML='<div class="sel-empty">Επίλεξε γεωτεμάχια από τον Χάρτη, ή δώσε ΚΑΕΚ / Χ,Υ.</div>'; return; }
   el.innerHTML = selected.map((s,i)=>{
     const first = i===0 ? '<span class="first">1ο</span>' : '';
-    const ovl = s.overlaps ? '<span class="ovl-badge">επικάλυψη SYNOLIKO</span>' : '';
-    const areaTxt = s.area ? ('~'+Math.round(s.area).toLocaleString('el-GR')+' m²') : '';
+    let ovl='';
     let syn='';
+    /*@SYN*/
+    if(s.overlaps) ovl='<span class="ovl-badge">επικάλυψη SYNOLIKO</span>';
     if(s.synolikoState==='pending') syn='<span class="syn">SYNOLIKO: …</span>';
     else if(s.synolikoText) syn='<span class="syn">SYNOLIKO: '+escapeHtml(s.synolikoText)+'</span>';
     else if(s.synolikoState==='notext') syn='<span class="syn">SYNOLIKO: επικάλυψη (χωρίς κείμενο)</span>';
     else if(s.synolikoState==='none') syn='<span>SYNOLIKO: χωρίς επικάλυψη</span>';
+    /*@/SYN*/
+    const areaTxt = s.area ? ('~'+Math.round(s.area).toLocaleString('el-GR')+' m²') : '';
     const sub=[areaTxt, syn].filter(Boolean).join(' · ');
     return `<div class="sel-item${s.overlaps?' overlap':''}" data-kaek="${s.kaek}">
       <div class="sel-info"><div class="sel-kaek">${first}${s.kaek||'(—)'}${ovl}</div><div class="sel-sub">${sub}</div></div>
@@ -983,8 +994,10 @@ async function downloadNaturaDxfFor(list){
   }catch(e){ console.error(e); showToast('Αποτυχία άντλησης Natura: '+(e.message||e)); }
 }
 
+/*@SYN*/
 /* ═══ SYNOLIKO-12.dxf: εύρεση polyline & κειμένου στο κέντρο του ΚΑΕΚ ═══ */
 let synoliko=null; // { polylines:[{pts,closed}], texts:[{x,y,str}] }
+/*@/SYN*/
 
 function cleanMText(s){
   return String(s).replace(/\\P/g,' ').replace(/\\~/g,' ')
@@ -1048,6 +1061,7 @@ function parseDxf(text){
   return { polylines, texts };
 }
 
+/*@SYN*/
 function pointInPoly(x,y,pts){
   let inside=false;
   for(let i=0,j=pts.length-1;i<pts.length;j=i++){
@@ -1056,8 +1070,10 @@ function pointInPoly(x,y,pts){
   }
   return inside;
 }
+/*@/SYN*/
 function polyArea(pts){ let a=0; for(let i=0,j=pts.length-1;i<pts.length;j=i++){ a+=(pts[j][0]+pts[i][0])*(pts[j][1]-pts[i][1]); } return Math.abs(a/2); }
 
+/*@SYN*/
 /* IndexedDB (μία μικρή αποθήκη key/value για το DXF) */
 function idbOpen(){ return new Promise((res,rej)=>{ const rq=indexedDB.open('kaek-teeilias',1); rq.onupgradeneeded=()=>{ if(!rq.result.objectStoreNames.contains('kv')) rq.result.createObjectStore('kv'); }; rq.onsuccess=()=>res(rq.result); rq.onerror=()=>rej(rq.error); }); }
 async function idbGet(key){ try{ const db=await idbOpen(); return await new Promise(res=>{ const g=db.transaction('kv','readonly').objectStore('kv').get(key); g.onsuccess=()=>res(g.result||null); g.onerror=()=>res(null); }); }catch(e){ return null; } }
@@ -1083,9 +1099,11 @@ function textsInsidePoly(data, pts){
   }
   return out;
 }
+/*@/SYN*/
 
 /* Γεωμετρικοί έλεγχοι επικάλυψης δύο πολυγώνων (bbox-pruned) */
 function bboxOf(pts){ let a=Infinity,b=Infinity,c=-Infinity,d=-Infinity; for(const p of pts){ if(p[0]<a)a=p[0]; if(p[1]<b)b=p[1]; if(p[0]>c)c=p[0]; if(p[1]>d)d=p[1]; } return [a,b,c,d]; }
+/*@SYN*/
 function bboxOverlap(A,B){ return !(A[2]<B[0]||B[2]<A[0]||A[3]<B[1]||B[3]<A[1]); }
 function segInt(a,b,c,d){ const o=(p,q,r)=>(q[1]-p[1])*(r[0]-q[0])-(q[0]-p[0])*(r[1]-q[1]); const d1=o(a,b,c),d2=o(a,b,d),d3=o(c,d,a),d4=o(c,d,b); return ((d1>0&&d2<0)||(d1<0&&d2>0)) && ((d3>0&&d4<0)||(d3<0&&d4>0)); }
 function polysIntersect(a,b){
@@ -1379,6 +1397,7 @@ document.querySelectorAll('.tab').forEach(tab=>{
     if(w==='map') initMap();
   });
 });
+/*@/SYN*/
 
 /* ═══ ΚΑΕΚ tab ═══ */
 const kaekInput=$('kaekInput'), kaekFindBtn=$('kaekFindBtn');
@@ -1613,7 +1632,7 @@ async function loadArchZones(){
 }
 
 /* Σχεδίαση όλων των επιλεγμένων: κόκκινο περίγραμμα + κόκκινος κύκλος όταν
-   υπάρχει επικάλυψη με polyline του SYNOLIKO-12.dxf, αλλιώς μπλε. */
+   υπάρχει επικάλυψη με υπάρχουσα εγγραφή αρχείου, αλλιώς μπλε. */
 function drawSelectionHighlights(){
   if(!mapObj || !highlightsLayer) return;
   highlightsLayer.clearLayers();
@@ -1896,6 +1915,7 @@ $('anoxisRun').addEventListener('click', ()=>{
   }
 });
 
+/*@SYN*/
 /* Ανανέωση SYNOLIKO-12.dxf από το repo (παράκαμψη cache) */
 /* «Υπογραφή» έκδοσης (σταθερή ανεξαρτήτως συμπίεσης): Last-Modified → ETag → μέγεθος */
 function synSig(res){ try{ return res.headers.get('last-modified') || res.headers.get('etag') || res.headers.get('content-length') || ''; }catch(e){ return ''; } }
@@ -1910,6 +1930,7 @@ async function refreshSynolikoFromRepo(){
   for(const rec of selected) computeSynolikoForRecord(rec);
   return synoliko;
 }
+/*@/SYN*/
 
 
 /* ═══ Εξαγωγή αποσπάσματος χάρτη ως καθαρή εικόνα (μόνο χάρτης + επιλεγμένα ΚΑΕΚ) ═══ */
@@ -2009,6 +2030,7 @@ $('mapCopyImg').addEventListener('click', async ()=>{
   }catch(e){ console.error(e); showToast('Αποτυχία αντιγραφής: '+e.message); }
 });
 
+/*@SYN*/
 /* Αυτόματος έλεγχος νεότερης έκδοσης στο repo (ελαφρύ HEAD) */
 function showSynBanner(){ $('synUpdateBanner').style.display='flex'; }
 function hideSynBanner(){ $('synUpdateBanner').style.display='none'; }
@@ -2029,6 +2051,7 @@ $('synUpdateBtn').addEventListener('click', async ()=>{
   finally{ b.disabled=false; b.textContent=o; }
 });
 $('synUpdateDismiss').addEventListener('click', hideSynBanner);
+/*@/SYN*/
 
 /* ═══ Ιστορικό (χωρίς ορατή λίστα «Πρόσφατα» — διατηρείται μόνο για αρχικό κέντρο χάρτη) ═══ */
 function loadHistory(){ try{ return JSON.parse(localStorage.getItem(STORAGE_KEY))||[]; }catch(e){ return []; } }
@@ -2816,7 +2839,6 @@ async function run(rec){
   const geo={ cx, cy, area:rec.area||null };
   const w=egsa87ToWgs84(cx,cy);
 
-  const btn=$('actPoleodomia'); const orig=btn?btn.innerHTML:''; if(btn){ btn.disabled=true; btn.innerHTML='<span class="spinner spinner-dim"></span> Άντληση…'; }
   $('polCard').style.display='block';
   $('polKaek').textContent=kaek;
   $('polMeta').innerHTML='';
@@ -2850,7 +2872,6 @@ async function run(rec){
 
   setProgress(100,'Ολοκληρώθηκε.');
   $('polProgress').style.display='none';
-  if(btn){ btn.disabled=false; btn.innerHTML=orig; }
 
   renderResults({kaek, note, geo, w, hits, diag});
 }
@@ -2884,6 +2905,7 @@ window.POL = { run, getZoneHint:()=>zoneHint };
 /* ═══ Init ═══ */
 renderSelection();
 initMap();
+/*@SYN*/
 /* Το banner «νεότερο SYNOLIKO-12» αποκρύπτεται (δεν γίνεται έλεγχος). Χειροκίνητη
    ανανέωση παραμένει διαθέσιμη. */
 hideSynBanner();
@@ -2900,6 +2922,7 @@ document.addEventListener('keydown', e=>{
     else if($('tabAdd').classList.contains('active')){ $('tabMap').click(); }
   }
 });
+/*@/SYN*/
 </script>
 </body>
 </html>

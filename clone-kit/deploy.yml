@@ -1,0 +1,78 @@
+# Δημοσίευση του κλώνου (κρυπτογραφημένου με κωδικό) στο GitHub Pages αυτού του repo.
+# Ο κωδικός ΔΕΝ υπάρχει πουθενά στον κώδικα: διαβάζεται από το secret PAGE_PASSWORD.
+# Αλλαγή κωδικού: Settings → Secrets and variables → Actions → PAGE_PASSWORD → Update,
+# και μετά Actions → «Build & deploy» → Run workflow.
+name: Build & deploy
+
+on:
+  workflow_dispatch:
+    inputs:
+      source_ref:
+        description: 'Branch ή tag του cgeorgako/apps από το οποίο χτίζεται ο κλώνος'
+        default: main
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Αυτό το repo (build.mjs)
+        uses: actions/checkout@v4
+
+      - name: Η εφαρμογή (cgeorgako/apps, δημόσιο repo)
+        uses: actions/checkout@v4
+        with:
+          repository: cgeorgako/apps
+          ref: ${{ inputs.source_ref || 'main' }}
+          path: src
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Έλεγχος κωδικού
+        env:
+          PAGE_PASSWORD: ${{ secrets.PAGE_PASSWORD }}
+        run: |
+          if [ -z "$PAGE_PASSWORD" ]; then echo "::error::Λείπει το secret PAGE_PASSWORD (Settings → Secrets and variables → Actions)"; exit 1; fi
+          if [ "${#PAGE_PASSWORD}" -lt 12 ]; then echo "::error::Ο κωδικός πρέπει να έχει τουλάχιστον 12 χαρακτήρες"; exit 1; fi
+
+      - name: Κλώνος χωρίς SYNOLIKO-12 (build + έλεγχοι)
+        run: node build.mjs src/KAEK-teeIlias.html work/index.html
+
+      - name: Κρυπτογράφηση με κωδικό (StatiCrypt)
+        env:
+          STATICRYPT_PASSWORD: ${{ secrets.PAGE_PASSWORD }}
+        run: |
+          mkdir -p work site
+          npx --yes staticrypt@3.5.4 work/index.html -c false -d site --short --remember 30 \
+            --template-title "my_ktima — Προσφορά προς τα μέλη ΤΕΕ Ηλείας" \
+            --template-instructions "Η πρόσβαση γίνεται με κωδικό." \
+            --template-placeholder "Κωδικός" --template-button "Είσοδος" \
+            --template-error "Λάθος κωδικός" --template-remember "Να με θυμάσαι σε αυτή τη συσκευή" \
+            --template-color-primary "#d4a72c" --template-color-secondary "#0d1117"
+
+      - name: Έλεγχος ότι η σελίδα είναι πράγματι κρυπτογραφημένη
+        run: |
+          test -s site/index.html
+          if grep -q -E "kaekInput|GEOTEMAXIA|services-eu1" site/index.html; then echo "::error::Βρέθηκε αναγνώσιμο περιεχόμενο — ακυρώνεται η δημοσίευση"; exit 1; fi
+
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+      - id: deployment
+        uses: actions/deploy-pages@v4
