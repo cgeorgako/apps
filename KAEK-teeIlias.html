@@ -1520,7 +1520,7 @@ function initMap(){
   archZonesLayer=L.layerGroup();
   L.control.layers(
     {'Δορυφορικό':sat,'Google Earth':gsat,'Χάρτης (OSM)':osm},
-    {'Ετικέτες (οδοί/οικισμοί)':labels, '🏺 Αρχαιολογικές Ζώνες':archZonesLayer, '💶 Ζώνες Αντικ. Αξιών':apaa, '🌲 Δασικός χάρτης':forestLayer, '🔵 Natura 2000':naturaLayer},
+    {'Ετικέτες (οδοί/οικισμοί)':labels, '🏺 Αρχαιολογικές Ζώνες':archZonesLayer, '🌲 Δασικός χάρτης':forestLayer, '🔵 Natura 2000':naturaLayer, '💶 Ζώνες Αντικ. Αξιών':apaa},
     {position:'topright'}
   ).addTo(mapObj);
   mapObj.on('overlayadd', e=>{
