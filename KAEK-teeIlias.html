@@ -92,10 +92,12 @@
     .wrap{max-width:1590px;}
   }
   .map-search{margin-bottom:0.8rem;}
-  .map-search-row{display:flex;gap:0.5rem;align-items:stretch;flex-wrap:wrap;}
-  .map-search-row input{min-width:120px;}
-  .map-search-row input{flex:1;min-width:0;}
+  .map-search-row{display:flex;gap:0.5rem;align-items:center;flex-wrap:wrap;}
   .map-search-row .act{flex-shrink:0;white-space:nowrap;}
+  /* Πεδία οριακά στο μέγεθος των ψηφίων (το πλάτος δίνεται από το attribute size) */
+  #kaekInput,#xInput,#yInput{flex:0 0 auto;width:auto;min-width:0;}
+  /* Εικονικά κουμπιά (μόνο σύμβολο) */
+  .icon-btn{flex:0 0 auto;padding:0.4rem 0.7rem;font-size:1.1rem;line-height:1;}
   .map-toolbar{display:flex;gap:0.5rem;margin-bottom:0.7rem;flex-wrap:wrap;}
   .map-toolbar .act{flex:1;min-width:120px;font-size:0.82rem;padding:0.6rem 0.5rem;}
   .map-tip{font-size:0.76rem;color:var(--text-muted);margin:0.7rem 0 0;line-height:1.45;}
@@ -298,7 +300,7 @@
     <button id="synUpdateDismiss" class="act btn-secondary" type="button" style="flex:0 0 auto;padding:0.5rem 0.9rem;">Αργότερα</button>
   </div>
 
-  <div class="tabs">
+  <div class="tabs" id="tabsBar" style="display:none;">
     <button class="tab active" data-tab="map" id="tabMap">Χάρτης</button>
     <button class="tab" data-tab="add" id="tabAdd" style="display:none;">Καταχώριση</button>
   </div>
@@ -308,8 +310,8 @@
     <!-- Αναζήτηση ΚΑΕΚ απευθείας στον χάρτη -->
     <div class="map-search">
       <div class="map-search-row">
-        <input id="kaekInput" type="text" inputmode="numeric" autocomplete="off" placeholder="Αριθμός ΚΑΕΚ (12 ψηφία) — π.χ. 150192801004" maxlength="14">
-        <button id="kaekFindBtn" class="act btn-primary" disabled>🔍 Εύρεση στον χάρτη</button>
+        <input id="kaekInput" type="text" inputmode="numeric" autocomplete="off" placeholder="150192801004" maxlength="14" size="13" title="Αριθμός ΚΑΕΚ (12 ψηφία)">
+        <button id="kaekFindBtn" class="act btn-primary icon-btn" disabled title="Εύρεση ΚΑΕΚ στον χάρτη">🔍</button>
       </div>
       <div id="kaekBreakdown" class="breakdown"></div>
       <div id="kaekHint" class="hint"></div>
@@ -330,9 +332,9 @@
     <div class="map-search">
       <div class="rlabel">ή εντοπισμός με συντεταγμένες ΕΓΣΑ87 (Χ, Υ)</div>
       <div class="map-search-row">
-        <input id="xInput" type="text" inputmode="decimal" autocomplete="off" placeholder="Χ (Easting) — π.χ. 267540">
-        <input id="yInput" type="text" inputmode="decimal" autocomplete="off" placeholder="Υ (Northing) — π.χ. 4189320">
-        <button id="xyConvertBtn" class="act btn-primary">🎯 Εντοπισμός ΚΑΕΚ</button>
+        <input id="xInput" type="text" inputmode="decimal" autocomplete="off" placeholder="Χ" size="10" title="Χ (Easting, ΕΓΣΑ87) — έως 9 χαρακτήρες">
+        <input id="yInput" type="text" inputmode="decimal" autocomplete="off" placeholder="Υ" size="11" title="Υ (Northing, ΕΓΣΑ87) — έως 10 χαρακτήρες">
+        <button id="xyConvertBtn" class="act btn-primary icon-btn" title="Εντοπισμός ΚΑΕΚ από Χ,Υ">🎯</button>
       </div>
       <button id="swapBtn" class="swap-btn" type="button">⇄ Εναλλαγή Χ ↔ Υ</button>
       <div id="xyHint" class="hint"></div>
@@ -2956,6 +2958,7 @@ document.addEventListener('keydown', e=>{
   if(e.altKey && e.code==='KeyP'){
     e.preventDefault();
     addTabVisible=!addTabVisible;
+    $('tabsBar').style.display = addTabVisible ? 'flex' : 'none';
     $('tabAdd').style.display = addTabVisible ? '' : 'none';
     if(addTabVisible){ $('tabAdd').click(); }
     else if($('tabAdd').classList.contains('active')){ $('tabMap').click(); }
