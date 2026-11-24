@@ -476,7 +476,10 @@
 "use strict";
 
 const $ = id => document.getElementById(id);
-const ARCGIS_URL = "https://services-eu1.arcgis.com/40tFGWzosjaLJpmn/arcgis/rest/services/GEOTEMAXIA_LEITOURGOUN_ON_gdb/FeatureServer/0/query";
+/* Γεωτεμάχια Κτηματολογίου. Το παλαιό GEOTEMAXIA_LEITOURGOUN_ON_gdb έπαψε να είναι
+   δημόσιο (ArcGIS 499 «Token Required») — αντικαταστάθηκε από το LEITOURGOUN_EGSA_gdb
+   του ίδιου οργανισμού, που έχει τα ίδια πεδία (KAEK, AREA, PERIMETER) και πολύγωνα. */
+const ARCGIS_URL = "https://services-eu1.arcgis.com/40tFGWzosjaLJpmn/arcgis/rest/services/LEITOURGOUN_EGSA_gdb/FeatureServer/0/query";
 // Θεματικά overlays (ίδιος ArcGIS org Κτηματολογίου, EPSG:3857, πολύγωνα)
 const FS_FOREST   = "https://services-eu1.arcgis.com/40tFGWzosjaLJpmn/arcgis/rest/services/DASIKA_KYROSH_P_gdb/FeatureServer/0/query";   // Δασικός χάρτης (κυρωμένος)
 const FS_NAT_SCI  = "https://services-eu1.arcgis.com/40tFGWzosjaLJpmn/arcgis/rest/services/NATURA_SCI_P_gdb/FeatureServer/0/query";      // Natura SCI
