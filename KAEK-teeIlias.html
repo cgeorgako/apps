@@ -606,6 +606,24 @@ $('selList').addEventListener('click', e=>{
   const del=e.target.closest('[data-del]'); if(del) removeSelected(del.dataset.del);
 });
 
+/* ═══ Ανάγνωση απάντησης ArcGIS με σαφή μηνύματα σφάλματος ═══
+   Ο ArcGIS επιστρέφει HTTP 200 με {"error":{...}} (π.χ. 499 «Token Required»). Αν δεν
+   ελεγχθεί, φαίνεται λανθασμένα ως «δεν βρέθηκε» ή «χωρίς internet». */
+class CadastreError extends Error{ constructor(msg,code){ super(msg); this.name='CadastreError'; this.code=code; } }
+async function readArcgis(res){
+  if(!res.ok) throw new CadastreError('Ο διακομιστής του Κτηματολογίου απάντησε με σφάλμα HTTP '+res.status+'.', res.status);
+  let data;
+  try{ data=await res.json(); }catch(e){ throw new CadastreError('Μη έγκυρη απάντηση από την υπηρεσία του Κτηματολογίου.', 0); }
+  if(data && data.error){
+    const c=data.error.code;
+    if(c===499 || c===498) throw new CadastreError('Η υπηρεσία γεωτεμαχίων του Κτηματολογίου δεν είναι πλέον δημόσια (απαιτεί token) — δεν είναι δυνατή η άντληση ΚΑΕΚ.', c);
+    throw new CadastreError('Σφάλμα υπηρεσίας Κτηματολογίου ('+(c||'?')+'): '+(data.error.message||'άγνωστο'), c);
+  }
+  return data;
+}
+/* Μήνυμα για τον χρήστη: συγκεκριμένο για σφάλμα υπηρεσίας, γενικό (δίκτυο) για όλα τα υπόλοιπα */
+function cadastreFailToast(err, fallback){ showToast(err instanceof CadastreError ? err.message : fallback); }
+
 /* ═══ Ανάλυση από ΚΑΕΚ (where) ═══ */
 async function resolveByKaek(kaek, note){
   const digits = String(kaek).replace(/\D/g,'').slice(0,12);
@@ -613,15 +631,14 @@ async function resolveByKaek(kaek, note){
   showToast('Αναζήτηση γεωτεμαχίου…');
   try{
     const url=`${ARCGIS_URL}?f=json&where=KAEK='${digits}'&outFields=AREA,PERIMETER&returnGeometry=true&outSR=2100`;
-    const res=await fetch(url); if(!res.ok) throw new Error('server '+res.status);
-    const data=await res.json();
+    const data=await readArcgis(await fetch(url));
     if(!data.features||!data.features.length){ showToast('Το ΚΑΕΚ δεν βρέθηκε στη βάση του Κτηματολογίου'); return; }
     const f=data.features[0];
     if(!f.geometry||!f.geometry.rings){ showToast('Δεν βρέθηκε γεωμετρία γεωτεμαχίου'); return; }
     setResolved(digits, f.geometry.rings, f.attributes&&f.attributes.AREA, f.attributes&&f.attributes.PERIMETER, note);
     /* Το πλαισίωμα του χάρτη γίνεται από το framePopup() μέσα στο openParcelDialog(),
        ώστε να φαίνεται ολόκληρο το popup χωρίς να καλύπτεται το polyline του ΚΑΕΚ. */
-  }catch(err){ console.error(err); showToast('Αποτυχία σύνδεσης με το Κτηματολόγιο — έλεγξε το internet'); }
+  }catch(err){ console.error(err); cadastreFailToast(err,'Αποτυχία σύνδεσης με το Κτηματολόγιο — έλεγξε το internet'); }
 }
 
 /* ═══ Ανάλυση από σημείο (point-in-polygon) ═══ */
@@ -631,14 +648,12 @@ async function resolveByPoint(x, y, inSR, note){
     const geom=encodeURIComponent(x+','+y);
     const url=`${ARCGIS_URL}?f=json&geometry=${geom}&geometryType=esriGeometryPoint&inSR=${inSR}`
             +`&spatialRel=esriSpatialRelIntersects&outFields=KAEK,AREA,PERIMETER&returnGeometry=true&outSR=2100`;
-    const res=await fetch(url); if(!res.ok) throw new Error('server '+res.status);
-    const data=await res.json();
-    if(data.error) throw new Error(data.error.message||'arcgis');
+    const data=await readArcgis(await fetch(url));
     if(!data.features||!data.features.length){ showToast('Δεν υπάρχει καταχωρημένο γεωτεμάχιο εδώ.'); return; }
     const f=data.features[0];
     const kaek=String(f.attributes.KAEK||'').trim();
     setResolved(kaek, f.geometry&&f.geometry.rings, f.attributes.AREA, f.attributes.PERIMETER, note);
-  }catch(err){ console.error(err); showToast('Αποτυχία ανάγνωσης ΚΑΕΚ — έλεγξε το internet.'); }
+  }catch(err){ console.error(err); cadastreFailToast(err,'Αποτυχία ανάγνωσης ΚΑΕΚ — έλεγξε το internet.'); }
 }
 
 /* ═══ Ενέργειες ═══ */
@@ -1547,6 +1562,7 @@ function initMap(){
   });
   setTimeout(()=>{ mapObj.invalidateSize(); loadViewportParcels(); drawSelectionHighlights(); },80);
 }
+let parcelsErrShown=false;   // ένα μήνυμα σφάλματος ανά διακοπή (όχι σε κάθε μετακίνηση χάρτη)
 async function loadViewportParcels(){
   if(!mapObj) return;
   if(mapObj.getZoom()<16){ parcelsLayer.clearLayers(); return; }
@@ -1556,10 +1572,15 @@ async function loadViewportParcels(){
   try{
     if(parcelsAbort) parcelsAbort.abort();
     parcelsAbort=new AbortController();
-    const res=await fetch(url,{signal:parcelsAbort.signal}); const data=await res.json();
+    const data=await readArcgis(await fetch(url,{signal:parcelsAbort.signal}));
+    parcelsErrShown=false;
     parcelsLayer.clearLayers();
     (data.features||[]).forEach(f=>{ if(!f.geometry||!f.geometry.rings) return; L.polygon(f.geometry.rings.map(r=>r.map(p=>[p[1],p[0]])),{color:'#c9a227',weight:1,fill:true,fillOpacity:0.04,interactive:false}).addTo(parcelsLayer); });
-  }catch(err){}
+  }catch(err){
+    if(err && err.name==='AbortError') return;          // κανονική ακύρωση παλαιότερου αιτήματος
+    console.error(err);
+    if(!parcelsErrShown){ parcelsErrShown=true; cadastreFailToast(err,'Δεν φορτώθηκαν τα όρια γεωτεμαχίων — έλεγξε το internet'); }
+  }
 }
 /* ═══ Θεματικά overlays: Δασικός χάρτης & Natura (ArcGIS FeatureServer ανά viewport) ═══ */
 async function queryFeatures(url, abortRef){
