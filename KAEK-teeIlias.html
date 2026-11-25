@@ -536,7 +536,29 @@ function egsaRingsToLatLngs(rings){ return rings.map(r => r.map(pt => { const w=
 function fmtC(v){ return Number(v).toFixed(6); }
 function openGoogleMaps(lat,lon){ window.open('https://www.google.com/maps/search/?api=1&query='+encodeURIComponent(fmtC(lat)+','+fmtC(lon)),'_blank','noopener'); }
 async function copyText(txt,msg){ try{ await navigator.clipboard.writeText(txt); showToast(msg); }catch(e){ const ta=document.createElement('textarea'); ta.value=txt; ta.style.cssText='position:fixed;opacity:0'; document.body.appendChild(ta); ta.select(); try{document.execCommand('copy');showToast(msg);}catch(err){showToast('Αποτυχία αντιγραφής');} document.body.removeChild(ta); } }
-function buildKtimaUrl(kaek){ return KTIMA_VIEW + kaek + KTIMA_SUFFIX; }
+/* ── ΚΑΕΚ κοινόχρηστων εκτάσεων ──
+   Το Κτηματολόγιο κωδικοποιεί τις κοινόχρηστες εκτάσεις ως «12345ΕΚ67890»:
+   5 ψηφία + ΕΚ (ΕΛΛΗΝΙΚΑ κεφαλαία) + 5 ψηφία, σύνολο 12 χαρακτήρες. Παλαιότερα
+   κρατούσαμε μόνο τα ψηφία, οπότε έμενε 10ψήφιος κωδικός που ΔΕΝ βρίσκει εγγραφή
+   στη βάση (επαληθεύτηκε: το where με τον 10ψήφιο επιστρέφει 0 αποτελέσματα, με
+   ελληνικό ΕΚ επιστρέφει την εγγραφή, με λατινικό EK επίσης 0). Γι' αυτό ο
+   10ψήφιος συμπληρώνεται αυτόματα με «ΕΚ» μετά το 5ο ψηφίο. */
+const KAEK_EK='\u0395\u039A';                         // Ε + Κ ελληνικά
+const KAEK_EK_RE=/^(\d{5})[\u0395E][\u039AK](\d{5})$/;  // δέχεται και λατινικά κατά την πληκτρολόγηση
+function normalizeKaek(raw){
+  const s=String(raw==null?'':raw).trim().toUpperCase();
+  const m=s.match(KAEK_EK_RE);
+  if(m) return m[1]+KAEK_EK+m[2];
+  const d=s.replace(/\D/g,'');
+  if(d.length===10) return d.slice(0,5)+KAEK_EK+d.slice(5);   // 10ψήφιος → 5ψ + ΕΚ + 5ψ
+  return d.slice(0,12);
+}
+function isValidKaek(k){ return /^(?:\d{12}|\d{5}\u0395\u039A\d{5})$/.test(String(k==null?'':k)); }
+function isEkKaek(k){ return /\u0395\u039A/.test(String(k==null?'':k)); }
+/* ASCII μορφή για ονόματα αρχείων και layers DXF (οπτικά ταυτόσημη) */
+function kaekAscii(k){ return String(k==null?'':k).replace(/\u0395/g,'E').replace(/\u039A/g,'K'); }
+
+function buildKtimaUrl(kaek){ return KTIMA_VIEW + encodeURIComponent(kaek) + KTIMA_SUFFIX; }
 
 /* ═══ ΕΠΙΛΟΓΗ ΓΕΩΤΕΜΑΧΙΩΝ (έως 20) ═══ */
 const MAX_SEL = 20;
@@ -544,7 +566,7 @@ let selected = [];   // [{ kaek, point, ringsEGSA, area, perimeter, centroidEGSA
 let current = null;  // το τελευταίο (context για τον χάρτη)
 
 function setResolved(kaek, ringsEGSA, area, perimeter, note){
-  const digits = String(kaek||'').replace(/\D/g,'').slice(0,12);
+  const digits = normalizeKaek(kaek);
   let point=null, centroidEGSA=null;
   if(ringsEGSA && ringsEGSA.length){
     const [cx,cy]=ringCentroid(ringsEGSA[0]);
@@ -567,7 +589,7 @@ function setResolved(kaek, ringsEGSA, area, perimeter, note){
   current=rec;
 
   $('actionsCard').classList.add('show');
-  if($('kaekInput').value.replace(/\D/g,'') !== digits){ $('kaekInput').value=digits; validateKaek(); }
+  if(cleanDigits($('kaekInput').value) !== digits){ $('kaekInput').value=digits; validateKaek(); }
   renderSelection();
   drawSelectionHighlights();
   /*@SYN*/computeSynolikoForRecord(rec);/*@/SYN*/
@@ -629,11 +651,11 @@ function cadastreFailToast(err, fallback){ showToast(err instanceof CadastreErro
 
 /* ═══ Ανάλυση από ΚΑΕΚ (where) ═══ */
 async function resolveByKaek(kaek, note){
-  const digits = String(kaek).replace(/\D/g,'').slice(0,12);
-  if(digits.length!==12){ showToast('Μη έγκυρος ΚΑΕΚ (12 ψηφία)'); return; }
+  const digits = normalizeKaek(kaek);
+  if(!isValidKaek(digits)){ showToast('Μη έγκυρος ΚΑΕΚ (12 χαρακτήρες)'); return; }
   showToast('Αναζήτηση γεωτεμαχίου…');
   try{
-    const url=`${ARCGIS_URL}?f=json&where=KAEK='${digits}'&outFields=AREA,PERIMETER&returnGeometry=true&outSR=2100`;
+    const url=`${ARCGIS_URL}?f=json&where=${encodeURIComponent("KAEK='"+digits+"'")}&outFields=AREA,PERIMETER&returnGeometry=true&outSR=2100`;
     const data=await readArcgis(await fetch(url));
     if(!data.features||!data.features.length){ showToast('Το ΚΑΕΚ δεν βρέθηκε στη βάση του Κτηματολογίου'); return; }
     const f=data.features[0];
@@ -686,7 +708,7 @@ function downloadDxf(list){
   const dx=parseFloat($('dx').value)||0, dy=parseFloat($('dy').value)||0;
   let dxf="  0\nSECTION\n  2\nENTITIES\n";
   for(const rec of recs){
-    const kaek=rec.kaek; let sumX=0,sumY=0,cnt=0;
+    const kaek=kaekAscii(rec.kaek); let sumX=0,sumY=0,cnt=0;   // ASCII για layers/κείμενο DXF
     for(const vertices of rec.ringsEGSA){
       if(!vertices||!vertices.length) continue;
       dxf+=writePolyline(vertices, "PST_KAEK_"+kaek, dx, dy);   // ΜΟΝΟ το διορθωμένο (shift)
@@ -698,7 +720,7 @@ function downloadDxf(list){
   }
   dxf+="  0\nENDSEC\n  0\nEOF\n";
   const blob=new Blob([dxf],{type:"application/dxf;charset=utf-8;"});
-  const first=recs[0].kaek, name = recs.length>1 ? ("KAEK_"+first+"_+"+(recs.length-1)+".dxf") : ("KAEK_"+first+".dxf");
+  const first=kaekAscii(recs[0].kaek), name = recs.length>1 ? ("KAEK_"+first+"_+"+(recs.length-1)+".dxf") : ("KAEK_"+first+".dxf");
   const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=name; document.body.appendChild(a); a.click(); document.body.removeChild(a);
   showToast('Λήψη DXF (διορθωμένο): '+recs.length+' γεωτεμάχιο(α)');
 }
@@ -776,7 +798,7 @@ async function downloadForestDxfFor(list, btn){
     const feats=await fetchForestEgsa(recs, 50); // ~50m buffer γύρω από τα επιλεγμένα
     if(!feats.length){ showToast('Δεν βρέθηκαν δασικά πολύγωνα στην περιοχή'); return; }
     const dxf=buildForestDxf(feats);
-    const first=recs[0].kaek, name='DASIKA_'+first+(recs.length>1?('_syn'+(recs.length-1)):'')+'.dxf';
+    const first=kaekAscii(recs[0].kaek), name='DASIKA_'+first+(recs.length>1?('_syn'+(recs.length-1)):'')+'.dxf';
     const blob=new Blob([dxfToCp1253Bytes(dxf)],{type:'application/dxf'}); // bytes CP1253 (ελληνικά)
     const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=name;
     document.body.appendChild(a); a.click(); document.body.removeChild(a); setTimeout(()=>URL.revokeObjectURL(a.href),1000);
@@ -952,7 +974,7 @@ async function downloadArchDxfFor(list){
     const feats=await fetchArchZonesEgsa(recs, 50);
     if(!feats.length){ showToast('Δεν βρέθηκαν ζώνες προστασίας που να τέμνουν το γεωτεμάχιο'); return; }
     const dxf=buildArchDxf(feats);
-    const first=recs[0].kaek, name='ARXAIOLOGIKES_ZWNES_'+first+'.dxf';
+    const first=kaekAscii(recs[0].kaek), name='ARXAIOLOGIKES_ZWNES_'+first+'.dxf';
     const blob=new Blob([dxfToCp1253Bytes(dxf)],{type:'application/dxf'});
     const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=name;
     document.body.appendChild(a); a.click(); document.body.removeChild(a); setTimeout(()=>URL.revokeObjectURL(a.href),1000);
@@ -1004,7 +1026,7 @@ async function downloadNaturaDxfFor(list){
     const feats=await fetchNaturaEgsa(recs);
     if(!feats.length){ showToast('Το ΚΑΕΚ δεν τέμνει ζώνη Natura 2000 — δεν παράγεται DXF'); return; }
     const dxf=buildNaturaDxf(feats);
-    const first=recs[0].kaek, name='NATURA_'+first+'.dxf';
+    const first=kaekAscii(recs[0].kaek), name='NATURA_'+first+'.dxf';
     const blob=new Blob([dxfToCp1253Bytes(dxf)],{type:'application/dxf'});
     const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=name;
     document.body.appendChild(a); a.click(); document.body.removeChild(a); setTimeout(()=>URL.revokeObjectURL(a.href),1000);
@@ -1419,13 +1441,26 @@ document.querySelectorAll('.tab').forEach(tab=>{
 
 /* ═══ ΚΑΕΚ tab ═══ */
 const kaekInput=$('kaekInput'), kaekFindBtn=$('kaekFindBtn');
-function cleanDigits(raw){ return raw.replace(/\D/g,'').slice(0,12); }
+/* Καθαρισμός εισόδου: ψηφία, και το ζεύγος ΕΚ μετά το 5ο ψηφίο (λατινικά EK
+   μετατρέπονται σε ελληνικά), ώστε να πληκτρολογείται/επικολλάται και κωδικός
+   κοινόχρηστης έκτασης. */
+function cleanDigits(raw){
+  const s=String(raw==null?'':raw).toUpperCase()
+    .replace(/E/g,'\u0395').replace(/K/g,'\u039A')
+    .replace(/[^0-9\u0395\u039A]/g,'');
+  const full=s.match(/^(\d{5})\u0395\u039A(\d{0,5})/);
+  if(full) return full[1]+KAEK_EK+full[2];
+  const half=s.match(/^(\d{5})\u0395$/);              // ενδιάμεσο στάδιο πληκτρολόγησης
+  if(half) return half[1]+'\u0395';
+  return s.replace(/\D/g,'').slice(0,12);
+}
 function validateKaek(){
   const digits=cleanDigits(kaekInput.value); kaekInput.value=digits;
   kaekInput.classList.remove('valid','invalid'); const hint=$('kaekHint');
   if(!digits.length){ hint.textContent=''; hint.className='hint'; kaekFindBtn.disabled=true; return; }
-  if(digits.length<12){ hint.textContent=digits.length+'/12 ψηφία'; hint.className='hint'; kaekInput.classList.add('invalid'); kaekFindBtn.disabled=true; return; }
-  hint.textContent='Έγκυρος αριθμός ψηφίων ✓'; hint.className='hint ok'; kaekInput.classList.add('valid'); kaekFindBtn.disabled=false;
+  if(!isValidKaek(digits)){ hint.textContent=digits.length+'/12 χαρακτήρες'; hint.className='hint'; kaekInput.classList.add('invalid'); kaekFindBtn.disabled=true; return; }
+  hint.textContent = isEkKaek(digits) ? 'Έγκυρος ΚΑΕΚ κοινόχρηστης έκτασης ✓' : 'Έγκυρος αριθμός ψηφίων ✓';
+  hint.className='hint ok'; kaekInput.classList.add('valid'); kaekFindBtn.disabled=false;
 }
 kaekInput.addEventListener('input', validateKaek);
 kaekInput.addEventListener('keydown', e=>{ if(e.key==='Enter'&&!kaekFindBtn.disabled) kaekFindBtn.click(); });
@@ -1433,7 +1468,7 @@ kaekInput.addEventListener('paste', e=>{
   const cb=e.clipboardData||window.clipboardData; if(!cb) return;
   e.preventDefault(); kaekInput.value=cleanDigits(cb.getData('text')); validateKaek();
 });
-kaekFindBtn.addEventListener('click', ()=>{ const d=cleanDigits(kaekInput.value); if(d.length===12) resolveByKaek(d); });
+kaekFindBtn.addEventListener('click', ()=>{ const d=cleanDigits(kaekInput.value); if(isValidKaek(d)) resolveByKaek(d); });
 
 
 /* ═══ Χ,Υ tab ═══ */
@@ -2029,7 +2064,7 @@ function drawVectorLayer(ctx, group){
   });
 }
 function hexToRgba(hex,a){ const h=hex.replace('#',''); const n=parseInt(h.length===3?h.split('').map(c=>c+c).join(''):h,16); return `rgba(${(n>>16)&255},${(n>>8)&255},${n&255},${a})`; }
-function mapImageName(){ const k=(selected[0]&&selected[0].kaek)||'xartis'; const extra=selected.length>1?('_+'+(selected.length-1)):''; return 'xartis_'+k+extra+'.png'; }
+function mapImageName(){ const k=kaekAscii((selected[0]&&selected[0].kaek)||'xartis'); const extra=selected.length>1?('_+'+(selected.length-1)):''; return 'xartis_'+k+extra+'.png'; }
 function canvasToBlob(canvas){ return new Promise((res,rej)=>{ canvas.toBlob(b=> b?res(b):rej(new Error('Αποτυχία δημιουργίας εικόνας (ίσως tainted canvas)')), 'image/png'); }); }
 
 $('mapSaveImg').addEventListener('click', async ()=>{
@@ -2864,7 +2899,7 @@ function renderResults({kaek, note, geo, w, hits, diag}){
 
 /* ── Κύρια ροή: ενεργεί στο ήδη επιλυμένο γεωτεμάχιο (rec) ── */
 async function run(rec){
-  const kaek=String(rec.kaek||'').replace(/\D/g,'').slice(0,12);
+  const kaek=normalizeKaek(rec.kaek);
   const note='';
   const cx=rec.centroidEGSA[0], cy=rec.centroidEGSA[1];
   currentCentroid=[cx,cy];
