@@ -186,7 +186,7 @@
     <div class="panel-b">
       <label id="drop" for="file">
         <div class="big">Επιλέξτε ή σύρετε εδώ το αρχείο DXF</div>
-        <div class="small">κάντε κλικ για επιλογή — απαιτούνται τα layers <b>TOPO_PROP</b> & <b>PST_KAEK</b></div>
+        <div class="small">κάντε κλικ για επιλογή — απαιτούνται τα layers <b>TOPO_PROP</b> & <b>PST_KAEK</b> (ή <b>PST_KAEK_&lt;ΚΑΕΚ&gt;</b>)</div>
         <div class="file" id="fname"></div>
       </label>
       <input type="file" id="file" style="position:absolute;left:-9999px;width:1px;height:1px;opacity:0">
@@ -239,6 +239,7 @@
         <div class="panel-h"><span class="n">3</span> Αποτελέσματα μετρήσεων</div>
         <div class="panel-b">
           <table id="restab"></table>
+          <div id="selnote"></div>
         </div>
       </div>
       <div class="panel">
@@ -360,17 +361,19 @@ function cleanMtext(s){
     .trim();
 }
 function readText(pairs,i,end){
-  let layer="0", main="", extra="";
+  let layer="0", main="", extra="", tx=null, ty=null;
   while(i<end){
     const [c,v]=pairs[i];
     if(c===0) break;
     if(c===8) layer=v.trim();
     else if(c===1) main=v;          // primary text
     else if(c===3) extra+=v;        // MTEXT continuation chunks
+    else if(c===10) tx=parseFloat(v);
+    else if(c===20) ty=parseFloat(v);
     i++;
   }
   const text=cleanMtext(extra+main);
-  return {txt:{layer,text},next:i};
+  return {txt:{layer,text,x:tx,y:ty},next:i};
 }
 function readLW(pairs,i,end){
   let layer="0", closed=false, pts=[], pendingX=null;
@@ -436,6 +439,23 @@ function isClosedGeom(pts){
   return Math.hypot(a[0]-b[0],a[1]-b[1])<1e-6;
 }
 
+function pointInPoly(pt,poly){
+  let c=false;
+  for(let i=0,j=poly.length-1;i<poly.length;j=i++){
+    const xi=poly[i][0],yi=poly[i][1],xj=poly[j][0],yj=poly[j][1];
+    if(((yi>pt[1])!==(yj>pt[1])) && (pt[0]<(xj-xi)*(pt[1]-yi)/(yj-yi)+xi)) c=!c;
+  }
+  return c;
+}
+function areaCentroid(pts){
+  const n=pts.length; let a=0,cx=0,cy=0;
+  for(let k=0;k<n;k++){ const [x1,y1]=pts[k],[x2,y2]=pts[(k+1)%n]; const f=x1*y2-x2*y1; a+=f; cx+=(x1+x2)*f; cy+=(y1+y2)*f; }
+  if(Math.abs(a)<1e-9){ return [pts.reduce((s,p)=>s+p[0],0)/n, pts.reduce((s,p)=>s+p[1],0)/n]; }
+  return [cx/(3*a), cy/(3*a)];
+}
+/* layers ΚΑΕΚ: PST_KAEK ή PST_KAEK_<αριθμός ΚΑΕΚ> */
+function kaekLayers(){ return LAYERS.filter(l=>/^PST_KAEK(_\d+)?$/i.test(l)); }
+
 /* ============ STATE / UI ============ */
 let POLYS=[], TEXTS=[], LAYERS=[], LAST=null, HANDOFF_KAEK='';
 const $=id=>document.getElementById(id);
@@ -467,16 +487,20 @@ function loadDxfText(text, name){
 }
 function buildSelectors(){
   const st=$('selTopo'),sk=$('selKaek');
-  st.innerHTML=''; sk.innerHTML='';
+  st.innerHTML='<option value="">— επιλέξτε layer —</option>';
+  sk.innerHTML='<option value="">— επιλέξτε layer —</option>';
+  const kl=kaekLayers();
+  const findL=name=>LAYERS.find(l=>l.toUpperCase()===name);
+  const kExact=findL('PST_KAEK');
+  if(kl.length && !kExact)
+    sk.insertAdjacentHTML('beforeend','<option value="__AUTO__">Αυτόματο — όλα τα PST_KAEK* (επιλογή βάσει τοπογραφικού)</option>');
   LAYERS.forEach(l=>{
     st.insertAdjacentHTML('beforeend',`<option value="${esc(l)}">${esc(l)}</option>`);
     sk.insertAdjacentHTML('beforeend',`<option value="${esc(l)}">${esc(l)}</option>`);
   });
-  // auto-match preferred names (case-insensitive)
-  const findL=name=>LAYERS.find(l=>l.toUpperCase()===name);
-  const t=findL('TOPO_PROP'), k=findL('PST_KAEK');
+  const t=findL('TOPO_PROP');
   if(t) st.value=t;
-  if(k) sk.value=k;
+  if(kExact) sk.value=kExact; else if(kl.length) sk.value='__AUTO__';
   $('mapwrap').style.display='block';
 }
 function esc(s){return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
@@ -491,11 +515,35 @@ function pickPoly(layer){
   return {poly:cands[0], count:cands.length};
 }
 
+/* επιλογή του σωστού πολυγώνου ΚΑΕΚ (όχι «το μεγαλύτερο») */
+function pickKaekPoly(sel,tpoly){
+  const layers = sel==='__AUTO__' ? kaekLayers() : [sel];
+  let cands=POLYS.filter(p=>layers.includes(p.layer) && p.pts.length>=3);
+  if(!cands.length) return null;
+  let how='μοναδικό πολύγωνο';
+  if(HANDOFF_KAEK){
+    const m=cands.filter(p=>p.layer.indexOf(HANDOFF_KAEK)>=0);
+    if(m.length){ cands=m; how='ΚΑΕΚ από KAEK-teeIlias'; }
+  }
+  if(cands.length===1) return {poly:cands[0],count:POLYS.filter(p=>layers.includes(p.layer)&&p.pts.length>=3).length,how};
+  const c=areaCentroid(tpoly.pts);
+  cands.forEach(p=>{
+    p._a=area(p.pts);
+    p._s=(pointInPoly(c,p.pts)?1000:0)+tpoly.pts.filter(q=>pointInPoly(q,p.pts)).length;
+  });
+  cands.sort((a,b)=>b._s-a._s||b._a-a._a);
+  return {poly:cands[0],count:cands.length,
+          how:cands[0]._s>0?'επικάλυψη με το τοπογραφικό':'ΔΕΝ βρέθηκε επικάλυψη — επιλέχθηκε το μεγαλύτερο',
+          noOverlap:cands[0]._s===0};
+}
+
 $('run').onclick=()=>{
   $('errbox').innerHTML='';
   const lt=$('selTopo').value, lk=$('selKaek').value;
+  if(!lt||!lk){ showErr('Δεν αναγνωρίστηκαν αυτόματα τα layers — επιλέξτε layer τοπογραφικού και ΚΑΕΚ.'); return; }
   if(lt===lk){ showErr('Επιλέξτε διαφορετικά layers για τοπογραφικό και ΚΑΕΚ.'); return; }
-  const T=pickPoly(lt), K=pickPoly(lk);
+  const T=pickPoly(lt);
+  const K=T?pickKaekPoly(lk,T.poly):null;
   if(!T){ showErr('Δεν βρέθηκε κλειστή πολυγραμμή στο layer τοπογραφικού.'); return; }
   if(!K){ showErr('Δεν βρέθηκε κλειστή πολυγραμμή στο layer ΚΑΕΚ.'); return; }
 
@@ -516,7 +564,7 @@ $('run').onclick=()=>{
   const ok = dE <= Afin + 1e-9;
 
   renderResults({E,Pi,Etopo,Uo,zone,sqrtE,Pt,Et,Aform,Acap,Afin,dE,pct,ok,
-                 Tpoly:T.poly,Kpoly:K.poly,Tcount:T.count,Kcount:K.count,kaekLayer:lk});
+                 Tpoly:T.poly,Kpoly:K.poly,Tcount:T.count,Kcount:K.count,Khow:K.how,KnoOv:!!K.noOverlap,kaekLayer:K.poly.layer});
 };
 
 function fmt(n,d=2){ return n.toLocaleString('el-GR',{minimumFractionDigits:d,maximumFractionDigits:d}); }
@@ -549,31 +597,33 @@ function renderResults(r){
     <div class="formula">Α = (${fmt(r.Et)} − ${fmt(r.E)}) × (${fmt(r.Pi)} / ${fmt(r.Pt,3)}) = ${fmt(r.Aform)} μ²</div>
     <div class="formula">Α(τελικό) = min(${fmt(r.Aform)} ; 7%·Ε=${fmt(r.Acap)}) = ${fmt(r.Afin)} μ²</div>`;
 
-  // multi-poly note
+  // σημείωση επιλογής πολυγώνων
   let notes=[];
-  if(r.Kcount>1) notes.push(`Βρέθηκαν ${r.Kcount} πολυγραμμές στο ΚΑΕΚ layer — χρησιμοποιήθηκε η μεγαλύτερη.`);
+  notes.push(`ΚΑΕΚ: χρησιμοποιήθηκε το πολύγωνο του layer <b>${esc(r.kaekLayer)}</b>`+(r.Kcount>1?` (από ${r.Kcount} υποψήφια · κριτήριο: ${esc(r.Khow)})`:'')+'.');
   if(r.Tcount>1) notes.push(`Βρέθηκαν ${r.Tcount} πολυγραμμές στο τοπογραφικό layer — χρησιμοποιήθηκε η μεγαλύτερη.`);
-  const existingNote=document.querySelector('#results .note');
-  // keep default note; append extra if any
+  const sn=$('selnote'); sn.className=r.KnoOv?'err':'note'; sn.innerHTML=(r.KnoOv?'⚠ ':'')+notes.join('<br>');
   drawSVG(r.Kpoly.pts, r.Tpoly.pts);
 
   // store + prepare AutoCAD table panel
   LAST=r;
   $('tblpanel').style.display='block';
-  $('inKaek').value = detectKaek(r.kaekLayer) || HANDOFF_KAEK || '';
+  $('inKaek').value = detectKaek(r.kaekLayer, r.Kpoly) || HANDOFF_KAEK || '';
   $('tblout').innerHTML='';
   $('tblactions').style.display='none';
   $('results').scrollIntoView({behavior:'smooth',block:'start'});
 }
 
-/* βρες τον αριθμό ΚΑΕΚ από TEXT/MTEXT στο layer του ΚΑΕΚ */
-function detectKaek(layer){
-  const cand=TEXTS.filter(t=>t.layer.toUpperCase()===layer.toUpperCase() && t.text.trim());
-  if(!cand.length) return '';
-  // προτίμησε κείμενα που μοιάζουν με ΚΑΕΚ (πολλά ψηφία)
-  const score=s=>(s.match(/\d/g)||[]).length;
-  cand.sort((a,b)=>score(b.text)-score(a.text));
-  return cand[0].text.trim();
+/* αριθμός ΚΑΕΚ: από το όνομα του layer, από κείμενο μέσα στο πολύγωνο, ή μοναδικό κείμενο του layer */
+function detectKaek(layer,poly){
+  const m=String(layer).match(/(\d{9,14})$/); if(m) return m[1];
+  const isK=t=>/^\d{9,14}$/.test(t.text.trim());
+  if(poly){
+    const ins=TEXTS.filter(t=>t.x!=null && isK(t) && pointInPoly([t.x,t.y],poly.pts));
+    if(ins.length) return ins[0].text.trim();
+  }
+  const cand=TEXTS.filter(t=>t.layer.toUpperCase()===String(layer).toUpperCase() && isK(t));
+  if(cand.length===1) return cand[0].text.trim();
+  return '';
 }
 
 /* ============ SVG OVERLAY ============ */
@@ -710,8 +760,8 @@ $('copyPng').onclick=async()=>{
   if(h.kaek){ HANDOFF_KAEK=String(h.kaek); if($('inKaek')) $('inKaek').value=HANDOFF_KAEK; }
   // Αυτόματη εκτέλεση μόνο αν αναγνωρίστηκαν διακριτά layers TOPO_PROP & PST_KAEK
   const hasTopo=LAYERS.some(l=>l.toUpperCase()==='TOPO_PROP');
-  const hasKaek=LAYERS.some(l=>l.toUpperCase()==='PST_KAEK');
-  if(hasTopo && hasKaek && $('selTopo').value!==$('selKaek').value){
+  const hasKaek=kaekLayers().length>0;
+  if(hasTopo && hasKaek && $('selTopo').value && $('selKaek').value && $('selTopo').value!==$('selKaek').value){
     setTimeout(()=>$('run').click(), 60);
   }
 })();
