@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="el">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Αναζήτηση ΦΕΚ — Εθνικό Τυπογραφείο</title>
+<style>
+  :root{
+    --bg:#0e1116; --panel:#161b22; --panel2:#1c232d; --line:#2b333d;
+    --txt:#e6edf3; --muted:#9aa7b4; --faint:#6b7681;
+    --orange:#ff7a18; --orange-d:#e85d04; --teal:#2dd4bf; --teal-d:#0d9488;
+    --red:#f87171; --green:#34d399; --yellow:#fbbf24;
+    --mono:"IBM Plex Mono",ui-monospace,"Cascadia Code","DejaVu Sans Mono",Consolas,monospace;
+    --sans:"IBM Plex Sans","Segoe UI",system-ui,-apple-system,Roboto,Arial,sans-serif;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{
+    background:var(--bg); color:var(--txt); font-family:var(--sans);
+    font-size:15px; line-height:1.5; min-height:100vh;
+    background-image:radial-gradient(circle at 15% -10%,rgba(255,122,24,.08),transparent 40%),radial-gradient(circle at 110% 10%,rgba(45,212,191,.07),transparent 45%);
+  }
+  .wrap{max-width:1080px; margin:0 auto; padding:24px 16px 60px}
+  header{display:flex; align-items:center; gap:14px; padding-bottom:18px; border-bottom:1px solid var(--line); margin-bottom:22px; flex-wrap:wrap}
+  .logo{width:42px;height:42px;flex:0 0 42px;border:2px solid var(--orange);border-radius:8px;display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-weight:700;color:var(--orange);font-size:18px;letter-spacing:-1px}
+  h1{font-size:20px;margin:0;font-weight:600;letter-spacing:.3px}
+  .sub{color:var(--muted);font-size:12.5px;font-family:var(--mono);margin-top:2px}
+  .tag{margin-left:auto;font-family:var(--mono);font-size:11px;color:var(--teal);border:1px solid var(--teal-d);padding:3px 9px;border-radius:20px;white-space:nowrap}
+
+  .tabs{display:flex;gap:4px;margin-bottom:0}
+  .tab{flex:1;padding:12px 14px;background:var(--panel);border:1px solid var(--line);border-bottom:none;border-radius:8px 8px 0 0;cursor:pointer;color:var(--muted);font-family:var(--mono);font-size:13px;font-weight:600;text-align:center;transition:.15s;user-select:none}
+  .tab:hover{color:var(--txt)}
+  .tab.active{background:var(--panel2);color:var(--orange);border-color:var(--orange);box-shadow:inset 0 2px 0 var(--orange)}
+
+  .panel{background:var(--panel2);border:1px solid var(--line);border-radius:0 0 10px 10px;padding:22px}
+  .grid{display:grid;grid-template-columns:1.6fr 1fr 1fr;gap:14px}
+  @media(max-width:640px){.grid{grid-template-columns:1fr}}
+  .field{display:flex;flex-direction:column;gap:6px}
+  label{font-size:12px;color:var(--muted);font-family:var(--mono);text-transform:uppercase;letter-spacing:.6px}
+  select,input{
+    background:var(--panel);border:1px solid var(--line);color:var(--txt);
+    padding:10px 11px;border-radius:7px;font-family:var(--mono);font-size:14px;width:100%;
+    transition:.15s;
+  }
+  select:focus,input:focus{outline:none;border-color:var(--orange);box-shadow:0 0 0 3px rgba(255,122,24,.15)}
+  input.err{border-color:var(--red);box-shadow:0 0 0 3px rgba(248,113,113,.15)}
+  .hint{font-size:11px;color:var(--faint);font-family:var(--mono);min-height:14px}
+  .hint.bad{color:var(--red)}
+
+  .actions{display:flex;flex-wrap:wrap;gap:10px;margin-top:20px;align-items:center}
+  button.btn{
+    font-family:var(--mono);font-size:13.5px;font-weight:600;cursor:pointer;border-radius:7px;
+    padding:11px 16px;border:1px solid transparent;transition:.15s;display:inline-flex;align-items:center;gap:7px;
+  }
+  .btn-primary{background:var(--orange);color:#1a0f05;border-color:var(--orange)}
+  .btn-primary:hover{background:var(--orange-d)}
+  .btn-ghost{background:transparent;color:var(--teal);border-color:var(--teal-d)}
+  .btn-ghost:hover{background:rgba(45,212,191,.1)}
+  .btn-sub{background:var(--panel);color:var(--muted);border-color:var(--line)}
+  .btn-sub:hover{color:var(--txt);border-color:var(--faint)}
+  button.btn:disabled{opacity:.4;cursor:not-allowed}
+
+  .urlbar{margin-top:18px;background:var(--panel);border:1px solid var(--line);border-radius:7px;padding:10px 12px;font-family:var(--mono);font-size:12.5px;color:var(--teal);word-break:break-all;display:none}
+  .urlbar.show{display:block}
+  .urlbar .lbl{color:var(--faint);user-select:none}
+
+  .toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--panel2);border:1px solid var(--teal-d);color:var(--teal);padding:10px 18px;border-radius:8px;font-family:var(--mono);font-size:13px;opacity:0;transition:.25s;pointer-events:none;z-index:50}
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+  .viewer{margin-top:20px;border:1px solid var(--line);border-radius:10px;overflow:hidden;display:none;background:var(--panel)}
+  .viewer.show{display:block}
+  .viewer-head{display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--panel2);border-bottom:1px solid var(--line);font-family:var(--mono);font-size:12.5px}
+  .viewer-head .t{color:var(--orange);font-weight:600}
+  .viewer-head .close{margin-left:auto;cursor:pointer;color:var(--muted);border:1px solid var(--line);border-radius:5px;padding:3px 9px}
+  .viewer-head .close:hover{color:var(--red);border-color:var(--red)}
+  iframe#pdf{width:100%;height:640px;border:none;background:#525659;display:block}
+
+  .recent{margin-top:28px}
+  .recent h3{font-size:12px;color:var(--muted);font-family:var(--mono);text-transform:uppercase;letter-spacing:.6px;margin:0 0 10px}
+  .chips{display:flex;flex-wrap:wrap;gap:8px}
+  .chip{background:var(--panel);border:1px solid var(--line);border-radius:20px;padding:6px 12px;font-family:var(--mono);font-size:12px;color:var(--muted);cursor:pointer;transition:.15s;display:inline-flex;align-items:center;gap:8px}
+  .chip:hover{border-color:var(--teal-d);color:var(--txt)}
+  .chip .x{color:var(--faint);font-size:14px;line-height:1}
+  .chip .x:hover{color:var(--red)}
+  .empty{color:var(--faint);font-family:var(--mono);font-size:12px}
+
+  footer{margin-top:34px;padding-top:16px;border-top:1px solid var(--line);color:var(--faint);font-size:11.5px;font-family:var(--mono);line-height:1.8}
+  footer b{color:var(--muted);font-weight:600}
+  a.lnk{color:var(--teal);text-decoration:none;border-bottom:1px dotted var(--teal-d)}
+  a.lnk:hover{color:var(--txt)}
+  .note{background:rgba(251,191,36,.07);border:1px solid rgba(251,191,36,.25);border-radius:8px;padding:10px 13px;margin-top:16px;font-size:12px;color:var(--yellow);font-family:var(--mono);line-height:1.6}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div class="logo">ΦΕΚ</div>
+    <div>
+      <h1>Αναζήτηση ΦΕΚ</h1>
+      <div class="sub">API Εθνικού Τυπογραφείου · api.et.gr</div>
+    </div>
+    <div class="tag">δωρεάν · χωρίς authentication</div>
+  </header>
+
+  <div class="tabs">
+    <div class="tab active" data-mode="fek" id="tab-fek">Στοιχεία ΦΕΚ</div>
+    <div class="tab" data-mode="law" id="tab-law">Νομοθεσία (Τεύχος Α')</div>
+  </div>
+
+  <div class="panel">
+
+    <!-- MODE: FEK -->
+    <div id="form-fek">
+      <div class="grid">
+        <div class="field">
+          <label for="issue">Τεύχος</label>
+          <select id="issue"></select>
+          <div class="hint"> </div>
+        </div>
+        <div class="field">
+          <label for="yearF">Έτος</label>
+          <input id="yearF" type="number" inputmode="numeric" placeholder="π.χ. 2025" min="1833" max="9999">
+          <div class="hint" id="hint-yearF">1833–9999</div>
+        </div>
+        <div class="field">
+          <label for="numF">Αριθμός Φύλλου</label>
+          <input id="numF" type="number" inputmode="numeric" placeholder="π.χ. 120" min="1">
+          <div class="hint" id="hint-numF">&gt; 0</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- MODE: LAW -->
+    <div id="form-law" style="display:none">
+      <div class="grid">
+        <div class="field">
+          <label for="lawType">Τύπος Νομοθεσίας</label>
+          <select id="lawType"></select>
+          <div class="hint"> </div>
+        </div>
+        <div class="field">
+          <label for="yearL">Έτος</label>
+          <input id="yearL" type="number" inputmode="numeric" placeholder="π.χ. 2017" min="1833" max="9999">
+          <div class="hint" id="hint-yearL">1833–9999</div>
+        </div>
+        <div class="field">
+          <label for="numL">Αριθμός Νομοθετήματος</label>
+          <input id="numL" type="number" inputmode="numeric" placeholder="π.χ. 4495" min="1">
+          <div class="hint" id="hint-numL">&gt; 0</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="actions">
+      <button class="btn btn-primary" id="btn-view">▸ Προβολή PDF</button>
+      <button class="btn btn-ghost" id="btn-open">↗ Νέα καρτέλα</button>
+      <button class="btn btn-sub" id="btn-dl">↓ Λήψη PDF</button>
+      <button class="btn btn-sub" id="btn-stub">⌯ HTML / Viewer</button>
+      <button class="btn btn-sub" id="btn-copy">⧉ Αντιγραφή συνδέσμου</button>
+    </div>
+
+    <div class="urlbar" id="urlbar"><span class="lbl">URL&nbsp;→&nbsp;</span><span id="urltext"></span></div>
+
+    <div class="note" id="corsnote">
+      Σημ.: Λόγω πολιτικής CORS του API, η σελίδα δεν μπορεί να προ-επιβεβαιώσει αν το ΦΕΚ υπάρχει. Αν ο viewer δείξει «404 / δεν βρέθηκε», ελέγξτε τεύχος/έτος/αριθμό. Όριο API: 100 κλήσεις/λεπτό ανά IP.
+    </div>
+
+    <div class="viewer" id="viewer">
+      <div class="viewer-head">
+        <span class="t" id="viewer-title">PDF</span>
+        <span id="viewer-sub" style="color:var(--faint)"></span>
+        <span class="close" id="viewer-close">✕ Κλείσιμο</span>
+      </div>
+      <iframe id="pdf" title="Προβολή ΦΕΚ"></iframe>
+    </div>
+
+    <div class="recent">
+      <h3>Πρόσφατα</h3>
+      <div class="chips" id="chips"><span class="empty">— καμία πρόσφατη αναζήτηση —</span></div>
+    </div>
+
+  </div>
+
+  <footer>
+    <b>Endpoints:</b> <code>GET /apiFEK/{τεύχος}/{έτος}/{αριθμός}/{pdf|html}</code> · <code>GET /apiLAW/{τύπος}/{έτος}/{αριθμός}/{pdf|html}</code><br>
+    <b>Πηγή:</b> <a class="lnk" href="https://et.gr/ypiresia-api-gia-fek/" target="_blank" rel="noopener">et.gr/ypiresia-api-gia-fek</a> · Εθνικό Τυπογραφείο, Καποδιστρίου 34, Αθήνα · Εργαλείο Τεχνικού Γραφείου Μελετών — Γεωργακόπουλος &amp; Φουντάς
+  </footer>
+
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+"use strict";
+const API = "https://api.et.gr";
+
+// --- Πίνακες αναφοράς (από την επίσημη τεκμηρίωση) ---
+const ISSUES = [
+  [1,"Α"],[2,"Β"],[3,"Γ"],[4,"Δ"],[5,"Ν.Π.Δ.Δ."],[6,"Α.Π.Σ."],[7,"ΠΑΡΑΡΤΗΜΑ"],
+  [8,"Δ.Ε.Β.Ι"],[9,"Α.ΕΙ.Δ."],[10,"Α.Σ.Ε.Π."],[11,"ΑΕ-ΕΠΕ"],[12,"Δ.Δ.Σ."],
+  [13,"Ο.Π.Κ."],[14,"Υ.Ο.Δ.Δ."],[15,"Α.Α.Π"]
+];
+const LAWTYPES = [
+  [1,"Νόμος"],[2,"Π.Δ. (Προεδρικό Διάταγμα)"],[3,"Π.Ν.Π. (Πράξη Νομοθ. Περιεχομένου)"],
+  [101,"Α.Ν. (Αναγκαστικός Νόμος)"],[102,"Β.Δ. (Βασιλικό Διάταγμα)"],[201,"Ε.Ν. (Ειδικός Νόμος)"],
+  [301,"Ν.Δ. (Νομοθετικό Διάταγμα)"],[401,"Ν.Β.Δ."],[501,"Ν.Π.Δ."]
+];
+const ISSUE_MAP = Object.fromEntries(ISSUES);
+const LAW_MAP = Object.fromEntries(LAWTYPES);
+
+// --- init selects ---
+const $ = id => document.getElementById(id);
+function fillSelect(sel, rows){
+  rows.forEach(([v,l])=>{ const o=document.createElement("option"); o.value=v; o.textContent=`${v} — ${l}`; sel.appendChild(o); });
+}
+fillSelect($("issue"), ISSUES);
+fillSelect($("lawType"), LAWTYPES);
+$("issue").value = 1;
+$("lawType").value = 1;
+
+let mode = "fek";
+
+// --- tabs ---
+function setMode(m){
+  mode = m;
+  $("tab-fek").classList.toggle("active", m==="fek");
+  $("tab-law").classList.toggle("active", m==="law");
+  $("form-fek").style.display = m==="fek" ? "" : "none";
+  $("form-law").style.display = m==="law" ? "" : "none";
+  hideUrl();
+}
+$("tab-fek").onclick = ()=>setMode("fek");
+$("tab-law").onclick = ()=>setMode("law");
+
+// --- validation + build ---
+function validate(){
+  let ok=true, year, num, type;
+  if(mode==="fek"){
+    type = parseInt($("issue").value,10);
+    year = parseInt($("yearF").value,10);
+    num  = parseInt($("numF").value,10);
+    ok = markYear($("yearF"),$("hint-yearF"),year) & markNum($("numF"),$("hint-numF"),num);
+  } else {
+    type = parseInt($("lawType").value,10);
+    year = parseInt($("yearL").value,10);
+    num  = parseInt($("numL").value,10);
+    ok = markYear($("yearL"),$("hint-yearL"),year) & markNum($("numL"),$("hint-numL"),num);
+  }
+  if(!ok) return null;
+  return { type, year, num };
+}
+function markYear(inp,hint,v){
+  const good = Number.isInteger(v) && v>=1833 && v<=9999;
+  inp.classList.toggle("err",!good);
+  hint.classList.toggle("bad",!good);
+  hint.textContent = good ? "1833–9999" : "Έτος εκτός ορίων (1833–9999)";
+  return good;
+}
+function markNum(inp,hint,v){
+  const good = Number.isInteger(v) && v>0;
+  inp.classList.toggle("err",!good);
+  hint.classList.toggle("bad",!good);
+  hint.textContent = good ? "> 0" : "Απαιτείται αριθμός > 0";
+  return good;
+}
+function buildUrl(fmt, v){
+  const base = mode==="fek" ? "apiFEK" : "apiLAW";
+  return `${API}/${base}/${v.type}/${v.year}/${v.num}/${fmt}`;
+}
+function labelOf(v){
+  if(mode==="fek") return `ΦΕΚ ${ISSUE_MAP[v.type]} ${v.num}/${v.year}`;
+  return `${LAW_MAP[v.type].split(" ")[0]} ${v.num}/${v.year}`;
+}
+
+// --- url bar ---
+function showUrl(u){ $("urltext").textContent=u; $("urlbar").classList.add("show"); }
+function hideUrl(){ $("urlbar").classList.remove("show"); }
+
+// --- toast ---
+let toastT=null;
+function toast(msg){
+  const t=$("toast"); t.textContent=msg; t.classList.add("show");
+  clearTimeout(toastT); toastT=setTimeout(()=>t.classList.remove("show"),2200);
+}
+
+// --- actions ---
+function withValid(fn){ const v=validate(); if(!v){ toast("Συμπληρώστε σωστά τα πεδία"); return;} fn(v); }
+
+$("btn-view").onclick = ()=>withValid(v=>{
+  const u=buildUrl("pdf",v);
+  showUrl(u);
+  $("viewer-title").textContent = labelOf(v);
+  $("viewer-sub").textContent = "("+u.replace(API+"/","")+")";
+  $("pdf").src = u;
+  $("viewer").classList.add("show");
+  $("viewer").scrollIntoView({behavior:"smooth",block:"nearest"});
+  pushRecent(v);
+});
+$("btn-open").onclick = ()=>withValid(v=>{ const u=buildUrl("pdf",v); showUrl(u); window.open(u,"_blank","noopener"); pushRecent(v); });
+$("btn-dl").onclick = ()=>withValid(v=>{
+  const u=buildUrl("pdf",v); showUrl(u);
+  const a=document.createElement("a"); a.href=u; a.download=""; a.rel="noopener";
+  document.body.appendChild(a); a.click(); a.remove(); pushRecent(v);
+});
+$("btn-stub").onclick = ()=>withValid(v=>{ const u=buildUrl("html",v); showUrl(u); window.open(u,"_blank","noopener"); pushRecent(v); });
+$("btn-copy").onclick = ()=>withValid(v=>{
+  const u=buildUrl("pdf",v); showUrl(u);
+  navigator.clipboard?.writeText(u).then(()=>toast("Ο σύνδεσμος αντιγράφηκε"),()=>toast(u));
+  pushRecent(v);
+});
+$("viewer-close").onclick = ()=>{ $("viewer").classList.remove("show"); $("pdf").src="about:blank"; };
+
+// --- recent (localStorage, per-viewer convenience) ---
+const LS="et_fek_recent_v1";
+function loadRecent(){ try{ return JSON.parse(localStorage.getItem(LS)||"[]"); }catch(e){ return []; } }
+function saveRecent(a){ try{ localStorage.setItem(LS,JSON.stringify(a.slice(0,8))); }catch(e){} }
+function pushRecent(v){
+  const item={mode, type:v.type, year:v.year, num:v.num, label:labelOf(v)};
+  let a=loadRecent().filter(x=>!(x.mode===item.mode&&x.type===item.type&&x.year===item.year&&x.num===item.num));
+  a.unshift(item); saveRecent(a); renderRecent();
+}
+function renderRecent(){
+  const box=$("chips"); const a=loadRecent();
+  if(!a.length){ box.innerHTML='<span class="empty">— καμία πρόσφατη αναζήτηση —</span>'; return; }
+  box.innerHTML="";
+  a.forEach((it,i)=>{
+    const c=document.createElement("span"); c.className="chip";
+    const label=document.createElement("span"); label.textContent=it.label; label.title="Φόρτωση στη φόρμα";
+    label.onclick=()=>applyRecent(it);
+    const x=document.createElement("span"); x.className="x"; x.textContent="×"; x.title="Αφαίρεση";
+    x.onclick=(e)=>{ e.stopPropagation(); const arr=loadRecent(); arr.splice(i,1); saveRecent(arr); renderRecent(); };
+    c.appendChild(label); c.appendChild(x); box.appendChild(c);
+  });
+}
+function applyRecent(it){
+  setMode(it.mode);
+  if(it.mode==="fek"){ $("issue").value=it.type; $("yearF").value=it.year; $("numF").value=it.num; }
+  else { $("lawType").value=it.type; $("yearL").value=it.year; $("numL").value=it.num; }
+  window.scrollTo({top:0,behavior:"smooth"});
+}
+renderRecent();
+
+// Enter submits -> view
+["yearF","numF","yearL","numL"].forEach(id=>$(id).addEventListener("keydown",e=>{ if(e.key==="Enter") $("btn-view").click(); }));
+</script>
+</body>
+</html>
